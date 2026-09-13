@@ -47,8 +47,6 @@
           "message-delete",
           "thread-resolve",
           "thread-add-message",
-          "filter-modified",
-          "filter-removed",
           "filter-modified-complex",
           "card-swiped",
           "disabled-card-highlight-clicked",

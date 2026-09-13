@@ -1,6 +1,5 @@
 import { html, css, PropertyValues } from 'lit';
 import { ifDefined } from 'lit/directives/if-defined.js';
-import { live } from 'lit/directives/live.js';
 import { customElement, state } from 'lit/decorators.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
@@ -48,7 +47,6 @@ import {
 
 import {
 	APP_PAGE_NAMES,
-	askForPathToNavigateTo,
 	cancelConfigureCollectionDialog,
 	closeConfigureCollectionDialog,
 	openConfigureCollectionDialog,
@@ -63,22 +61,14 @@ import {
 } from '../actions/collection.js';
 
 import {
-	collectionDescriptionWithSet,
-	collectionDescriptionWithSort,
 	collectionDescriptionWithSortReversed,
 	collectionDescriptionWithViewMode,
-	collectionDescriptionWithFilterRemoved,
-	collectionDescriptionWithFilterModified,
-	collectionDescriptionWithFilterAppended,
 	collectionURLPath,
 	COLLECTION_URL_PREFIX,
 	CollectionDescription
 } from '../collection_description.js';
 
 import {
-	SET_INFOS,
-	SORTS,
-	ALL_FILTER_NAME,
 	LEGAL_VIEW_MODES,
 	filterNamesAreViewerDependent,
 } from '../filters.js';
@@ -87,12 +77,8 @@ import {
 	ARROW_DOWN_ICON,
 	ARROW_RIGHT_ICON,
 	CANCEL_ICON,
-	LINK_ICON,
 	OPEN_IN_BROWSER_ICON,
-	PLUS_ICON
 } from '../../shared/icons.js';
-
-import './configure-collection-filter.js';
 
 import './card-link.js';
 import './collection-sentence.js';
@@ -110,8 +96,6 @@ import {
 import { ScrollingSharedStyles } from './scrolling-shared-styles.js';
 
 import {
-	SetName,
-	SortName,
 	ViewMode,
 } from '../../shared/types.js';
 
@@ -768,12 +752,6 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	@state()
 		_pointerHighlightArmed = false;
 
-	//The legacy builder's own expansion, for the composer-off path only. The
-	//composer's clause editor is the pill row now, and it is opened by selecting
-	//a pill rather than by a toggle.
-	@state()
-		_builderExpanded = false;
-
 	//WHAT THIS PERSON HAS ACCEPTED BEFORE, read ONCE per composer session.
 	//
 	//The store decays with time, so re-reading it per keystroke would let the
@@ -1042,27 +1020,6 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				min-width: 0;
 			}
 
-			.row {
-				display: flex;
-				flex-direction: row;
-				justify-content: space-between;
-			}
-
-			.row > div {
-				display: flex;
-				flex-direction: column;
-			}
-
-			.mobile .row {
-				flex-wrap: wrap;
-				gap: 0.75em;
-			}
-
-			.mobile .row > div {
-				flex: 1 1 8em;
-				min-width: 0;
-			}
-
 			/* THE SENTENCE IS THE FIRST THING UNDER THE TITLE, and it is prose,
 			   not a form row. collection-sentence renders inline so its pills
 			   wrap like words; this block is only the space around it and the
@@ -1086,8 +1043,8 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			   tightness, C1). It existed to shrink HelpStyles' 1.3em glyph to
 			   something that did not dominate a 1.05em sentence; the sentence
 			   carries no glyph now, and the definition it defined lives on the
-			   dialog title. HelpStyles stays because Source mode's and the
-			   legacy builder's own form labels still use it. */
+			   dialog title. HelpStyles stays because Source mode's own form
+			   label still uses it. */
 
 			/* The word the sentence declines to say at its defaults. Subordinate
 			   in colour and size, like the tail it stands in for, and built on
@@ -1604,12 +1561,6 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			.suggestion-action[data-consequence='transform'] {
 				border-color: var(--app-primary-color);
 			}
-
-			/* A genuine extension rather than a repaint: this is a toggle (it
-			   pairs with aria-pressed and takes .selected from
-			   ButtonSharedStyles), and it needs a square hit target beside the
-			   row it modifies. Kept for the legacy builder path, which still
-			   renders its own selects. */
 
 			/* Source mode's key-hints line sits below its list and outside it, so
 			   the list's last row was clipped underneath it on a narrow screen.
@@ -2271,57 +2222,6 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		!parsed.appPath
 	)}
 			${this._activationMessage ? html`<div class='activation-message' data-problem role='alert'>${this._activationMessage}</div>` : ''}
-		`;
-	}
-
-	_builderRender() {
-		return html`
-			<label>Filters ${help(COLLECTION_HELP)}</label>
-			<ul>
-				${this._collectionDescription.filters.map((filterName, index) => html`
-					<configure-collection-filter
-						.value=${filterName}
-						.index=${index}
-						.mobile=${this.mobile}
-						.filterDescriptions=${this._filterDescriptions}
-						.cardTagInfos=${this._cardTagInfos}
-						.userIDs=${this._userIDs}
-						.userInfos=${this._userInfos}
-						@filter-modified=${this._handleFilterModified}
-						@filter-removed=${this._handleFilterRemoved}>
-					</configure-collection-filter>`)}
-				<li>
-					<button
-						class='small'
-						@click=${this._handleAddFilterClicked}
-						title='Add a new filter (ANDed with other filters)'
-					>
-						${PLUS_ICON}
-					</button>
-				</li>
-			</ul>
-			<div class='row'>
-				<div>
-					<label for='collection-set'>Set</label>
-					<select id='collection-set' @change=${this._handleSetSelectChanged}>
-						${Object.entries(SET_INFOS).map(entry => html`<option value=${entry[0]} title=${entry[1].description} .selected=${live(entry[0] === this._collectionDescription.set)}>${collectionOptionDisplayName(entry[0])}</option>`)}
-					</select>
-				</div>
-				<div>
-					<label for='collection-sort'>Sort</label>
-					<select id='collection-sort' @change=${this._handleSortSelectChanged}>
-						${Object.entries(SORTS).map(entry => html`<option value=${entry[0]} title=${entry[1].description} .selected=${live(entry[0] === this._collectionDescription.sort)}>${collectionOptionDisplayName(entry[0])}</option>`)}
-					</select>
-				</div>
-				<div>
-					<label for='reversed'>Sort Reversed</label>
-					<input type='checkbox' @change=${this._handleSortReversedCheckboxChanged} id='reversed' .checked=${this._collectionDescription.sortReversed}>
-				</div>
-				<div>
-					<label for='modify-path'>Manually modify path</label>
-					<button class='small' id='modify-path' @click=${this._handleModifyPath}>${LINK_ICON}</button>
-				</div>
-			</div>
 		`;
 	}
 
@@ -4748,47 +4648,6 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		);
 	}
 
-	_handleModifyPath() {
-		store.dispatch(askForPathToNavigateTo());
-	}
-
-	//THE LEGACY BUILDER'S OWN HANDLERS. They serve the composer-OFF path, where
-	//the dialog is still the original filter list; the composer's own clause
-	//editing goes through the sentence and the pill row, which never touch a
-	//filter index.
-	_handleFilterModified(e : FilterModifiedEvent) {
-		this._commitDraftEdit(collectionDescriptionWithFilterModified(this._collectionDescription, e.detail.index, e.detail.value));
-	}
-
-	_handleFilterRemoved(e : FilterModifiedEvent) {
-		this._commitDraftEdit(collectionDescriptionWithFilterRemoved(this._collectionDescription, e.detail.index));
-	}
-
-	_handleAddFilterClicked() {
-		this._commitDraftEdit(collectionDescriptionWithFilterAppended(this._collectionDescription, ALL_FILTER_NAME));
-	}
-
-	_handleSetSelectChanged(e : Event) {
-		const ele = e.composedPath()[0];
-		if(!(ele instanceof HTMLSelectElement)) throw new Error('not select element');
-		const set = ele.value as SetName;
-		this._commitDraftEdit(collectionDescriptionWithSet(this._collectionDescription, set));
-	}
-
-	_handleSortSelectChanged(e : Event) {
-		const ele = e.composedPath()[0];
-		if(!(ele instanceof HTMLSelectElement)) throw new Error('not select element');
-		const sort = ele.value as SortName;
-		this._commitDraftEdit(collectionDescriptionWithSort(this._collectionDescription, sort));
-	}
-
-	_handleSortReversedCheckboxChanged(e : Event) {
-		const ele = e.composedPath()[0];
-		if(!(ele instanceof HTMLInputElement)) throw new Error('not input element');
-		const sortReversed = ele.checked;
-		this._commitDraftEdit(collectionDescriptionWithSortReversed(this._collectionDescription, sortReversed));
-	}
-
 	_unregisterNestedEscapeShortcut : (() => void) | null = null;
 
 	//Escape peels the composer's NESTED layers (the filter catalog, then the
@@ -4956,7 +4815,6 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				//Opening over a resting cursor must not decide what Enter does.
 				this._rowHighlightActive = false;
 				this._pointerHighlightArmed = false;
-				this._builderExpanded = false;
 				//COLLAPSED ON EVERY OPEN. The ranked list is what this dialog is for;
 				//the matches are a peek, and a peek that persisted across sessions
 				//would open the composer already spending half its list on cards

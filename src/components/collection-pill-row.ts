@@ -579,8 +579,9 @@ class CollectionPillRow extends LitElement {
 	}
 
 	//Whether focus actually landed, so the palette can fall back rather than
-	//leaving the caret behind the row it just opened. Same contract
-	//configure-collection-filter's own focusPrimaryControl states.
+	//leaving the caret behind the row it just opened. The contract is the one
+	//the deleted configure-collection-filter published and the nested argument
+	//controls still implement.
 	focusPrimaryControl() : boolean {
 		const nested = this.shadowRoot?.querySelector<HTMLElement & {focusPrimaryControl? : () => boolean}>(
 			'.argument configure-collection-date, .argument configure-collection-key-card, .argument configure-collection-multiple-cards'

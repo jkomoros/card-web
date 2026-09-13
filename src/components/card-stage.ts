@@ -150,10 +150,10 @@ export class CardStage extends LitElement {
 			   gesture.
 
 			   WRAPPING, not horizontal scrolling. Wrapping is this app's own
-			   narrow-screen toolbar idiom (the composer's .row, .catalog-setup
-			   and .source-steps all wrap; so do configure-collection-filter's
-			   controls), and it needs no scroll affordance to discover: every
-			   control is simply on screen. max-width is what bounds the row
+			   narrow-screen toolbar idiom (the composer's .source-steps wrap;
+			   so do collection-pill-row's argument controls), and it needs no
+			   scroll affordance to discover: every control is simply on
+			   screen. max-width is what bounds the row
 			   against the centring, and the slotted groups wrap inside
 			   themselves because their round buttons are inline-block. */
 			/* :not(.presenting) — THE WRAP IS FOR THE NARROW TOOLBAR, NOT FOR

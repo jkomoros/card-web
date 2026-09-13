@@ -38,8 +38,6 @@ const COMMENT_EDIT_MESSAGE_NAME = 'message-edit';
 const COMMENT_DELETE_MESSAGE_NAME = 'message-delete';
 const COMMENT_RESOLVE_THREAD_NAME = 'thread-resolve';
 const COMMENT_ADD_MESSAGE_TO_THREAD_NAME = 'thread-add-message';
-const FILTER_MODIFIED_EVENT_NAME = 'filter-modified';
-const FILTER_REMOVED_EVENT_NAME = 'filter-removed';
 const FILTER_MODIFIED_COMPLEX_EVENT_NAME = 'filter-modified-complex';
 const CARD_SWIPED_EVENT_NAME = 'card-swiped';
 const DISABLED_CARD_HIGHLIGHT_CLICKED_EVENT_NAME = 'disabled-card-highlight-clicked';
@@ -181,14 +179,12 @@ type FilterModifiedDetail = {
 
 export type FilterModifiedEvent = CustomEvent<FilterModifiedDetail>;
 
-export const makeFilterModifiedEvent = (value : string, index  = 0) : FilterModifiedEvent => {
-	return new CustomEvent(FILTER_MODIFIED_EVENT_NAME, {composed : true, detail: {value, index}});
-};
-
-export const makeFilterRemovedEvent = (index : number) : FilterModifiedEvent => {
-	return new CustomEvent(FILTER_REMOVED_EVENT_NAME, {composed : true, detail: {value: '', index}});
-};
-
+//makeFilterModifiedEvent and makeFilterRemovedEvent stood here, with their
+//'filter-modified' and 'filter-removed' names. configure-collection-filter was
+//their only emitter and the legacy builder their only listener; both are gone.
+//The COMPLEX event survives because it is the one the composer uses: the
+//argument controls (date, key-card, multiple-cards) report a changed value to
+//collection-pill-row through it, and no index travels with it.
 export const makeFilterModifiedComplexEvent = (value : string) : FilterModifiedEvent => {
 	return new CustomEvent(FILTER_MODIFIED_COMPLEX_EVENT_NAME, {composed : true, detail: {value, index : 0}});
 };

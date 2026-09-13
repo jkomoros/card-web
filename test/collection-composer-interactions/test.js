@@ -113,7 +113,7 @@ describe('Collection Composer interactions', () => {
 		await dialog.updateComplete;
 	};
 
-	//A picked card travels dialog → configure-collection-filter → key-card, and
+	//A picked card travels dialog → collection-pill-row → key-card, and
 	//every element on that road has its own update cycle. One await settles the
 	//first of them, which is how an assertion about what the user SEES can read
 	//the frame before the answer arrived.
