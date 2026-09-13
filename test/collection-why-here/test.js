@@ -399,47 +399,49 @@ describe('why this card is here', () => {
 		});
 	});
 
-	//THE ONE COMPOSER SURFACE THAT SHIPPED UNGATED.
+	//SUPERSEDED SECTION (owner: "default it to on, remove the flag").
 	//
-	//Every other composer surface asks collectionComposerEnabled() — card-view's
-	//empty state, its mobile Compose button, both of its shortcuts, the dialog's
-	//own render, the recents recorder. This section did not, so a user who has
-	//never turned the composer on saw an "In this collection" account of the
-	//engine's decision, and tapping a clause in it opened the LEGACY Configure
-	//Collection dialog, which has no notion of a selected clause and discards it.
+	//This was headed 'THE ONE COMPOSER SURFACE THAT SHIPPED UNGATED', and it
+	//pinned the rollout gate that had been added to the why-here computation so
+	//that a user who had never turned the composer on could not see an "In this
+	//collection" account whose clauses tapped through to the legacy Configure
+	//Collection dialog. There is no flag, no flag-off user and no legacy dialog:
+	//the composer is the dialog, so the account is computed for everyone and the
+	//tap-through lands where it always meant to.
 	//
-	//It is also the most expensive of them: the verdicts materialize a full
-	//filter set per clause on the MAIN thread — a configurable clause scans the
-	//whole corpus to do it — and the panel re-asks on the order of once a second
-	//while it is open. Routing that through the corpus worker is the real answer
-	//and is a separate change; not paying it for users who were never offered
-	//the feature is this one.
-	describe('the gate', () => {
+	//What survives unchanged is the substance the second pin carried — the rows
+	//cannot strand anyone — plus its converse, now that the panel is universal.
+	//The cost note survives too: the verdicts materialize a full filter set per
+	//clause on the MAIN thread, a configurable clause scans the whole corpus to
+	//do it, and the panel re-asks on the order of once a second while it is
+	//open. Routing that through the corpus worker is still the real answer and
+	//still a separate change — it is simply everyone's cost now.
+	describe('the account, for everyone', () => {
 
 		//A SOURCE PIN, because the fact is about which call sites exist rather
 		//than about a value: the panel's own timeout is a debounced side effect
 		//with a corpus behind it, and mounting one to observe an absence would
 		//assert less than reading the line that causes it.
-		it('computes the account only where the composer is turned on', async () => {
+		it('computes the account with nothing to consult first', async () => {
 			const {readFile} = await import('fs/promises');
 			const source = await readFile(new URL('../../src/components/card-info-panel.ts', import.meta.url), 'utf8');
-			assert.match(source, /collectionComposerEnabled\s*\(\s*\)\s*\?\s*selectWhyHereForActiveCard/,
-				'the why-here computation must be behind the composer flag');
-			assert.match(source, /from '\.\.\/collection-composer-mode\.js'/,
-				'and it must ask the one module that owns that flag');
+			assert.match(source, /const whyHere = selectWhyHereForActiveCard\(freshState\);/,
+				'the why-here computation is unconditional');
+			assert.ok(!/collection-composer-mode/.test(source),
+				'and the module that owned the rollout flag is not imported — it does not exist');
 		});
 
-		//AND THE ROWS CANNOT STRAND ANYONE. With no membership there are no
-		//rows, so there is nothing to tap through to a dialog that would throw
-		//the selection away — the same absence the section already renders for a
-		//card it cannot judge.
+		//THE ROWS CANNOT STRAND ANYONE. With no membership there are no rows, so
+		//there is nothing to tap through — the same absence the section already
+		//renders for a card it cannot judge. (Unchanged in substance: this was
+		//always a statement about an empty account, not about a flag.)
 		it('offers no tap-through when there is no account to show', async () => {
 			const element = document.createElement('collection-why-here');
 			Object.assign(element, { expression: parseCollectionExpression(FILTERS), set: 'main', membership: null });
 			document.body.appendChild(element);
 			for (let round = 0; round < 4; round++) await element.updateComplete;
 			assert.strictEqual(element.shadowRoot.querySelectorAll('button').length, 0,
-				'a flag-off reader is offered no clause to open');
+				'no account, no clause to open');
 		});
 	});
 });

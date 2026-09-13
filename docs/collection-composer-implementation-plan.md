@@ -597,6 +597,17 @@ experience delight through relevance, consequence, continuity, and recovery.
 
 ## Rollout and rollback
 
+**SUPERSEDED IN FULL — THERE ARE NO COMPOSER FLAGS.** The owner shipped the
+composer: *"default it to on, remove the flag."* Every capability this section
+names is deleted, not merely defaulted on — `src/collection-composer-mode.ts`
+and its `collection-composer` / `collection-composer-preview` localStorage,
+sessionStorage and URL-hash keys are gone, along with the `dogfood` mode and the
+development/admin slices and parser shadow diagnostics it was reserved for
+(which were never wired to anything and shipped no surface). The composer is the
+`configure-collection-dialog`, live counts are unconditional, and rollback is a
+revert rather than a switch. What follows is the plan as written, kept as the
+record of how the rollout was staged.
+
 Use supported capability bundles, not arbitrary combinations:
 
 - `collection_composer`: master normal-user release gate, default false until

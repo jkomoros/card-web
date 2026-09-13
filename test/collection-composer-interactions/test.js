@@ -29,7 +29,12 @@ globalThis.BroadcastChannel = class {
 	close() {}
 };
 
-window.localStorage.setItem('collection-composer', 'on');
+//NO FLAG IS SET HERE ANY MORE. This line used to read
+//`window.localStorage.setItem('collection-composer', 'on')`, because the
+//composer was behind a rollout flag that defaulted to off. The owner shipped it
+//("default it to on, remove the flag"), so the composer IS the dialog and a
+//suite that had to switch it on would be testing a switch that no longer
+//exists.
 
 //The scope is the signed-in uid, which is empty in these tests.
 const HISTORY_KEY = 'collection-composer-history:public';
@@ -309,7 +314,13 @@ describe('Collection Composer interactions', () => {
 		//it — which is what the selector assertion below actually checks.
 		assert.match(open, /when:[^\n]*whenKeyboardNavigatesIgnoringCollectionComposer/,
 			'the shared keyboard gate must guard Ctrl-K opening the composer');
-		assert.match(open, /collectionComposerEnabled\(\)/);
+		//SUPERSEDED TERM (owner: "default it to on, remove the flag"). This
+		//line used to require `collectionComposerEnabled()` in the binding's
+		//`when`. There is no rollout flag, so the pin is the other way round:
+		//the shared modal/ownership gate is the ONLY term, and nothing else may
+		//stand between Ctrl-K and the composer.
+		assert.ok(!/collectionComposerEnabled/.test(open),
+			'Ctrl-K opens the composer for everyone — no capability term left to consult');
 
 		const navigate = binding('navigate-to-path');
 		assert.match(navigate, /keys: SHORTCUT_COMBOS\['navigate-to-path'\]/,
@@ -317,7 +328,11 @@ describe('Collection Composer interactions', () => {
 		assert.match(navigate, /when: whenKeyboardNavigates/,
 			'the shared keyboard gate must guard Ctrl-Shift-L opening Source');
 		assert.match(navigate, /openConfigureCollectionDialog\('source'\)/,
-			'Ctrl-Shift-L must open the composer in Source mode when it is enabled');
+			'Ctrl-Shift-L must open the composer in Source mode');
+		//And it does ONLY that. The window.prompt() fallback the flag-off path
+		//used is deleted, not merely unreachable.
+		assert.ok(!/askForPathToNavigateTo/.test(source),
+			'the unvalidated navigate prompt is gone from this view entirely');
 	});
 
 	//A source pin, for the same reason the gate pin above is one: card-view
@@ -342,7 +357,12 @@ describe('Collection Composer interactions', () => {
 		//finalSortedCards is non-empty and the length check already declines.
 		assert.ok(!/_collectionIsFallback/.test(predicate),
 			'the empty state must not gate on isFallback — that flag IS the empty-collection signal');
-		assert.match(predicate, /collectionComposerEnabled\(\)/);
+		//SUPERSEDED TERM (owner: "default it to on, remove the flag"). The
+		//predicate used to open with `if (!collectionComposerEnabled()) return
+		//false`, so a flag-off user got no empty state and no Refine. Everyone
+		//gets both now, which is what this asserts instead.
+		assert.ok(!/collectionComposerEnabled/.test(predicate),
+			'an empty collection says so to every user — no capability term left');
 		assert.match(predicate, /finalSortedCards\.length === 0/);
 
 		const emptyStart = source.indexOf('class=\'collection-empty\'');
@@ -3439,7 +3459,6 @@ describe('Collection Composer interactions', () => {
 	//to flicker INSIDE the button's own label; HS-3.3 moved it out beside a
 	//round glyph, which is why this now reads .action-count.)
 	it('keeps a count whose collection did not change across a keystroke', async () => {
-		window.localStorage.setItem('collection-composer-preview', 'on');
 		try {
 			const draftKey = dialog._previewCountKey(dialog._collectionDescription);
 			dialog._retainedPreviewCounts.set(draftKey, 1307);
@@ -3477,7 +3496,6 @@ describe('Collection Composer interactions', () => {
 			assert.ok(placeholder, 'an unknown count must say it is still arriving');
 			assert.strictEqual(placeholder.noun, 'the card count');
 		} finally {
-			window.localStorage.removeItem('collection-composer-preview');
 			dialog._retainedPreviewCounts.clear();
 		}
 	});
@@ -4372,7 +4390,6 @@ describe('Collection Composer interactions', () => {
 	//to move when they do. Driven through the component's own retained-count
 	//cache, the way the keystroke-retention test above drives it.
 	it('runs a live count inside the pill row as its values change', async () => {
-		window.localStorage.setItem('collection-composer-preview', 'on');
 		try {
 			await seedDraft('everything/updated/between/2026-01-01/2026-02-01/');
 			const known = (count) => {
@@ -4409,7 +4426,6 @@ describe('Collection Composer interactions', () => {
 			await settleRender(dialog, pillRow());
 			assert.match(footerCount(), /12 cards/);
 		} finally {
-			window.localStorage.removeItem('collection-composer-preview');
 			dialog._retainedPreviewCounts.clear();
 		}
 	});
@@ -4420,7 +4436,6 @@ describe('Collection Composer interactions', () => {
 	//again. It is answered here, beside the pill, and it is a real preview of a
 	//real different collection rather than a row that undoes a choice.
 	it('previews the collection without the selected pill, from the row itself', async () => {
-		window.localStorage.setItem('collection-composer-preview', 'on');
 		try {
 			await seedDraft('everything/starred/updated/after/7-days-ago/');
 			await openPillRow(1);
@@ -4448,7 +4463,6 @@ describe('Collection Composer interactions', () => {
 			await settleRender(dialog, pillRow());
 			assert.match(pillRowText(), /removing this: 57 cards → 96 cards/);
 		} finally {
-			window.localStorage.removeItem('collection-composer-preview');
 			dialog._retainedPreviewCounts.clear();
 		}
 	});
@@ -5667,17 +5681,15 @@ describe('Collection Composer interactions', () => {
 	//pressing Remove on the pill compile the same edit and neither can omit a
 	//clause the other shows.
 	it('offers the per-clause removals when the draft matches nothing', async () => {
-		//Previews ON, because the point of this section is its NUMBERS: the rows
-		//come into existence when the draft's own count arrives, and the defect
-		//M4 fixed was that nothing then asked for theirs.
-		//THE FLAG IS SET INSIDE THE try, like its three siblings. It used to sit
-		//outside it with an await in between, so a throw from seedDraft left
-		//`collection-composer-preview` switched on in localStorage for every
-		//test after this one — a suite-wide behavior change caused by one
-		//failure, which is the worst moment to also change what the rest of the
-		//suite is testing.
+		//The point of this section is its NUMBERS: the rows come into existence
+		//when the draft's own count arrives, and the defect M4 fixed was that
+		//nothing then asked for theirs. (This test used to switch previews on
+		//through the `collection-composer-preview` localStorage flag, inside the
+		//try so a throw from seedDraft could not leave it set for the rest of
+		//the suite. The flag is gone — previews are unconditional — so there is
+		//nothing to set and nothing to leak; the try/finally stays for the
+		//retained-count cache, which is still per-test state.)
 		try {
-			window.localStorage.setItem('collection-composer-preview', 'on');
 			await seedDraft('everything/starred/has-todo/');
 			//SUPERSEDED PIN (round 3, D3). The section was headed 'Nothing
 			//matches — try removing': a sentence, where every other heading in
@@ -5784,7 +5796,6 @@ describe('Collection Composer interactions', () => {
 			await settleRender(dialog);
 			assert.ok(!dialog._paletteRows.some(row => row.section === 'Try removing'));
 		} finally {
-			window.localStorage.removeItem('collection-composer-preview');
 			dialog._retainedPreviewCounts.clear();
 		}
 	});

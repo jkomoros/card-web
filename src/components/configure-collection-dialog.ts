@@ -129,11 +129,6 @@ import {
 } from '../events.js';
 
 import {
-	collectionComposerEnabled,
-	collectionComposerPreviewEnabled,
-} from '../collection-composer-mode.js';
-
-import {
 	corpusWorkerRunCollection,
 } from '../corpus-bridge.js';
 
@@ -312,6 +307,12 @@ const OPEN_ACTION_NAME = `Open this collection (${shortcutKeys('commit-collectio
 //name says the true thing and the count line, which would be counting the cards
 //of a collection nobody named, is not drawn at all.
 const OPEN_PAGE_ACTION_NAME = `Open this page (${shortcutKeys('commit-collection-composer')})`;
+
+//ONE TITLE, because there is one dialog. It used to be chosen per-instance
+//against the rollout flag — 'Compose a Collection' with the composer on,
+//'Configure Collection' with the legacy builder — and the flag is gone (owner:
+//"default it to on, remove the flag"), so the second name names nothing.
+const COMPOSER_DIALOG_TITLE = 'Compose a Collection';
 
 //A keystroke that has already been spent on a commit.
 //
@@ -2074,8 +2075,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	//open/closed itself) are all in place by then.
 	override innerRender() {
 		if (!this.open) return html``;
-		if (collectionComposerEnabled()) return this._entryMode === 'source' ? this._sourceRender() : this._composerRender();
-		return this._builderRender();
+		return this._entryMode === 'source' ? this._sourceRender() : this._composerRender();
 	}
 
 	get _parsedSource() : ParsedCollectionSource {
@@ -3583,7 +3583,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 	constructor() {
 		super();
-		this.title = collectionComposerEnabled() ? 'Compose a Collection' : 'Configure Collection';
+		this.title = COMPOSER_DIALOG_TITLE;
 		//HS-1.3's definition obligation, kept without a visible concept: the '?'
 		//badge is cut and the sentence it carried lives on the heading. See
 		//_sentenceRender.
@@ -4898,12 +4898,10 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	//Escape a second time on a surface that had silently reopened on their
 	//mistake.
 	override _shouldClose() {
-		//Override base class.
-		if (collectionComposerEnabled()) {
-			store.dispatch(cancelConfigureCollectionDialog());
-		} else {
-			store.dispatch(closeConfigureCollectionDialog());
-		}
+		//Override base class. CANCEL, not close: the discard is the composer's
+		//undo, and it is total. (The legacy builder's plain close, which kept
+		//the draft, went with the builder.)
+		store.dispatch(cancelConfigureCollectionDialog());
 	}
 
 	override updated(changedProps : PropertyValues<this>) {
@@ -5141,12 +5139,16 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		const sourceDescription = this._entryMode === 'source' ? (this._parsedSource.description || this._lastValidSource?.description) : null;
 		const previewDescription = sourceDescription || this._collectionDescription;
 		//THE ONE FACT THAT CHANGES WHICH ROWS EXIST, derived where every other
-		//count is derived and BEFORE any early return — a composer with previews
-		//turned off still has a retained map, and the recovery section is not a
-		//feature of the preview worker. Naming it as state is what puts it in
-		//updated()'s trigger list; see _draftResolvesEmpty for why that matters.
+		//count is derived and BEFORE the early return below — the recovery
+		//section is not a feature of the preview worker. Naming it as state is
+		//what puts it in updated()'s trigger list; see _draftResolvesEmpty for
+		//why that matters.
 		this._draftResolvesEmpty = this._countForDescription(previewDescription) === 0;
-		if (!this.open || !collectionComposerPreviewEnabled()) {
+		//A CLOSED DIALOG COUNTS NOTHING. The subordinate `collection-composer-
+		//preview` flag that also stood here is gone with the rollout flag: live
+		//counts are what the owner accepted the composer WITH, so shipping them
+		//off would ship a different feature.
+		if (!this.open) {
 			this._previewCounts = EMPTY_PREVIEW_COUNTS;
 			this._draftCountPending = false;
 			return;
@@ -5273,7 +5275,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		this._entryMode = selectConfigureCollectionDialogMode(state);
 		this._focusRequest = selectConfigureCollectionDialogFocusRequest(state);
 		this._requestedSelection = selectConfigureCollectionDialogSelection(state);
-		this.title = collectionComposerEnabled() ? 'Compose a Collection' : 'Configure Collection';
+		this.title = COMPOSER_DIALOG_TITLE;
 	}
 
 }

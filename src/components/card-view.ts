@@ -117,16 +117,11 @@ import {
 	toggleCardsDrawerInfo,
 	openConfigureCollectionDialog,
 	navigateToCollectionWithSelected,
-	askForPathToNavigateTo,
 } from '../actions/app.js';
 
 import {
 	deepActiveElement
 } from '../util.js';
-
-import {
-	collectionComposerEnabled,
-} from '../collection-composer-mode.js';
 
 import {
 	readableCollectionExpression,
@@ -704,7 +699,6 @@ class CardView extends connect(store)(PageViewElement) {
 	//fallback placeholder cards actually display, finalSortedCards is
 	//non-empty and the length check below already returns false.
 	get _showCollectionEmptyState() : boolean {
-		if (!collectionComposerEnabled()) return false;
 		if (!this._collection || !this._dataIsFullyLoaded) return false;
 		if (this._collectionPending || this._collectionUpdating) return false;
 		if (this._collectionFailureMessage) return false;
@@ -906,14 +900,14 @@ class CardView extends connect(store)(PageViewElement) {
 					<button class='round ${this._commentsAndInfoPanelOpen ? 'selected' : ''} ${(this._card?.thread_count || 0) > 0 ? 'primary' : ''}' title='Show comments and card info' aria-label='Show comments and card info' aria-pressed=${this._commentsAndInfoPanelOpen ? 'true' : 'false'} @click='${this._handleCommentsOrInfoPanelClicked}'>${FORUM_ICON}</button>
 					<button class='round ${this._commentsAndInfoPanelOpen ? 'selected' : ''}' title='Show comments and card info' aria-label='Show comments and card info' aria-pressed=${this._commentsAndInfoPanelOpen ? 'true' : 'false'} @click='${this._handleCommentsOrInfoPanelClicked}'>${INFO_ICON}</button>
 				</div>
-				${collectionComposerEnabled() ? html`<div slot='actions' class='collection-mobile'>
+				<div slot='actions' class='collection-mobile'>
 					<button
 						class='round'
 						title='Compose collection'
 						aria-label='Compose collection'
 						@click=${this._handleConfigureCollectionClicked}
 					>${RULE_ICON}</button>
-				</div>` : ''}
+				</div>
 				<div slot='actions' class='modify'>
 					<button class='round' title=${`Find a card (${shortcutKeys('find-card')})`} aria-label=${`Find a card (${shortcutKeys('find-card')})`} @click=${this._handleFindClicked}>${SEARCH_ICON}</button>
 					<!-- Titles on wrappers, and a reason for the disabled state:
@@ -1587,7 +1581,7 @@ registerShortcuts([
 		id: 'open-collection-composer',
 		keys: SHORTCUT_COMBOS['open-collection-composer'],
 		label: 'Compose a collection',
-		when: (state) => whenKeyboardNavigatesIgnoringCollectionComposer(state) && collectionComposerEnabled(),
+		when: whenKeyboardNavigatesIgnoringCollectionComposer,
 		handler: () => {
 			store.dispatch(openConfigureCollectionDialog());
 		},
@@ -1595,19 +1589,19 @@ registerShortcuts([
 	{
 		id: 'navigate-to-path',
 		//Ctrl-Shift-L navigates to a URL in the web app without modifying
-		//the URL bar in the browser, which would lead to a full refresh.
-		//With the composer enabled it opens the composer in SOURCE mode
-		//instead — the same job (type a destination directly), said in the
-		//composer's vocabulary and with its validation.
+		//the URL bar in the browser, which would lead to a full refresh. It
+		//opens the composer in SOURCE mode — the same job (type a destination
+		//directly), said in the composer's vocabulary and with its validation.
+		//
+		//The window.prompt() this used to fall back to when the composer was
+		//off is deleted with the flag (owner: "default it to on, remove the
+		//flag"): an unvalidated browser prompt is not a second way to do this
+		//job, it is the version of it that Source mode replaced.
 		keys: SHORTCUT_COMBOS['navigate-to-path'],
 		label: 'Navigate to a path',
 		when: whenKeyboardNavigates,
 		handler: () => {
-			if (collectionComposerEnabled()) {
-				store.dispatch(openConfigureCollectionDialog('source'));
-				return;
-			}
-			store.dispatch(askForPathToNavigateTo());
+			store.dispatch(openConfigureCollectionDialog('source'));
 		},
 	},
 	{

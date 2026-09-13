@@ -120,10 +120,6 @@ import {
 } from '../corpus-bridge.js';
 
 import {
-	collectionComposerEnabled
-} from '../collection-composer-mode.js';
-
-import {
 	corpusWorkerServesCollections
 } from '../corpus-mode.js';
 
@@ -549,21 +545,23 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 				//committed too — "we cannot honestly say" is a real answer for
 				//this card, and holding the previous card's account instead
 				//would be the wrong-card render this stamping exists to prevent.
-				//AND ONLY WHERE THE COMPOSER IS TURNED ON. Every other composer
-				//surface is behind this flag; this one shipped without it, which
-				//made it the one composer surface a flag-off user could see —
-				//and clicking a clause took them to the LEGACY dialog, which has
-				//no notion of a selected clause and silently discards it.
+				//THE ROLLOUT GATE THAT USED TO STAND HERE IS GONE (owner:
+				//"default it to on, remove the flag"). This computation was the
+				//one composer surface that had shipped ungated, and the gate was
+				//added to it so that a user who had never turned the composer on
+				//was not offered a clause whose tap-through led to the legacy
+				//dialog. There is no flag-off user and no legacy dialog now, so
+				//the account is simply computed.
 				//
-				//It is also the most expensive of them. The verdicts materialize
-				//a full filter set per clause on the MAIN thread (see the comment
-				//just below about where this work belongs), a configurable clause
-				//like `updated/after/7-days-ago` scans the whole corpus to do it,
-				//and this timeout runs on the order of once a second while the
-				//panel is open. Moving it to the worker is the real answer and is
-				//not this change; not doing it at all for the users who were
-				//never offered the feature is.
-				const whyHere = collectionComposerEnabled() ? selectWhyHereForActiveCard(freshState) : null;
+				//It remains the most expensive of the composer's surfaces. The
+				//verdicts materialize a full filter set per clause on the MAIN
+				//thread (see the comment just below about where this work
+				//belongs), a configurable clause like `updated/after/7-days-ago`
+				//scans the whole corpus to do it, and this timeout runs on the
+				//order of once a second while the panel is open. Moving it to the
+				//worker is the real answer and is still not this change — but it
+				//is now paid by everyone, which is the cost of shipping it.
+				const whyHere = selectWhyHereForActiveCard(freshState);
 				this._whyHereExpression = whyHere ? whyHere.expression : EMPTY_EXPRESSION;
 				this._whyHereMembership = whyHere ? whyHere.membership : null;
 				this._whyHereForCardID = freshCardID;
