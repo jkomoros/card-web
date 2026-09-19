@@ -12,9 +12,6 @@ import {
 } from './app.js';
 
 import {
-	SORT_REVERSED_URL_KEYWORD,
-	SORT_URL_KEYWORD,
-	VIEW_MODE_URL_KEYWORD,
 	NONE_FILTER_NAME,
 	limitFilter
 } from '../filters.js';
@@ -22,6 +19,7 @@ import {
 import {
 	Collection,
 	CollectionDescription,
+	collectionURLPath,
 } from '../collection_description.js';
 
 import {
@@ -37,7 +35,6 @@ import {
 	selectDataIsFullyLoaded,
 	selectActiveCollectionCards,
 	selectActiveCardID,
-	selectActiveSectionId,
 	selectRequestedCard,
 	selectActiveCard,
 	selectPage,
@@ -346,81 +343,18 @@ export const refreshCardSelector = (forceCommit? : boolean) : ThunkSomeAction =>
 };
 
 export const canonicalizeURL = () : ThunkSomeAction => (dispatch, getState) => {
-
-	//Called to ensure that the URL is canonical given activeSet, activeFilters, etc.
-
 	const state = getState();
-
 	const card = selectActiveCard(state);
-
 	if (!card) return;
-
-	const activeSectionId = selectActiveSectionId(state);
-	const description = selectActiveCollectionDescription(state);
-	const collection = selectActiveCollection(state);
-	const collectionContainsCards = collection && collection.numCards > 0;
-
-	const result = [PAGE_DEFAULT];
-
-	let requestedCard = selectRequestedCard(state);
-	//If the selector was "_" then canonically replace it with just blank.
-	if (requestedCard == PLACEHOLDER_CARD_ID_CHARACTER) requestedCard = '';
-	
-
-	//As long as the card is not a singleton orphan, then we want to put in the
-	//sets and filters (possibly eliding the set if it's the default URL to the
-	//card). A card is a singleton orphan if it has a blank section AND the
-	//current collection doesn't have any cards. It's possible for an orphan
-	//card to be selected, e.g. if the `everything` set (as opposed to the
-	//`main` set) is selected.
-	if (collectionContainsCards || card.section) {
-
-		//We need to show the set name if it's not the default set, or if its
-		//the default set and there are no filters active (e.g.
-		//`c/main/sort/recent/_`)
-		if (description.set != 'main' || description.filters.length == 0) {
-			result.push(description.set);
-		}
-
-		//Don't elide the activeSectionId if we didn't select a specific card
-		if (!activeSectionId || !requestedCard) {
-			//activeSectionId is only there if the only filter is the section name the
-			//user is in, which can be omitted for brevity.
-			result.push(...description.filters);
-		}
-
-	}
-
-	//TODO: it's weird to recreate the logic of CollectionDescription.serialize() here.
-	if (description.sort != 'default' || description.sortReversed) {
-		result.push(SORT_URL_KEYWORD);
-		if(description.sortReversed) {
-			result.push(SORT_REVERSED_URL_KEYWORD);
-		}
-		result.push(description.sort);
-	}
-
-	if (description.viewMode != 'list') {
-		result.push(VIEW_MODE_URL_KEYWORD);
-		result.push(description.viewMode);
-		if (description.viewModeExtra) result.push(description.viewModeExtra);
-	}
-
-
-	if (cardIDIsPlaceholder(requestedCard) || !requestedCard) {
-		//If it was a special placeholder that was requested, then leave it in
-		//the URL. If they arrow down and back up it's OK for it go back to its
-		//canonical URL.
-		result.push(requestedCard);
-	} else {
-		result.push(card.name);
-	}
-
-	const path = result.join('/');
-
-	//Ensure that the article name that we're shwoing--no matter how they
-	//havigated here--is the preferred slug name.
-	dispatch(navigatePathTo(path, true));
+	const requestedCard = selectRequestedCard(state);
+	//The URL records intent, not the current result's cardinality. A worker
+	//result can be empty (or still pending) while an explicitly selected card
+	//exists. Dropping clauses here turned that temporary state into a different
+	//destination on the next refresh. Use the shared serializer, including for
+	//section collections, so passive canonicalization never changes the query.
+	const selectedCard = requestedCard === PLACEHOLDER_CARD_ID_CHARACTER ? '' :
+		cardIDIsPlaceholder(requestedCard) || !requestedCard ? requestedCard : card.name;
+	dispatch(navigatePathTo(collectionURLPath(selectActiveCollectionDescription(state), {selectedCard, originalOrder: true}), true));
 };
 
 export const redirectIfInvalidCardOrCollection = () : ThunkSomeAction => (dispatch, getState) => {
@@ -436,7 +370,9 @@ export const redirectIfInvalidCardOrCollection = () : ThunkSomeAction => (dispat
 	const state = getState();
 	if (!selectDataIsFullyLoaded(state)) return;
 	const card = selectActiveCard(state);
-	const collection = selectActiveCollectionCards(state);
+	const activeCollection = selectActiveCollection(state);
+	if (!activeCollection || activeCollection.isTransitional) return;
+	const collection = activeCollection.finalSortedCards;
 	if (!card) {
 		
 		//If we get here, we could navigate to a default card (we know that the

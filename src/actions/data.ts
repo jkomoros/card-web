@@ -82,8 +82,11 @@ import {
 } from '../util.js';
 
 import {
-	corpusWorkerOwnsCardIngestion
+	corpusWorkerOwnsCardIngestion,
+	corpusWorkerServesCollections,
 } from '../corpus-mode.js';
+
+import { corpusWorkerRefreshActiveCollection } from '../corpus-bridge.js';
 
 import {
 	perfEnabled
@@ -131,7 +134,7 @@ import {
 	selectEnqueuedCards,
 	selectPendingModificationCount,
 	selectPendingModificationCardIDs,
-	getCardIndexForActiveCollection,
+	selectPageExtra,
 	selectUserMayViewUnpublished,
 	selectCorpusStatus,
 } from '../selectors.js';
@@ -3436,68 +3439,60 @@ export const deleteCard = (card : Card) : ThunkSomeAction => async (dispatch, ge
 //up.
 const NEW_CARD_ARRIVAL_BACKSTOP_MS = 15 * 1000;
 
+//Once arrival has handed off to navigation, its bounded worker request owns
+//completion. The shorter arrival timer must not cancel an already-arrived card.
+const newCardNavigationsInFlight = new Set<CardID>();
+
 const scheduleNewCardArrivalBackstop = (dispatch : AppThunkDispatch, getState : () => State, id : CardID) : void => {
 	setTimeout(() => {
-		if (selectPendingNewCardIDToNavigateTo(getState()) !== id) return;
+		if (selectPendingNewCardIDToNavigateTo(getState()) !== id || newCardNavigationsInFlight.has(id)) return;
 		console.warn(`Card ${id} was created but has not fully arrived after ${NEW_CARD_ARRIVAL_BACKSTOP_MS / 1000}s; giving up on navigating to it.`);
 		dispatch({type: EXPECTED_NEW_CARD_FAILED});
 		dispatch(showSnackbar('That card was created, but it’s taking a while to sync. It will appear shortly.', {kind: 'queued'}));
 	}, NEW_CARD_ARRIVAL_BACKSTOP_MS);
 };
 
-//How long navigateToNewCard waits for the active collection to include the
-//just-arrived card before falling through to the default-collection branch.
-//In worker mode the collection recompute trails the card batch by one
-//subscription flush (the worker marks dirty before it forwards; the echo
-//path flushes immediately, so the result normally rides a postMessage round
-//trip behind the card), and navigating before it always took the fallback
-//branch, changed the collection description, and flashed the transitional
-//loading state. Bounded: a card that legitimately does not belong to the
-//active collection stops waiting here and falls through as before.
-const NEW_CARD_IN_COLLECTION_GRACE_MS = 150;
-
-const waitForActiveCollectionToContain = (cardID : CardID, timeoutMs : number) : Promise<void> => {
-	const contains = () => getCardIndexForActiveCollection(store.getState() as State, cardID) >= 0;
-	if (contains()) return Promise.resolve();
-	return new Promise(resolve => {
-		let unsubscribe : (() => void) | null = null;
-		const timer = setTimeout(() => {
-			if (unsubscribe) unsubscribe();
-			resolve();
-		}, timeoutMs);
-		unsubscribe = store.subscribe(() => {
-			if (!contains()) return;
-			clearTimeout(timer);
-			if (unsubscribe) unsubscribe();
-			resolve();
-		});
-	});
-};
-
+//Creation must decide membership from a result computed AFTER the card echo.
+//Elapsed time (formerly 150ms) cannot establish absence on a busy worker.
 export const navigateToNewCard = () : ThunkSomeAction => async (dispatch, getState) => {
-	const ID = selectPendingNewCardIDToNavigateTo(getState());
-	if (!ID) return;
-	//navigateToNewCard is called when the expected card has arrived.
-	//Ensure that we have the up-to-date sections loaded. The case of adding a
-	//card to the current secitno works fine because updateSections will have
-	//called refreshCardSelector with force. But it doesn't work automatically
-	//for working-notes being added when viewinng working ntoes, since those
-	//cards are all oprhaned.
-	dispatch(updateCollectionSnapshot());
-	const activeCardBeforeWait = selectActiveCardID(getState());
-	await waitForActiveCollectionToContain(ID, NEW_CARD_IN_COLLECTION_GRACE_MS);
-	//The wait yielded; a competing navigation may have consumed the pending
-	//flag meanwhile.
+	const state = getState();
+	const ID = selectPendingNewCardIDToNavigateTo(state);
+	if (!ID || newCardNavigationsInFlight.has(ID)) return;
+	newCardNavigationsInFlight.add(ID);
+	const startingCard = selectActiveCardID(state);
+	const startingPath = selectPageExtra(state);
+	const startingUid = selectUid(state);
+	const startingCollection = selectActiveCollectionDescription(state).serialize();
+	let cancelled = false;
+	//Observe the whole wait, including a navigation away and back. Comparing
+	//only the final card ID misses a collection change that keeps that card.
+	const unsubscribe = store.subscribe(() => {
+		const current = getState();
+		if (selectPendingNewCardIDToNavigateTo(current) !== ID ||
+			selectActiveCardID(current) !== startingCard ||
+			selectPageExtra(current) !== startingPath ||
+			selectUid(current) !== startingUid ||
+			selectActiveCollectionDescription(current).serialize() !== startingCollection ||
+			selectIsEditing(current)) cancelled = true;
+	});
+	let ready = true;
+	try {
+		//Local mode computes synchronously from this snapshot. In worker mode,
+		//the RPC follows the already-forwarded echo on the same message port
+		//and installs the answer before navigation can consult membership.
+		dispatch(updateCollectionSnapshot());
+		if (corpusWorkerServesCollections()) ready = await corpusWorkerRefreshActiveCollection();
+	} finally {
+		newCardNavigationsInFlight.delete(ID);
+		unsubscribe();
+	}
 	if (selectPendingNewCardIDToNavigateTo(getState()) !== ID) return;
-	//If the user navigated somewhere themselves during the wait, don't yank
-	//them off the card they chose — stop expecting the new one instead.
-	if (selectActiveCardID(getState()) !== activeCardBeforeWait) {
+	if (cancelled || !ready) {
 		dispatch({type: EXPECTED_NEW_CARD_FAILED});
+		if (!cancelled) dispatch(showSnackbar('Your card was created, but its collection could not be loaded. Use Find to open it.', {kind: 'info'}));
 		return;
 	}
-	//navigateToCard will intiate a chain of actions that culminates in
-	//showCard, where we will note that we navigated to new card so we don't do
-	//it again.
+	//Only an authoritative exclusion may choose the card's default collection.
 	dispatch(navigateToCardInCurrentCollection(ID));
 };
 
