@@ -50,7 +50,7 @@
     "pretest:relative-dates": "node tools/assert-build-fresh.cjs",
     "test:relative-dates": "node --import tsx --test test/relative-dates/test.js",
     "pretest:collection-navigation": "node tools/assert-build-fresh.cjs",
-    "test:collection-navigation": "node --import tsx --test test/collection-navigation/test.js",
+    "test:collection-navigation": "node --import tsx --test test/collection-navigation/test.js && mocha \"test/collection-navigation/*race.test.js\" --timeout=10000 --exit",
     "pretest:deferred-work": "node tools/assert-build-fresh.cjs",
     "test:deferred-work": "node --import tsx --test test/deferred-work/test.js",
     "test:collection-source": "mocha -r esm test/collection-source/test.js --timeout=10000",

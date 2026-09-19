@@ -8,6 +8,7 @@ import { store } from '../store.js';
 
 import {
 	selectActiveCard,
+	selectRequestedCard,
 	selectActiveCardEnriched,
 	selectActiveSectionId,
 	selectDataIsFullyLoaded,
@@ -690,6 +691,9 @@ class CardView extends connect(store)(PageViewElement) {
 		`
 	];
 
+	@state()
+		_requestedCard: string;
+
 	//An empty collection is only worth saying so about once the answer is
 	//final: not while the worker is still computing it, not while stale content
 	//is being held under an "updating" affordance, and not when the failure
@@ -699,6 +703,12 @@ class CardView extends connect(store)(PageViewElement) {
 	//fallback placeholder cards actually display, finalSortedCards is
 	//non-empty and the length check below already returns false.
 	get _showCollectionEmptyState() : boolean {
+		//The editor/pending save owns its card independently of collection
+		//membership. Likewise an explicit card URL must show that card even if
+		//the collection is empty; only a default-item request has no card to
+		//show. The old active card retained by an empty placeholder is not one.
+		if (this._editing || this._displayCardPendingSave) return false;
+		if (this._card && this._requestedCard && this._requestedCard[0] !== '_') return false;
 		if (!this._collection || !this._dataIsFullyLoaded) return false;
 		if (this._collectionPending || this._collectionUpdating) return false;
 		if (this._collectionFailureMessage) return false;
@@ -1257,6 +1267,7 @@ class CardView extends connect(store)(PageViewElement) {
 		const previousCardID = this._card?.id || '';
 		this._editingCard = selectEditingCardForDisplay(state);
 		this._card = selectActiveCard(state);
+		this._requestedCard = selectRequestedCard(state);
 		const activeCardChanged = previousCardID !== (this._card?.id || '');
 		this._editing = selectIsEditing(state);
 		//Reference blocks run ~10 key-card collections over the whole corpus

@@ -862,6 +862,31 @@ const handleCollectionResult = (message : {subscriptionID : number, ids : string
 	scheduleShadowCompare();
 };
 
+//Run the active subscription once after an action has been forwarded to the
+//worker. The one-shot request follows that action on the same worker port, so
+//its answer can be installed before a caller decides whether a card belongs
+//to the active collection. A failed or superseded run is unknown, never an
+//authoritative empty collection.
+export const corpusWorkerRefreshActiveCollection = async () : Promise<boolean> => {
+	if (readMode() !== 'on' || !corpusWorkerCanRunCollections()) return false;
+	const active = bridgeSubscriptions.active;
+	const description = selectActiveCollectionDescription(store.getState() as State).serialize();
+	if (!active.id || active.descriptionSerialized !== description) return false;
+	const requestGeneration = generation;
+	const requestID = active.id;
+	const requestKey = active.key;
+	//The active subscription uses an empty key card. A card ID here would change
+	//the meaning of filters containing `self`.
+	const request = corpusWorkerRunCollection(description, '');
+	if (!request) return false;
+	const result = await request;
+	if (!result || requestGeneration !== generation || !corpusWorkerCanRunCollections()) return false;
+	if (active.id !== requestID || active.key !== requestKey || active.descriptionSerialized !== description) return false;
+	if (selectActiveCollectionDescription(store.getState() as State).serialize() !== description) return false;
+	handleCollectionResult({subscriptionID: requestID, ...result});
+	return true;
+};
+
 //Drop worker-served results as soon as watermark coverage becomes uncertain.
 //Also unsubscribe so a transition back to live creates a fresh push even when
 //the ordered IDs happen to match the last pre-outage result.
