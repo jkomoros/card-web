@@ -54,20 +54,20 @@ import {
 import {
 	selectMultiEditDialogOpen,
 	selectActiveCollectionURLDiagnostics,
-	selectSelectedCardsReferencesUnion,
+	selectMultiEditCardsReferencesUnion,
 	selectTagInfosForCards,
 	selectMultiEditReferencesDiff,
-	selectSelectedCards,
-	selectSelectedCardsMissingCount,
+	selectMultiEditCards,
+	selectMultiEditCardsMissingCount,
 	selectCardModificationPending,
 	selectBulkTagOperationProgress,
 	selectCardModificationError,
-	selectSelectedCardsReferencesIntersection,
+	selectMultiEditCardsReferencesIntersection,
 	selectMultiEditAddTags,
 	selectMultiEditRemoveTags,
 	selectMultiEditCardDiff,
-	selectSelectedCardsTagsUnion,
-	selectSelectedCardsTagsIntersection,
+	selectMultiEditCardsTagsUnion,
+	selectMultiEditCardsTagsIntersection,
 	selectTags,
 	selectMultiEditAddTODOEnablements,
 	selectMultiEditAddTODODisablements,
@@ -388,7 +388,7 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 				${descriptionForCardDiff(this._diff, this._cardTagInfos).map(item => html`<li>${item}</li>`)}
 			</ul>
 			<details>
-				<summary><strong>${this._selectedCards.length}</strong> cards selected</summary>
+				<summary><strong>${this._selectedCards.length + this._missingSelectedCount}</strong> cards selected</summary>
 				<ul>
 					${this._selectedCards.map(card => html`<li><card-link auto='title' card='${card.id}' .noNavigate=${true}></card-link></li>`)}
 				</ul>
@@ -571,21 +571,21 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 		this._corpusStatus = selectCorpusStatus(state);
 		//tODO: it's weird that we manually set our superclasses' public property
 		this.open = selectMultiEditDialogOpen(state);
-		//selectSelectedCardsReferencesUnion is expensive, only do it if we're open.
-		this._unionReferencesCard = this.open ? selectSelectedCardsReferencesUnion(state) : {};
-		this._intersectionReferencesCard = this.open ? selectSelectedCardsReferencesIntersection(state) : {};
+		//selectMultiEditCardsReferencesUnion is expensive, only do it if we're open.
+		this._unionReferencesCard = this.open ? selectMultiEditCardsReferencesUnion(state) : {};
+		this._intersectionReferencesCard = this.open ? selectMultiEditCardsReferencesIntersection(state) : {};
 		this._cardTagInfos = selectTagInfosForCards(state);
 		this._tagInfos = selectTags(state);
 		this._referencesDiff = selectMultiEditReferencesDiff(state);
 		this._addTags = selectMultiEditAddTags(state);
 		this._removeTags = selectMultiEditRemoveTags(state);
-		this._unionTags = this.open ? selectSelectedCardsTagsUnion(state) : [];
-		this._intersectionTags = this.open ? selectSelectedCardsTagsIntersection(state) : [];
+		this._unionTags = this.open ? selectMultiEditCardsTagsUnion(state) : [];
+		this._intersectionTags = this.open ? selectMultiEditCardsTagsIntersection(state) : [];
 		this._todoEnablements = selectMultiEditAddTODOEnablements(state);
 		this._todoDisablements = selectMultiEditAddTODODisablements(state);
 		this._published = selectMultiEditPublished(state);
-		this._selectedCards = selectSelectedCards(state);
-		this._missingSelectedCount = selectSelectedCardsMissingCount(state);
+		this._selectedCards = selectMultiEditCards(state);
+		this._missingSelectedCount = selectMultiEditCardsMissingCount(state);
 		this._cardModificationPending = selectCardModificationPending(state);
 		this._bulkTagProgress = selectBulkTagOperationProgress(state);
 		this._cardModificationError = selectCardModificationError(state);

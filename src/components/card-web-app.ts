@@ -760,7 +760,7 @@ class CardWebApp extends connect(store)(LitElement) {
 
 	private _stopRetryingSave = async () => {
 		const {abandonPendingBulkTagOperation} = await import('../actions/data.js');
-		store.dispatch(abandonPendingBulkTagOperation());
+		await store.dispatch(abandonPendingBulkTagOperation());
 		//The original draft deliberately survives until a server-confirmed save.
 		//Once the durable retry is stopped, surface that draft so the user can
 		//recover it, change the now-invalid edit, and try again.

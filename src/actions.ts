@@ -1144,7 +1144,9 @@ type ActionUpdateMaintenanceTaskActive = {
 };
 
 type ActionMultiEditDialogOpen = {
-	type: typeof MULTI_EDIT_DIALOG_OPEN
+	type: typeof MULTI_EDIT_DIALOG_OPEN,
+	targetIDs: CardID[],
+	uid: Uid | null
 };
 
 type ActionMultiEditDialogClose = {

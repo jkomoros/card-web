@@ -199,11 +199,11 @@ class BulkImportDialog extends connect(store)(DialogElement) {
 			<div class='buttons'>
 				<!-- Title on the wrapper so the reason survives the disabled
 				state (Chrome/Safari suppress hover on disabled controls). -->
-				<span class='reason' title=${!this._saveEligible ? blockedReason(this._corpusStatus, IMPORT_VERB) : 'Create these cards'}>
+				<span class='reason' title=${this._pending ? 'These cards are being created' : !this._saveEligible ? blockedReason(this._corpusStatus, IMPORT_VERB) : 'Create these cards'}>
 					<button
 						class='round'
 						title='Import these cards' aria-label='Import these cards'
-						?disabled=${!this._bodies.length || !this._saveEligible}
+						?disabled=${this._pending || !this._bodies.length || !this._saveEligible}
 						@click='${this._handleDoneClicked}'
 					>
 						${CHECK_CIRCLE_OUTLINE_ICON}

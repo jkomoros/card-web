@@ -1,4 +1,5 @@
 import assert from 'assert';
+import {MultiBatchBase, MultiBatchCommitError} from '../../lib/shared/multi_batch.js';
 
 import {
 	recoveryIDsForGroupOutcomes,
@@ -71,6 +72,27 @@ describe('failed edit rollback', () => {
 });
 
 describe('partial batch recovery classification', () => {
+	it('rereads every affected card when one oversized group both succeeds and fails', async () => {
+		const batches = [];
+		const batch = new MultiBatchBase({
+			createBatch: () => { const result = []; batches.push(result); return result; },
+			batchSet: (target, ref) => target.push(ref),
+			batchUpdate: (target, ref) => target.push(ref),
+			batchDelete: (target, ref) => target.push(ref),
+			commitBatch: async target => { if (target === batches[1]) throw new Error('one physical batch failed'); },
+		}, 2);
+		batch.beginAtomicGroup('oversized');
+		for (const id of ['a', 'b', 'c']) batch.set(id, {});
+		batch.endAtomicGroup();
+		let failure;
+		try { await batch.commit(); } catch (error) { failure = error; }
+		assert.ok(failure instanceof MultiBatchCommitError);
+		assert.deepStrictEqual(failure.succeededGroupIDs, ['oversized']);
+		assert.deepStrictEqual(failure.failedGroupIDs, ['oversized']);
+		assert.deepStrictEqual(recoveryIDsForGroupOutcomes(
+			{oversized: ['a', 'b', 'c']}, failure.succeededGroupIDs, failure.failedGroupIDs,
+		), {failedOnlyIDs: [], ambiguousIDs: ['a', 'b', 'c']});
+	});
 	it('requires no reads when every group failed', () => {
 		const result = recoveryIDsForGroupOutcomes(
 			{a: ['a', 'inbound-a'], b: ['b']},

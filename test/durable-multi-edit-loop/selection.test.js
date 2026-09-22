@@ -7,7 +7,7 @@ const {store, db, uid, firestore} = await bootstrapApp();
 const {doc, setDoc, getDoc} = firestore;
 const {default: collectionReducer} = await import('../../lib/src/reducers/collection.js');
 const {default: multieditReducer} = await import('../../lib/src/reducers/multiedit.js');
-const {commitMultiEditDialog} = await import('../../lib/src/actions/multiedit.js');
+const {commitMultiEditDialog, openMultiEditDialog} = await import('../../lib/src/actions/multiedit.js');
 store.addReducers({collection: collectionReducer, multiedit: multieditReducer});
 
 describe('multi-edit selection at the action boundary', function() {
@@ -35,7 +35,7 @@ describe('multi-edit selection at the action boundary', function() {
 			store.dispatch({type: 'UPDATE_CARDS', cards: {[cards[0].id]: cards[0]}, fetchType: 'unpublished'});
 			store.dispatch({type: 'CLEAR_SELECTED_CARDS'});
 			store.dispatch({type: 'SELECT_CARDS', cards: cards.map(card => card.id)});
-			store.dispatch({type: 'MULTI_EDIT_DIALOG_OPEN'});
+			store.dispatch(openMultiEditDialog());
 			store.dispatch({type: 'MULTI_EDIT_DIALOG_ADD_TAG', tagID: 'bits-and-bobs'});
 			if (mixed) store.dispatch({type: 'MULTI_EDIT_DIALOG_ADD_TODO_DISABLEMENT', todo: 'prioritized'});
 

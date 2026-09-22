@@ -1,4 +1,4 @@
-//Zero-import policy core for the durable multi-edit's overwrite guard, kept
+//Runtime-import-free policy core for the durable multi-edit's overwrite guard, kept
 //separate from src/actions/data.ts so it can be unit tested without the browser
 //Firebase runtime — the same split shared/card-write-guard.ts uses.
 //
@@ -9,6 +9,8 @@
 //destroys that content silently. The interactive save path has always warned
 //about this; the resume path had no equivalent.
 
+import type {NonAutoMergeableCardDiff} from '../shared/types.js';
+
 //The CardDiff fields that REPLACE a value outright, as opposed to merging into
 //it (add_tags, references_diff and friends are additive and always safe to
 //replay). Lives here rather than in card_diff.ts so this module stays a leaf.
@@ -17,11 +19,12 @@ export const NON_AUTOMATIC_MERGE_FIELDS : {[cardDiffField : string]: true} = {
 	title_alternates : true,
 	body : true,
 	subtitle : true,
+	commentary : true,
 	todo : true,
 	notes : true,
 	external_link: true,
 	images : true,
-};
+} satisfies Record<keyof NonAutoMergeableCardDiff, true>;
 
 export type OverwriteConflict = {
 	id : string,

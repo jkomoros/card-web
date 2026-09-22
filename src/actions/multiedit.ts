@@ -2,7 +2,10 @@ import {
 	selectIsEditing,
 	selectMultiEditCardDiff,
 	selectSelectedCards,
-	selectSelectedCardsMissingCount
+	selectExplicitlySelectedCardIDs,
+	selectMultiEditCards,
+	selectMultiEditCardsMissingCount,
+	selectUid
 } from '../selectors.js';
 
 import {
@@ -38,16 +41,19 @@ import {
 } from './data.js';
 import {showSnackbar} from './app.js';
 
-export const openMultiEditDialog = () : ThunkSomeAction => (dispatch, getState) => {
+export const openMultiEditDialog = (savedTargetIDs? : CardID[]) : ThunkSomeAction => (dispatch, getState) => {
 
 	const state = getState();
 
 	//It's not valid to open a multi-edit dialog when an individual card is
 	//being edited
 	if (selectIsEditing(state)) return;
+	const explicitIDs = Object.keys(selectExplicitlySelectedCardIDs(state));
 
 	dispatch({
-		type: MULTI_EDIT_DIALOG_OPEN
+		type: MULTI_EDIT_DIALOG_OPEN,
+		targetIDs: savedTargetIDs ?? (explicitIDs.length ? explicitIDs : selectSelectedCards(state).map(card => card.id)),
+		uid: selectUid(state) || null
 	});
 };
 
@@ -59,6 +65,7 @@ export const closeMultiEditDialog = () : SomeAction => {
 
 export const commitMultiEditDialog = () : ThunkSomeAction => (dispatch, getState) => {
 	const state = getState();
+	if (!state.multiedit?.open || state.multiedit.accountUid !== (selectUid(state) || null)) return;
 
 	const update = selectMultiEditCardDiff(state);
 
@@ -72,12 +79,12 @@ export const commitMultiEditDialog = () : ThunkSomeAction => (dispatch, getState
 	//The button can still reflect the previous render when a selected card
 	//leaves the local cache. Check the complete selection at the write boundary
 	//so a narrowed array can never become a successfully completed operation.
-	if (selectSelectedCardsMissingCount(state)) {
+	if (selectMultiEditCardsMissingCount(state)) {
 		dispatch(showSnackbar('Some selected cards have not loaded yet. Wait for them to load, then save again. Your changes are still here.', {kind: 'refused'}));
 		return;
 	}
 
-	const selectedCards = selectSelectedCards(state);
+	const selectedCards = selectMultiEditCards(state);
 	const keys = Object.keys(update);
 	const pureTagAddition = keys.length === 1 && update.add_tags?.length === 1;
 	const pureTagRemoval = keys.length === 1 && update.remove_tags?.length === 1;

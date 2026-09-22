@@ -1255,6 +1255,8 @@ export type BooleanDiffValue = boolean | null;
 
 export type MultiEditState = {
 	open: boolean,
+	targetIDs: CardID[] | null,
+	accountUid: Uid | null,
 	referencesDiff: ReferencesEntriesDiff,
 	addTags: TagID[],
 	removeTags: TagID[],

@@ -50,8 +50,12 @@ export const recoveryIDsForGroupOutcomes = (
 	const successfulAffected = new Set<CardID>();
 	const failedAffected = new Set<CardID>();
 	for (const [groupID, echoIDs] of Object.entries(echoIDsByGroup)) {
-		const target = succeeded.has(groupID) ? successfulAffected : failed.has(groupID) ? failedAffected : null;
-		if (target) for (const id of echoIDs) target.add(id);
+		//An oversized group can span independent physical batches and thus
+		//appear in BOTH lists. Its cards require server reconciliation.
+		for (const id of echoIDs) {
+			if (succeeded.has(groupID)) successfulAffected.add(id);
+			if (failed.has(groupID)) failedAffected.add(id);
+		}
 	}
 	return {
 		ambiguousIDs: [...failedAffected].filter(id => successfulAffected.has(id)),

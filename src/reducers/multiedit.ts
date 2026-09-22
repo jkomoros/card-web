@@ -9,7 +9,9 @@ import {
 	MULTI_EDIT_DIALOG_REMOVE_TODO_ENABLEMENT,
 	MULTI_EDIT_DIALOG_ADD_TODO_DISABLEMENT,
 	MULTI_EDIT_DIALOG_REMOVE_TODO_DISABLEMENT,
-	MULTI_EDIT_DIALOG_SET_PUBLISHED
+	MULTI_EDIT_DIALOG_SET_PUBLISHED,
+	SIGNIN_SUCCESS,
+	SIGNOUT_SUCCESS
 } from '../actions.js';
 
 import {
@@ -27,6 +29,8 @@ import {
 
 const INITIAL_STATE : MultiEditState = {
 	open: false,
+	targetIDs: null,
+	accountUid: null,
 	referencesDiff: [],
 	addTags: [],
 	removeTags: [],
@@ -37,10 +41,17 @@ const INITIAL_STATE : MultiEditState = {
 
 const app = (state : MultiEditState = INITIAL_STATE, action : SomeAction) : MultiEditState => {
 	switch (action.type) {
+	case SIGNIN_SUCCESS:
+		if (state.accountUid === action.user.uid) return state;
+		return {...INITIAL_STATE, accountUid: action.user.uid};
+	case SIGNOUT_SUCCESS:
+		return INITIAL_STATE;
 	case MULTI_EDIT_DIALOG_OPEN:
 		return {
 			...state,
 			open: true,
+			targetIDs: action.targetIDs ? [...action.targetIDs] : null,
+			accountUid: action.uid ?? state.accountUid,
 			referencesDiff: [],
 			addTags: [],
 			removeTags: [],
@@ -54,6 +65,7 @@ const app = (state : MultiEditState = INITIAL_STATE, action : SomeAction) : Mult
 		return {
 			...state,
 			open: false,
+			targetIDs: null,
 		};
 	case MULTI_EDIT_DIALOG_ADD_REFERENCE:
 		return {

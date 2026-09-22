@@ -7,21 +7,21 @@ import {draftMatchesConfirmedSave} from '../../lib/src/edit-draft-confirmation.j
 describe('durable single-card editing', () => {
 	it('persists before releasing the editor and keeps the draft until confirmation', () => {
 		const data = fs.readFileSync('src/actions/data.ts', 'utf8');
-		const persist = data.indexOf('persistDurableMultiEdit(operation);');
-		const preserve = data.indexOf("card-web-preserve-edit-draft-for-save", persist);
+		const persist = data.indexOf('persistDurableMultiEdit(operation, true);');
+		const preserve = data.indexOf('card-web-preserve-edit-draft-for-save', persist);
 		//editingFinish(true) is the save-flavored teardown: it retains the
 		//committed draft as editor.pendingSaveCard so the card face shows the
 		//new value optimistically instead of flashing the pre-edit copy.
 		const finish = data.indexOf('dispatch(editingFinish(true));', preserve);
 		assert.ok(persist >= 0 && preserve > persist && finish > preserve);
-		assert.ok(data.includes("operation.kind === 'single'"));
-		assert.ok(data.includes("card-web-single-save-confirmed"));
+		assert.ok(data.includes('operation.kind === \'single\''));
+		assert.ok(data.includes('card-web-single-save-confirmed'));
 	});
 
 	it('flushes a pending draft during ordinary page exit', () => {
 		const draft = fs.readFileSync('src/edit-draft.ts', 'utf8');
-		assert.ok(draft.includes("window.addEventListener('beforeunload', flushPendingDraft)"));
-		assert.ok(draft.includes("document.visibilityState === 'hidden'"));
+		assert.ok(draft.includes('window.addEventListener(\'beforeunload\', flushPendingDraft)'));
+		assert.ok(draft.includes('document.visibilityState === \'hidden\''));
 		assert.ok(draft.includes('baseChanged'));
 	});
 
@@ -61,7 +61,7 @@ describe('durable single-card editing', () => {
 		const durableStart = data.indexOf('export const modifyCardsWithDurableMultiEdit');
 		const durableEnd = data.indexOf('const resumePendingDurableMultiEdit', durableStart);
 		const durable = data.slice(durableStart, durableEnd);
-		assert.ok(durable.includes("const compactMultiEdit = operation.kind !== 'single'"));
+		assert.ok(durable.includes('const compactMultiEdit = operation.kind !== \'single\''));
 		assert.ok(durable.includes('false, compactMultiEdit, false'));
 	});
 

@@ -5,7 +5,7 @@ import {bootstrapApp, clearAuxQueue} from '../harness-support/app-harness.js';
 
 const {store, db, dom, firestore} = await bootstrapApp();
 const {bulkCreateWorkingNotes} = await import('../../lib/src/actions/data.js');
-const {openBulkImportDialog} = await import('../../lib/src/actions/bulk-import.js');
+const {openBulkImportDialog, commitBulkImport} = await import('../../lib/src/actions/bulk-import.js');
 const {MultiBatch} = await import('../../lib/src/multi_batch.js');
 const {readPendingAuxWrites} = await import('../../lib/src/aux-write-queue.js');
 const {writeCorpusWorkerMode} = await import('../../lib/src/corpus-mode.js');
@@ -41,6 +41,42 @@ describe('bulk import session ownership (real thunk and executor)', () => {
 		store.dispatch({type: 'CLEAR_SELECTED_CARDS'});
 		clearAuxQueue();
 		writeCorpusWorkerMode('on');
+	});
+
+	it('a pending import refuses repeated activation and disables its rendered button', async () => {
+		await import('../../lib/src/components/bulk-import-dialog.js');
+		setDraft();
+		const element = document.createElement('bulk-import-dialog');
+		document.body.appendChild(element);
+		await element.updateComplete;
+		const originalCommit = MultiBatch.prototype.commit;
+		let release;
+		const paused = new Promise(resolve => { release = resolve; });
+		MultiBatch.prototype.commit = async function() {
+			await paused;
+			return originalCommit.call(this);
+		};
+		const running = store.dispatch(commitBulkImport());
+		try {
+			await element.updateComplete;
+			assert.equal(store.getState().bulkImport.pending, true);
+			const button = element.shadowRoot.querySelector('button[aria-label="Import these cards"]');
+			assert.equal(button.disabled, true, 'a focused button must not accept a second keyboard activation');
+			//The action guard is independently necessary for an event from the
+			//previous render; a disabled-control assertion alone cannot prove it.
+			await store.dispatch(commitBulkImport());
+			const queued = readPendingAuxWrites();
+			assert.equal(queued.length, 1, 'one pasted body must create exactly one durable intent');
+			release();
+			await running;
+			assert.deepEqual(Object.keys(store.getState().collection.selectedCards), [queued[0].cardID]);
+			assert.equal((await firestore.getDoc(firestore.doc(db, 'cards', queued[0].cardID))).exists(), true);
+		} finally {
+			release();
+			await running;
+			MultiBatch.prototype.commit = originalCommit;
+			element.remove();
+		}
 	});
 
 	it('a same-account profile refresh preserves both the draft and a running import', async () => {

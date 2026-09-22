@@ -2340,6 +2340,25 @@ export const selectSelectedCardsMissingCount = createSelector(
 	(result) => result.missing
 );
 
+//A dialog edits the IDs captured when it opened. Listener removals and
+//collection changes must not silently narrow that intent or widen it to the
+//whole collection when the last explicitly selected card disappears.
+export const selectMultiEditTargetIDs = (state : State) => state.multiedit?.targetIDs ?? null;
+const selectMultiEditCardsWithMissing = createSelector(
+	selectCards,
+	selectMultiEditTargetIDs,
+	selectSelectedCardsWithMissing,
+	(cards, targetIDs, selected) => {
+		if (targetIDs === null) return selected;
+		const present = targetIDs.map(id => cards[id]).filter((card) : card is ProcessedCard => Boolean(card));
+		return {cards: present, missing: targetIDs.length - present.length};
+	}
+);
+export const selectMultiEditCards = createSelector(selectMultiEditCardsWithMissing, result => result.cards);
+export const selectMultiEditCardsMissingCount = createSelector(selectMultiEditCardsWithMissing, result => result.missing);
+export const selectMultiEditCardsReferencesUnion = createSelector(selectMultiEditCards, cards => unionReferences(cards));
+export const selectMultiEditCardsReferencesIntersection = createSelector(selectMultiEditCards, cards => intersectionReferences(cards));
+
 export const selectSelectedCardsReferencesUnion = createSelector(
 	selectSelectedCards,
 	(cards) => unionReferences(cards)
@@ -2375,6 +2394,15 @@ export const selectSelectedCardsTagsIntersection = createSelector(
 		}
 		return Object.keys(tags).filter(tag => tags[tag] == cards.length);
 	}
+);
+
+export const selectMultiEditCardsTagsUnion = createSelector(
+	selectMultiEditCards,
+	selectSelectedCardsTagsUnion.resultFunc
+);
+export const selectMultiEditCardsTagsIntersection = createSelector(
+	selectMultiEditCards,
+	selectSelectedCardsTagsIntersection.resultFunc
 );
 
 const selectActiveCollectionWordCloud = createSelector(

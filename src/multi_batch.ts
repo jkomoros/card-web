@@ -5,6 +5,7 @@
 import {
 	getObjectPath,
 	objectPathToValue,
+	deepEqual,
 } from './util.js';
 
 import {
@@ -16,8 +17,10 @@ import {
 	serverTimestamp,
 	arrayUnion,
 	writeBatch,
+	runTransaction,
 	Firestore,
 	WriteBatch,
+	Transaction,
 	SetOptions,
 	DocumentReference
 } from 'firebase/firestore';
@@ -39,8 +42,16 @@ import {
 } from './types.js';
 
 import {
-	beginMutation
+	beginMutation,
+	trackMutation
 } from './mutation-barrier.js';
+
+import {
+	NON_AUTOMATIC_MERGE_FIELDS,
+	overwrittenCardFields,
+	overwriteConflictMessage,
+} from './durable-overwrite-guard.js';
+import {DEFAULT_IMAGE} from './images.js';
 
 const FIRESTORE_BATCH_LIMIT = 500;
 
@@ -93,14 +104,72 @@ const EFFECTIVE_BATCH_LIMIT = SENTINEL_DEFINITION_VALID ? FIRESTORE_BATCH_LIMIT 
 //batch, and will automatically split into multiple underlying batches if it's
 //getting close to the limit. Note that unlike a normal batch, it's possible for
 //a partial failure if one batch fails and others don't.
+type CardFieldGuard = {ref: DocumentReference, base: {[field: string]: unknown}, desired: {[field: string]: unknown}, expected?: {[field: string]: unknown}, groupIDs?: Set<string>};
+
 export class MultiBatch extends MultiBatchBase<WriteBatch, DocumentReference> {
+	private _protectedContent: Map<string, CardFieldGuard>;
+
 	constructor(db : Firestore, batchID? : string) {
+		const protectedContent = new Map<string, CardFieldGuard>();
+		const replay = new WeakMap<WriteBatch, ((transaction: Transaction) => void)[]>();
+		const recordContent = (ref: DocumentReference, data: object) => {
+			const guard = protectedContent.get(ref.path);
+			if (!guard) return;
+			for (const [field, value] of Object.entries(data)) {
+				if (NON_AUTOMATIC_MERGE_FIELDS[field]) guard.desired[field] = value;
+			}
+		};
 		super({
-			createBatch: () => writeBatch(db),
-			batchSet: (batch, ref, data, options?) => batch.set(ref, data, (options as SetOptions) || {}),
-			batchUpdate: (batch, ref, data) => batch.update(ref, data),
-			batchDelete: (batch, ref) => batch.delete(ref),
-			commitBatch: (batch) => batch.commit(),
+			createBatch: () => {
+				const batch = writeBatch(db);
+				replay.set(batch, []);
+				return batch;
+			},
+			batchSet: (batch, ref, data, options?) => {
+				batch.set(ref, data, (options as SetOptions) || {});
+				replay.get(batch)!.push(transaction => transaction.set(ref, data, (options as SetOptions) || {}));
+				recordContent(ref, data);
+			},
+			batchUpdate: (batch, ref, data) => {
+				batch.update(ref, data);
+				replay.get(batch)!.push(transaction => transaction.update(ref, data));
+				recordContent(ref, data);
+			},
+			batchDelete: (batch, ref) => {
+				batch.delete(ref);
+				replay.get(batch)!.push(transaction => transaction.delete(ref));
+			},
+			commitBatch: async (batch, groupIDs) => {
+				const guards = [...protectedContent.values()].filter(guard =>
+					(Object.keys(guard.desired).length || Object.keys(guard.expected || {}).length) &&
+					(!guard.groupIDs || !groupIDs || groupIDs.some(id => guard.groupIDs!.has(id))));
+				if (!guards.length) return batch.commit();
+				//Keep the already-planned writes fixed across SDK retries. A
+				//transaction retry must re-check content, never silently rebase an
+				//older draft onto the newer server value. Read every source before
+				//any write, including in split fanout batches; an already-committed
+				//prefix is safe only while its source still equals our desired value.
+				await trackMutation(() => runTransaction(db, async transaction => {
+					const finishAttempt = beginMutation();
+					try {
+						const snapshots = await Promise.all(guards.map(guard => transaction.get(guard.ref)));
+						for (let index = 0; index < guards.length; index++) {
+							const guard = guards[index];
+							const snapshot = snapshots[index];
+							if (!snapshot.exists()) throw new Error('A card was deleted while this save was being prepared. Your edit was not saved.');
+							const server = snapshot.data();
+							const changedExpectedFields = Object.keys(guard.expected || {}).filter(field => !deepEqual(server[field], guard.expected![field]));
+							if (changedExpectedFields.length) throw new Error('This card changed while its links were being repaired. The repair will retry using the latest card.');
+							const base = Object.fromEntries(Object.keys(guard.desired).map(field => [field, guard.base[field]]));
+							const conflicts = overwrittenCardFields(guard.desired, {[guard.ref.id]: base}, {[guard.ref.id]: server}, [guard.ref.id], {images: DEFAULT_IMAGE as unknown as {[key: string]: unknown}});
+							if (conflicts.length) throw new Error(overwriteConflictMessage(conflicts));
+						}
+						for (const operation of replay.get(batch)!) operation(transaction);
+					} finally {
+						finishAttempt();
+					}
+				}));
+			},
 			preprocessData: installServerTimestamps,
 			writeCountForUpdate: (update: object) => {
 				for (const val of Object.values(update)) {
@@ -114,6 +183,30 @@ export class MultiBatch extends MultiBatchBase<WriteBatch, DocumentReference> {
 				isServerTimestampValue: (value : unknown) => isServerTimestampSentinel(value as FirestoreLeafValue),
 			},
 		}, EFFECTIVE_BATCH_LIMIT, batchID);
+		this._protectedContent = protectedContent;
+	}
+
+	//Opt in with the authoritative planning snapshot, before adding writes.
+	//Only whole-value content fields actually written by this batch are checked;
+	//additive tags/references and unrelated content changes keep their fast path.
+	protectCardContent(ref: DocumentReference, base: object) {
+		const existing = this._protectedContent.get(ref.path);
+		const guard : CardFieldGuard = existing || {ref, base: {...base}, desired: {}, groupIDs: this._atomicGroupID ? new Set() : undefined};
+		if (!this._atomicGroupID) guard.groupIDs = undefined;
+		else guard.groupIDs?.add(this._atomicGroupID);
+		this._protectedContent.set(ref.path, guard);
+	}
+
+	//Fanout repair can depend on source fields without rewriting the source.
+	//Pin those fields to the planning snapshot in the same transaction as the
+	//repair, so a concurrent membership edit cannot revive a stale mirror.
+	protectCardFields(ref: DocumentReference, expected: {[field: string]: unknown}) {
+		const guard = this._protectedContent.get(ref.path) || {ref, base: {}, desired: {}};
+		guard.expected = {...guard.expected, ...expected};
+		//An explicit dependency can protect fanout that never writes the source
+		//document, so it applies to every underlying batch in this operation.
+		guard.groupIDs = undefined;
+		this._protectedContent.set(ref.path, guard);
 	}
 
 	override async commit() : Promise<void> {

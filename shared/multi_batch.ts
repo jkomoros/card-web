@@ -19,7 +19,7 @@ export interface MultiBatchConfig<TBatch, TRef> {
 	batchSet: (batch: TBatch, ref: TRef, data: object, options?: object) => void;
 	batchUpdate: (batch: TBatch, ref: TRef, data: object) => void;
 	batchDelete: (batch: TBatch, ref: TRef) => void;
-	commitBatch: (batch: TBatch) => Promise<void>;
+	commitBatch: (batch: TBatch, groupIDs?: readonly string[]) => Promise<void>;
 	// Client-side denormalized writes frequently make every underlying batch
 	// touch the same tag/section document. Firestore retries those conflicting
 	// commits aggressively, so callers may lower concurrency for reliability.
@@ -255,7 +255,7 @@ export class MultiBatchBase<TBatch, TRef> {
 			while (nextBatchIndex < batches.length) {
 				const index = nextBatchIndex++;
 				try {
-					await this._config.commitBatch(batches[index]);
+					await this._config.commitBatch(batches[index], index < this._batches.length ? undefined : this._atomicBatches[index - this._batches.length].groupIDs);
 					results[index] = {status: 'fulfilled', value: undefined};
 				} catch (reason) {
 					results[index] = {status: 'rejected', reason};
