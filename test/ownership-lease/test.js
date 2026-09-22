@@ -110,7 +110,6 @@ describe('review round-2 wiring fixes', () => {
 describe('pre-land debt fixes (round 5)', () => {
 	const bridge = fs.readFileSync(new URL('../../src/corpus-bridge.ts', import.meta.url), 'utf8');
 	const database = fs.readFileSync(new URL('../../src/actions/database.ts', import.meta.url), 'utf8');
-	const data = fs.readFileSync(new URL('../../src/actions/data.ts', import.meta.url), 'utf8');
 
 	it('a blocked-at-boot tab goes network-inert and reconnects only after winning a takeover', () => {
 		const contended = bridge.indexOf('setOwnershipStatus(\'contended\'');
@@ -130,17 +129,8 @@ describe('pre-land debt fixes (round 5)', () => {
 			'the steal-induced lock rejection must deactivate directly, closing the null-lease resurrection path');
 	});
 
-	it('bulk-tag resume skips confirmed-deleted targets instead of wedging', () => {
-		const start = data.indexOf('const missingIDs = chunkIDs.filter(id => !rawCards[id]);');
-		assert.ok(start >= 0, 'bulk-tag executor must classify missing targets');
-		const executor = data.slice(start, start + 1200);
-		assert.match(executor, /authoritativeCardsAfterFailedCommit\(missingIDs\)/,
-			'missing targets must be read authoritatively, not thrown on');
-		assert.match(executor, /removedIDs\.length/,
-			'confirmed-deleted targets must be counted as skipped');
-		assert.ok(!executor.includes('Cannot safely continue'),
-			'the wedge-forever error must be gone from the missing-target path');
-	});
+	//Deleted bulk-tag targets are exercised against the emulator in
+	//test/durable-multi-edit-loop, rather than pinned to a local variable name.
 });
 
 describe('reader multi-tab (anonymous ownership bypass)', () => {

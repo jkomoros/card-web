@@ -1,7 +1,8 @@
 import {
 	selectIsEditing,
 	selectMultiEditCardDiff,
-	selectSelectedCards
+	selectSelectedCards,
+	selectSelectedCardsMissingCount
 } from '../selectors.js';
 
 import {
@@ -35,6 +36,7 @@ import {
 	modifyCardsWithDurableTagOperation,
 	modifyCardsWithDurableMultiEdit,
 } from './data.js';
+import {showSnackbar} from './app.js';
 
 export const openMultiEditDialog = () : ThunkSomeAction => (dispatch, getState) => {
 
@@ -67,6 +69,13 @@ export const commitMultiEditDialog = () : ThunkSomeAction => (dispatch, getState
 	}
 
 	//There's a change to make. modifyCardsSuccess will close the dialog.
+	//The button can still reflect the previous render when a selected card
+	//leaves the local cache. Check the complete selection at the write boundary
+	//so a narrowed array can never become a successfully completed operation.
+	if (selectSelectedCardsMissingCount(state)) {
+		dispatch(showSnackbar('Some selected cards have not loaded yet. Wait for them to load, then save again. Your changes are still here.', {kind: 'refused'}));
+		return;
+	}
 
 	const selectedCards = selectSelectedCards(state);
 	const keys = Object.keys(update);
@@ -75,10 +84,9 @@ export const commitMultiEditDialog = () : ThunkSomeAction => (dispatch, getState
 	if (pureTagAddition || pureTagRemoval) {
 		const tag = pureTagAddition ? update.add_tags?.[0] : update.remove_tags?.[0];
 		if (!tag) throw new Error('Missing tag for bulk edit');
-		dispatch(modifyCardsWithDurableTagOperation(selectedCards, tag, pureTagAddition));
-		return;
+		return dispatch(modifyCardsWithDurableTagOperation(selectedCards, tag, pureTagAddition));
 	}
-	dispatch(modifyCardsWithDurableMultiEdit(selectedCards, update));
+	return dispatch(modifyCardsWithDurableMultiEdit(selectedCards, update));
 
 };
 

@@ -277,7 +277,8 @@ class BulkImportDialog extends connect(store)(DialogElement) {
 			${outcome.queuedCount ? html`
 				<p><strong>${outcome.queuedCount}</strong> ${outcome.queuedCount === 1 ? 'card is' : 'cards are'} saved and will be created automatically when the connection recovers. Nothing is lost.</p>
 				${outcome.queuedBodies.length ? html`<details><summary>Waiting on the connection</summary><ul>${outcome.queuedBodies.map(body => html`<li>${body}</li>`)}</ul></details>` : ''}` : ''}
-			${outcome.unarrivedCount ? html`<p><strong>${outcome.unarrivedCount}</strong> ${outcome.unarrivedCount === 1 ? 'card was' : 'cards were'} created but ${outcome.unarrivedCount === 1 ? 'has' : 'have'} not synced back to this tab yet, so ${outcome.unarrivedCount === 1 ? 'it is' : 'they are'} not selected. ${outcome.unarrivedCount === 1 ? 'It is' : 'They are'} safe on the server and should appear shortly.</p>` : ''}
+			${outcome.unarrivedCount ? html`<p><strong>${outcome.unarrivedCount}</strong> ${outcome.unarrivedCount === 1 ? 'card was' : 'cards were'} created but ${outcome.unarrivedCount === 1 ? 'has' : 'have'} not synced back to this tab yet. ${outcome.unarrivedCount === 1 ? 'It remains' : 'They remain'} selected and safe on the server.</p>` : ''}
+			${outcome.unarrivedCount || outcome.queuedCount ? html`<p>All cards still being created or loaded remain selected. Saving a multi-edit waits until every selected card has loaded, so none are left out.</p>` : ''}
 			${outcome.discardedCount ? html`
 				<p class='discarded' role='alert'><strong>${outcome.discardedCount}</strong> ${outcome.discardedCount === 1 ? 'card' : 'cards'} could not be saved and will not retry.</p>
 				${outcome.discardedBodies.length ? html`<details><summary>Not saved</summary><ul>${outcome.discardedBodies.map(body => html`<li>${body}</li>`)}</ul></details>` : ''}` : ''}

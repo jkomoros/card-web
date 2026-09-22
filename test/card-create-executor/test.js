@@ -280,10 +280,10 @@ describe('card-create executor (real MultiBatch against the emulator)', () => {
 //
 //The import ends by selecting every card it created and navigating there, and
 //the very next thing a user does is Edit All Cards. So the invariant that
-//matters is not "the cards were written" — it is "everything this import just
-//selected is present in THIS TAB". It was not: the import awaited only ids[0],
-//which is typically back long before the last card has even been committed, so
-//it returned with roughly half its selection still in flight. Measured on a
+//matters is that every created card stays selected, and a successful hand-back
+//has the whole bundle available. The import once awaited only ids[0],
+//which is typically back long before the last card has even been committed,
+//returning with roughly half its selection still in flight. Measured on a
 //real 100-card import through the shipping stack: ~50 outstanding at hand-back.
 //
 //The suite has no Firestore listener, so this stands in for one — it delivers
@@ -520,7 +520,7 @@ describe('bulk import hand-back', () => {
 			`no card was lost, so no card may be reported lost (got ${JSON.stringify(harnessAlerts)})`);
 	});
 
-	it('gives up on a card that never arrives instead of freezing the dialog', async function() {
+	it('releases the dialog after the arrival deadline but keeps late cards in the selection', async function() {
 		this.timeout(120000);
 		clearAuxQueue();
 		clearHarnessAlerts();
@@ -573,8 +573,10 @@ describe('bulk import hand-back', () => {
 		//The bound is 15s; allow generous slack for a loaded machine while still
 		//failing loudly if the per-card 60s timeout is what governs.
 		assert.ok(elapsed < 40000, `the import must not hold its modal for the full per-card timeout (took ${elapsed}ms)`);
-		assert.strictEqual(Object.keys(store.getState().collection.selectedCards).length, CARDS - 1,
-			'only the cards that actually arrived may be selected');
+		assert.strictEqual(Object.keys(store.getState().collection.selectedCards).length, CARDS,
+			'the imported bundle must retain even cards that have not arrived');
+		assert.strictEqual(selectSelectedCardsMissingCount(store.getState()), 1,
+			'multi-edit must be held until the complete selection is available');
 		//The report lives IN the dialog now (#758): the alert() that used to
 		//fire here could name no cards and arrived over a selection that had
 		//already silently narrowed. The dialog stays open with the outcome.
@@ -584,6 +586,19 @@ describe('bulk import hand-back', () => {
 		assert.strictEqual(bulkState.outcome.unarrivedCount, 1, 'the missing committed card is reported as unarrived');
 		assert.strictEqual(bulkState.outcome.createdCount, CARDS - 1);
 		assert.strictEqual(bulkState.open, true, 'the dialog must stay open to show the report');
+
+		//The withheld card arrives AFTER the user dismissed the report. It must
+		//join the same selection automatically, without re-importing or finding
+		//it manually days later in an exclude/tag collection.
+		store.dispatch({type: 'BULK_IMPORT_DIALOG_CLOSE'});
+		const snapshot = await getDocs(query(coll(db, 'cards'), where('card_type', '==', 'working-notes')));
+		const late = snapshot.docs.find(item => !delivered.has(item.id) && String(item.data().body || '').includes(marker));
+		assert.ok(late);
+		store.dispatch({type: 'UPDATE_CARDS', cards: {[late.id]: {...late.data(), id: late.id}}, fetchType: 'unpublished'});
+		assert.strictEqual(selectSelectedCardsMissingCount(store.getState()), 0);
+		const {selectSelectedCards} = await import('../../lib/src/selectors.js');
+		assert.strictEqual(selectSelectedCards(store.getState()).length, CARDS);
+		assert.ok(selectSelectedCards(store.getState()).some(card => card.id === late.id));
 	});
 });
 

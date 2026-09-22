@@ -35,7 +35,7 @@ const app = await bootstrapApp();
 const {db, store, uid: UID, firestore} = app;
 const {doc, getDoc, setDoc, getDocs, collection} = firestore;
 
-const {modifyCardsWithDurableMultiEdit, modifyCardWithBatch} = await import('../../lib/src/actions/data.js');
+const {modifyCardsWithDurableMultiEdit, modifyCardsWithDurableTagOperation, retryPendingBulkTagOperation, modifyCardWithBatch} = await import('../../lib/src/actions/data.js');
 const {MultiBatch} = await import('../../lib/src/multi_batch.js');
 const {applyCardFirebaseUpdate} = await import('../../lib/src/card_diff.js');
 const {arrayUnionSentinel} = await import('../../lib/src/firebase.js');
@@ -115,6 +115,7 @@ describe('durable multi-edit chunk loop (real thunk against the emulator)', func
 	beforeEach(() => {
 		clearAuxQueue();
 		clearRecord();
+		localStorage.removeItem('card-web-pending-bulk-tag-operation-v1');
 		clearHarnessAlerts();
 		markCorpusLive();
 	});
@@ -409,6 +410,120 @@ describe('durable multi-edit chunk loop (real thunk against the emulator)', func
 			store.dispatch({type: 'UPDATE_USER_PERMISSIONS', permissions: {}});
 		}
 	};
+
+	for (const adding of [true, false]) {
+		it(`uses server tag state for every selected card when ${adding ? 'adding' : 'removing'} a tag`, async () => {
+			await withTagEditPermission(['stale-selection'], async () => {
+				const card = await seedCard('stale-tag', {tags: adding ? [] : ['stale-selection']});
+				//The tab believes the target already matches. Another device has
+				//changed it since this copy was delivered.
+				const stale = {...card, tags: adding ? ['stale-selection'] : []};
+				putCardsInStore([stale]);
+				await store.dispatch(modifyCardsWithDurableTagOperation([stale], 'stale-selection', adding));
+				const saved = (await getDoc(doc(db, 'cards', card.id))).data();
+				assert.strictEqual(saved.tags.includes('stale-selection'), adding);
+				assert.equal(await updateDocCount(card.id), 1, 'the actual change must have canonical history');
+			});
+		});
+	}
+
+	it('does not rewrite cards that already match on the server', async () => {
+		await withTagEditPermission(['matching-tag'], async () => {
+			const card = await seedCard('matching-tag', {tags: ['matching-tag', 'keep-other-tag']});
+			const stale = {...card, tags: []};
+			putCardsInStore([stale]);
+			await store.dispatch(modifyCardsWithDurableTagOperation([stale], 'matching-tag', true));
+			assert.equal(await updateDocCount(card.id), 0, 'no-op must not invent card history');
+			assert.deepStrictEqual((await getDoc(doc(db, 'cards', card.id))).data().tags, card.tags);
+		});
+	});
+
+	it('refuses a new tag selection while another selection is pending', async () => {
+		await withTagEditPermission(['same-tag'], async () => {
+			const older = await seedCard('old-tag-target');
+			const newer = await seedCard('new-tag-target');
+			putCardsInStore([older, newer]);
+			localStorage.setItem('card-web-pending-bulk-tag-operation-v1', JSON.stringify({
+				version: 1, id: 'pending-other-selection', uid: UID,
+				tag: 'same-tag', adding: true, targetIDs: [older.id], nextIndex: 0,
+			}));
+			await store.dispatch(modifyCardsWithDurableTagOperation([newer], 'same-tag', true));
+			assert.ok(store.getState().data.cardModificationError, 'new selection must be explicitly refused, never silently replaced');
+			assert.ok(localStorage.getItem('card-web-pending-bulk-tag-operation-v1'), 'original work stays retryable');
+			for (const card of [older, newer]) assert.equal(await updateDocCount(card.id), 0);
+		});
+	});
+
+	it('retries the complete saved tag selection even when a target is not loaded locally', async () => {
+		await withTagEditPermission(['resume-unloaded-tag'], async () => {
+			const card = await seedCard('unloaded-tag-target');
+			//No UPDATE_CARDS: replay must preserve the durable IDs rather than
+			//mistake the available local cards for a different selection.
+			localStorage.setItem('card-web-pending-bulk-tag-operation-v1', JSON.stringify({
+				version: 1, id: 'pending-unloaded-selection', uid: UID,
+				tag: 'resume-unloaded-tag', adding: true, targetIDs: [card.id], nextIndex: 0,
+			}));
+			await store.dispatch(retryPendingBulkTagOperation());
+			assert.ok((await getDoc(doc(db, 'cards', card.id))).data().tags.includes('resume-unloaded-tag'));
+			assert.equal(localStorage.getItem('card-web-pending-bulk-tag-operation-v1'), null);
+		});
+	});
+
+	it('finishes a saved tag selection with deleted targets, including stale local copies', async () => {
+		await withTagEditPermission(['deleted-target-tag'], async () => {
+			const live = await seedCard('surviving-tag-target');
+			const stale = await seedCard('deleted-stale-target');
+			const absent = await seedCard('deleted-absent-target');
+			putCardsInStore([live, stale]);
+			await firestore.deleteDoc(doc(db, 'cards', stale.id));
+			await firestore.deleteDoc(doc(db, 'cards', absent.id));
+			const operationID = `deleted-selection-${Date.now()}`;
+			const targetIDs = [stale.id, live.id, absent.id];
+			localStorage.setItem('card-web-pending-bulk-tag-operation-v1', JSON.stringify({
+				version: 1, id: operationID, uid: UID,
+				tag: 'deleted-target-tag', adding: true, targetIDs, nextIndex: 0,
+			}));
+			await store.dispatch(retryPendingBulkTagOperation());
+			assert.ok((await getDoc(doc(db, 'cards', live.id))).data().tags.includes('deleted-target-tag'));
+			assert.equal((await getDoc(doc(db, 'cards', stale.id))).exists(), false);
+			assert.equal((await getDoc(doc(db, 'cards', absent.id))).exists(), false);
+			assert.equal(localStorage.getItem('card-web-pending-bulk-tag-operation-v1'), null);
+			const checkpoint = (await getDoc(doc(db, 'users', UID, 'multi_edit_chunks', `${operationID}-0`))).data();
+			assert.equal(checkpoint.next_index, targetIDs.length);
+			assert.deepEqual(checkpoint.card_ids, targetIDs);
+			assert.ok(store.getState().app.snackbars.some(item => /2 no longer existed and were skipped/.test(item.message)));
+		});
+	});
+
+	it('saves tag and priority on every target despite unchanged duplicate concept titles', async () => {
+		await withTagEditPermission(['bits-and-bobs'], async () => {
+			const cards = [];
+			for (let i = 0; i < 12; i++) {
+				cards.push(await seedCard(`metadata-${i}`, i >= 10 ? {
+					card_type: 'concept', title: 'unchanged duplicate concept',
+				} : {}));
+			}
+			putCardsInStore(cards);
+			const update = {add_tags: ['bits-and-bobs'], auto_todo_overrides_disablements: ['prioritized']};
+			await store.dispatch(modifyCardsWithDurableMultiEdit(cards, update));
+			for (const card of cards) {
+				const saved = (await getDoc(doc(db, 'cards', card.id))).data();
+				assert.ok(saved.tags.includes('bits-and-bobs'), `${card.id}: tag must save`);
+				assert.strictEqual(saved.auto_todo_overrides.prioritized, false, `${card.id}: priority must save`);
+				assert.strictEqual(saved.title, card.title, 'metadata edits must leave titles unchanged');
+			}
+			assert.equal(readRecord(), null, 'all requested metadata must complete');
+		});
+	});
+
+	it('still rejects duplicate concept names when content is explicitly changed', async () => {
+		const first = await seedCard('duplicate-content-a', {card_type: 'concept', title: 'first concept'});
+		const second = await seedCard('duplicate-content-b', {card_type: 'concept', title: 'second concept'});
+		putCardsInStore([first, second]);
+		await store.dispatch(modifyCardsWithDurableMultiEdit([second], {title: first.title}));
+		assert.strictEqual((await getDoc(doc(db, 'cards', second.id))).data().title, second.title);
+		assert.match(readRecord().lastError, /overlapped/);
+	});
 
 	it('leaves a real ARRAY in the local card after adding tags', async () => { await withTagEditPermission(['already-here', 'added-one', 'added-two'], async () => {
 		const card = await seedCard('echo-add', {tags: ['already-here']});

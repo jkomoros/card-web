@@ -204,6 +204,8 @@ import {
 	applyCardFirebaseUpdate,
 	inboundLinksUpdates,
 	generateFinalCardDiff,
+	generateCardDiff,
+	cardFromDiff,
 } from '../card_diff.js';
 
 import {
@@ -580,7 +582,7 @@ const durableSaveEligible = (state : State) : boolean => {
 	return false;
 };
 
-export const modifyCardsWithDurableTagOperation = (cards : Card[], tag : TagID, adding : boolean) : ThunkSomeAction => async (dispatch, getState) => {
+export const modifyCardsWithDurableTagOperation = (cards : Card[], tag : TagID, adding : boolean, resumeTargetIDs? : CardID[]) : ThunkSomeAction => async (dispatch, getState) => {
 	if (!durableSaveEligible(getState())) {
 		dispatch(modifyCardFailure(new Error(blockedError(selectCorpusStatus(getState()), LABEL_VERB))));
 		return;
@@ -608,27 +610,23 @@ export const modifyCardsWithDurableTagOperation = (cards : Card[], tag : TagID, 
 			throw new Error('A bulk-label operation from another account is pending in this browser. Sign back into that account to finish it.');
 		}
 		if (!operation) {
-			//A heterogeneous selection is the normal UI case. Persist and audit only
-			//cards whose current label state actually needs the requested transform;
-			//arrayUnion/arrayRemove would be state-idempotent but would still bump
-			//updated and create misleading history for already-matching cards.
-			const cardsNeedingChange = cards.filter(card => adding
-				? !(card.tags || []).includes(tag)
-				: (card.tags || []).includes(tag));
-			dispatch(modifyCardAction(cardsNeedingChange.length, cardsNeedingChange.map(card => card.id)));
+			//Capture the complete intent. A local copy that already matches can
+			//be stale: another device may have changed that tag. Classify no-ops
+			//only after reading authoritative copies inside each chunk.
 			operation = {
 				version: 1,
 				id: `bulk-tag-${Date.now()}-${newID()}`,
 				uid,
 				tag,
 				adding,
-				targetIDs: cardsNeedingChange.map(card => card.id),
+				targetIDs: resumeTargetIDs || cards.map(card => card.id),
 				nextIndex: 0,
 			};
 			// This is the write-ahead record: no server mutation may happen first.
 			persistBulkTagOperation(operation);
-		} else if (operation.tag !== tag || operation.adding !== adding) {
-			throw new Error(`Finish the pending ${operation.adding ? 'add' : 'remove'} “${operation.tag}” operation before starting another bulk edit.`);
+		} else if (operation.tag !== tag || operation.adding !== adding ||
+			JSON.stringify(operation.targetIDs) !== JSON.stringify(resumeTargetIDs || cards.map(card => card.id))) {
+			throw new Error('A different tag edit is already pending. Retry or stop that saved operation before saving this selection.');
 		}
 		if (operation.lastError) {
 			delete operation.lastError;
@@ -687,28 +685,14 @@ export const modifyCardsWithDurableTagOperation = (cards : Card[], tag : TagID, 
 			const currentState = getState();
 			if (selectUid(currentState) !== operation.uid) throw new Error('Account changed while the bulk-label operation was running');
 			const rawCards = selectRawCards(currentState);
-			//A target deleted (or no longer visible) mid-operation must not
-			//wedge the resume forever: read the missing ids authoritatively,
-			//SKIP confirmed-deleted ones (positionally — next_index still
-			//advances by the full slice), and only throw for genuinely
-			//unreadable ids, which stay retryable. Mirrors the durable
-			//multi-edit executor's treatment of the same case.
-			const missingIDs = chunkIDs.filter(id => !rawCards[id]);
-			let authoritativeMissing : {cards : Cards, removedIDs : CardID[], failedIDs : CardID[]} = {cards: {}, removedIDs: [], failedIDs: []};
-			if (missingIDs.length) authoritativeMissing = await authoritativeCardsAfterFailedCommit(missingIDs);
-			if (authoritativeMissing.failedIDs.length) throw new Error(`Could not load ${authoritativeMissing.failedIDs.length} target cards from the server`);
-			bulkSkippedCount += authoritativeMissing.removedIDs.length;
+			const authoritative = await authoritativeCardsAfterFailedCommit(chunkIDs);
+			if (authoritative.failedIDs.length) throw new Error(`Could not load ${authoritative.failedIDs.length} target cards from the server`);
+			bulkSkippedCount += authoritative.removedIDs.length;
 			const chunkCards = chunkIDs
-				.map(id => rawCards[id] || authoritativeMissing.cards[id])
-				.filter(Boolean) as Card[];
-			if (!chunkCards.length) {
-				//Every card in this chunk was deleted: nothing to write; just
-				//advance the durable cursor past the slice.
-				operation.nextIndex += chunkIDs.length;
-				persistBulkTagOperation(operation);
-				dispatch(bulkTagProgressAction(operation));
-				continue;
-			}
+				.map(id => authoritative.cards[id])
+				.filter((card) => card && (adding
+					? !(card.tags || []).includes(tag)
+					: (card.tags || []).includes(tag)));
 
 			const batch = new MultiBatch(db);
 			batch.beginAtomicGroup(`${operation.id}-${offset}`);
@@ -738,12 +722,14 @@ export const modifyCardsWithDurableTagOperation = (cards : Card[], tag : TagID, 
 					[adding ? 'add_card' : 'remove_card']: card.id,
 				});
 			}
-			ensureAuthor(batch, selectUser(currentState) as UserInfo);
-			const tagRef = doc(db, TAGS_COLLECTION, operation.tag);
-			batch.update(tagRef, {
-				cards: adding ? arrayUnion(...chunkCards.map(card => card.id)) : arrayRemove(...chunkCards.map(card => card.id)),
-				updated: serverTimestamp(),
-			});
+			if (chunkCards.length) {
+				ensureAuthor(batch, selectUser(currentState) as UserInfo);
+				const tagRef = doc(db, TAGS_COLLECTION, operation.tag);
+				batch.update(tagRef, {
+					cards: adding ? arrayUnion(...chunkCards.map(card => card.id)) : arrayRemove(...chunkCards.map(card => card.id)),
+					updated: serverTimestamp(),
+				});
+			}
 			batch.set(markerRef, {
 				operation_id: operation.id,
 				next_index: chunkStart + chunkIDs.length,
@@ -766,7 +752,7 @@ export const modifyCardsWithDurableTagOperation = (cards : Card[], tag : TagID, 
 		//Transient success belongs in the snack-bar, not a blocking modal
 		//(#758): the dialog has closed, the work is done, and there is
 		//nothing to decide.
-		if (total > 1 || bulkSkippedCount) dispatch(showSnackbar(`${operation.adding ? 'Added' : 'Removed'} “${operation.tag}” ${operation.adding ? 'to' : 'from'} ${total} cards.${bulkSkippedCount ? ` ${bulkSkippedCount} no longer existed and were skipped.` : ''}`, {kind: 'committed'}));
+		if (total > 1 || bulkSkippedCount) dispatch(showSnackbar(`Checked ${operation.targetIDs.length} selected cards. ${operation.adding ? 'Added' : 'Removed'} “${operation.tag}” where needed.${bulkSkippedCount ? ` ${bulkSkippedCount} no longer existed and were skipped.` : ''}`, {kind: 'committed'}));
 		dispatch(modifyCardSuccess(total));
 	} catch (err) {
 		const error = err instanceof Error ? err : new Error(String(err));
@@ -810,6 +796,7 @@ const resumePendingBulkTagOperation = () : ThunkSomeAction => async (dispatch, g
 			operation.targetIDs.map(id => rawCards[id]).filter((card): card is Card => Boolean(card)),
 			operation.tag,
 			operation.adding,
+			operation.targetIDs,
 		));
 	} catch (err) {
 		bulkTagResumeAttemptedThisPage = true;
@@ -836,6 +823,7 @@ export const retryPendingBulkTagOperation = () : ThunkSomeAction => async (dispa
 		operation.targetIDs.map(id => rawCards[id]).filter((card): card is Card => Boolean(card)),
 		operation.tag,
 		operation.adding,
+		operation.targetIDs,
 	));
 };
 
@@ -1719,6 +1707,16 @@ const echoLocalCardModifications = (localEchoes : Cards, expectedScope? : EchoAu
 //(clientClockCardIDs); this is the main-thread analog.
 const awaitingServerTimestampIDs : Set<CardID> = new Set();
 
+//These operations change metadata only. Running content finishers first is
+//both expensive (working-note titles fingerprint the corpus) and incorrect:
+//an unchanged duplicate concept title can reject a tag/priority operation.
+//Keep normal diff generation and validation, including reference validation.
+const MULTI_EDIT_METADATA_FIELDS = new Set([
+	'add_tags', 'remove_tags', 'auto_todo_overrides_enablements',
+	'auto_todo_overrides_disablements', 'auto_todo_overrides_removals',
+	'references_diff', 'published',
+]);
+
 //returns true if a modificatioon was made to the card, or false if it was a no
 //op. When an error is thrown, that's an implied 'false'. If echoCards is
 //provided, the locally-materialized post-write cards (the modified card plus
@@ -1755,11 +1753,13 @@ export const modifyCardWithBatch = async (state : State, card : Card, rawUpdate 
 		throw new Error('User isn\'t allowed to edit the given card');
 	}
 
-	//This is where cardFinishers and fontSizeBoosts are actually applied.
-	let update = await generateFinalCardDiff(state, card, rawUpdate);
+	const metadataOnly = explicitFieldsOnly && Object.keys(rawUpdate).every(field => MULTI_EDIT_METADATA_FIELDS.has(field));
+	let update = metadataOnly
+		? generateCardDiff(card, cardFromDiff(card, rawUpdate), true)
+		: await generateFinalCardDiff(state, card, rawUpdate);
 	// A dialog multi-edit promises to touch only the fields the user selected.
-	// Card-type finishers are still run for validation/no-op normalization, but
-	// derived edits to unrelated fields (notably working-notes/quote titles)
+	// Content edits still run card-type finishers, but derived edits to
+	// unrelated fields (notably working-notes/quote titles)
 	// must not leak into a label, TODO, reference, or publication operation.
 	if (explicitFieldsOnly) {
 		update = Object.fromEntries(TypedObject.entries(update).filter(([field]) => field in rawUpdate)) as CardDiff;
@@ -2536,6 +2536,8 @@ export const bulkCreateWorkingNotes = (bodies : string[], flags? : CardFlags) : 
 		return;
 	}
 	if (!outcomes.some(outcome => outcome === 'committed') && typeof navigator !== 'undefined' && navigator.onLine === false) {
+		dispatch(clearSelectedCards());
+		dispatch(doSelectCards(candidateIDs));
 		//Nothing committed and the browser KNOWS it is offline: nothing can
 		//arrive, so the arrival wait below would only freeze the scrimmed,
 		//cancel-less dialog for its full deadline. onLine === false is
@@ -2575,8 +2577,9 @@ export const bulkCreateWorkingNotes = (bodies : string[], flags? : CardFlags) : 
 	//dialog is scrimmed and inert for the whole wait, so the default 60s would
 	//trade a two-second race for a minute-long freeze whenever ONE card is slow
 	//(measured: 60.5s with a single card withheld). A card that lands after the
-	//deadline is not lost — it is in the corpus, just not in this selection, and
-	//the user is told below.
+	//deadline stays selected by ID. The multi-edit action refuses an incomplete
+	//selection until it arrives, rather than permanently excluding a slow card
+	//from the tags/priority the user applies to the imported bundle.
 	const arrivals = await Promise.allSettled(candidateIDs.map(id => waitForCardToExist(id, BULK_IMPORT_ARRIVAL_TIMEOUT_MS).then(card => {
 		arrivedCount++;
 		reportProgress();
@@ -2590,6 +2593,8 @@ export const bulkCreateWorkingNotes = (bodies : string[], flags? : CardFlags) : 
 	//synced back is safe on the server and just late reaching this tab.
 	const missingQueued = ids.filter((id, index) => missingIDs.has(id) && outcomes[index] === 'queued').length;
 	const missingCommitted = missingIDs.size - missingQueued;
+	dispatch(clearSelectedCards());
+	dispatch(doSelectCards(candidateIDs));
 	if (!arrivedIDs.length) {
 		//Nothing came back at all. Clear the expectation latch too, as every
 		//sibling failure path here does. When every missing card is merely
@@ -2617,16 +2622,13 @@ export const bulkCreateWorkingNotes = (bodies : string[], flags? : CardFlags) : 
 		dispatch({type: EXPECTED_NEW_CARD_FAILED});
 		return;
 	}
-	dispatch(clearSelectedCards());
-	dispatch(doSelectCards(arrivedIDs));
-
 	const discardedCount = outcomes.filter(outcome => outcome === 'discarded').length;
 	if (missingIDs.size || discardedCount) {
 		//Something to say: report it IN the dialog, which stays open until
 		//the user closes it (#758) — instead of an alert() that could name
 		//no cards, arriving over a selection that had already silently
-		//narrowed. The arrived cards are selected above either way, so the
-		//multi-edit the dialog offers covers exactly what it says.
+		//narrowed. Keep every non-discarded ID selected, so late arrivals join
+		//the same selection and multi-edit cannot save just the early subset.
 		console.warn(`${missingIDs.size} of ${candidateIDs.length} imported cards have not arrived in this tab within ${BULK_IMPORT_ARRIVAL_TIMEOUT_MS}ms (${missingQueued} still queued for replay)`);
 		dispatch({type: BULK_IMPORT_OUTCOME, outcome: {
 			createdCount: arrivedIDs.length,

@@ -60,7 +60,6 @@ import {
 	Fingerprint,
 	FingerprintGenerator,
 	PENDING_IDF_MAP,
-	conceptCardsFromCards,
 	getConceptsFromConceptCards,
 	synonymMap
 } from '../nlp.js';
@@ -86,12 +85,16 @@ import {
 	Filters,
 	ProcessedCards,
 	SerializedDescriptionToCardList,
-	Uid
+	Uid,
+	StringCardMap,
+	SynonymMap
 } from '../types.js';
 
 import {
 	CollectionStateHydration
 } from './worker-protocol.js';
+
+import {deepEqual} from '../util.js';
 
 export type RunCollectionOptions = {
 	keyCardID? : CardID,
@@ -127,6 +130,13 @@ export type RunCollectionResult = {
 export class QueryEngine {
 
 	_cards : Cards;
+	//Concept helpers memoize by map identity. Keep this subset immutable even
+	//though the full corpus is mutated in place, and reuse enrichment maps
+	//across ordinary edits so the per-card fingerprint cache survives saves.
+	_conceptCards : Cards = {};
+	_suggestConceptCards : Cards | null = null;
+	_suggestConcepts : StringCardMap = {};
+	_suggestSynonyms : SynonymMap = {};
 	//Bumped whenever _cards actually changes. Memo guards compare this rather
 	//than object identity, which a per-batch rebuild invalidated every time.
 	_cardsVersion : number;
@@ -253,20 +263,27 @@ export class QueryEngine {
 		//paid two O(corpus) rebuilds for nothing. Track set-relevance
 		//separately from content change.
 		let setsChanged = false;
+		let conceptsChanged = false;
 		for (const [id, card] of Object.entries(cards)) {
 			const previous = this._cards[id];
 			if (previous === card) continue;
+			if (previous?.card_type === 'concept' || card.card_type === 'concept') conceptsChanged = true;
 			if (!previous || previous.sort_order !== card.sort_order || previous.section !== card.section) setsChanged = true;
 			this._cards[id] = card;
 			changed = true;
 		}
 		for (const id of removedIDs) {
 			if (!(id in this._cards)) continue;
+			if (this._cards[id].card_type === 'concept') conceptsChanged = true;
 			delete this._cards[id];
 			changed = true;
 			setsChanged = true;
 		}
 		if (changed) this._cardsVersion++;
+		//Preserve corpus iteration order: duplicate titles use the last card.
+		//Appending a newly promoted concept to an incremental subset would
+		//change that winner compared with a fresh load of the same corpus.
+		if (conceptsChanged) this._conceptCards = Object.fromEntries(Object.entries(this._cards).filter(([, card]) => card.card_type === 'concept'));
 		if (setsChanged) this._setsVersion++;
 		this._collectionState = collectionReducer(this._collectionState, {type: UPDATE_CARDS, cards, fetchType: 'published'});
 		if (removedIDs.length) {
@@ -475,10 +492,16 @@ export class QueryEngine {
 		const idfMap = this._effectiveIDFMap();
 		if (this._suggestGenerator && this._suggestGeneratorForCards === this._cardsVersion && this._suggestGeneratorIDFMap === idfMap) return this._suggestGenerator;
 		const processed = this._ensureProcessedCards();
-		const conceptCards = conceptCardsFromCards(this._cards);
-		const concepts = getConceptsFromConceptCards(conceptCards);
-		const synonyms = synonymMap(this._cards);
-		this._suggestGenerator = new FingerprintGenerator(processed, undefined, undefined, idfMap, concepts, synonyms);
+		if (this._suggestConceptCards !== this._conceptCards) {
+			this._suggestConcepts = getConceptsFromConceptCards(this._conceptCards);
+			const synonyms = synonymMap(this._conceptCards);
+			//Metadata-only concept edits must keep the same fingerprint cache
+			//too. Concept extraction already preserves equal outputs; synonyms
+			//need the same check because their helper always allocates a map.
+			if (!deepEqual(synonyms, this._suggestSynonyms)) this._suggestSynonyms = synonyms;
+			this._suggestConceptCards = this._conceptCards;
+		}
+		this._suggestGenerator = new FingerprintGenerator(processed, undefined, undefined, idfMap, this._suggestConcepts, this._suggestSynonyms);
 		this._suggestGeneratorForCards = this._cardsVersion;
 		this._suggestGeneratorIDFMap = idfMap;
 		this._tagFingerprints = null;

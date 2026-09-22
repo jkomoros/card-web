@@ -260,6 +260,66 @@ describe('QueryEngine', () => {
 
 
 	describe('worker-served tag suggestions', () => {
+		it('reuses unchanged card fingerprints after an ordinary card save', () => {
+			const engine = makeEngine();
+			engine.updateCards({concept: card('concept', {card_type: 'concept', title: 'Zebra', title_alternates: 'Equid'})}, []);
+			const before = engine._ensureSuggestGenerator();
+			const unchanged = before.fingerprintForCardID('a');
+			const changed = before.fingerprintForCardID('b');
+			engine.updateCards({b: card('b', {title: 'Entirely different vocabulary'})}, []);
+			const after = engine._ensureSuggestGenerator();
+			assert.strictEqual(after._fingerprintCache, before._fingerprintCache);
+			assert.strictEqual(after.fingerprintForCardID('a'), unchanged,
+				'a one-card save must not recompute TF-IDF for every tagged card');
+			assert.notStrictEqual(after.fingerprintForCardID('b'), changed);
+			assert.notDeepStrictEqual([...after.fingerprintForCardID('b').entries()], [...changed.entries()]);
+		});
+
+		it('retains fingerprints when a concept edit changes only metadata', () => {
+			const engine = makeEngine();
+			const concept = card('concept', {card_type: 'concept', title: 'Zebra', title_alternates: 'Equid'});
+			engine.updateCards({concept}, []);
+			const before = engine._ensureSuggestGenerator();
+			const unchanged = before.fingerprintForCardID('a');
+			engine.updateCards({concept: {...concept, tags: ['bits-and-bobs'], auto_todo_overrides: {prioritized: true}}}, []);
+			const after = engine._ensureSuggestGenerator();
+			assert.strictEqual(after._fingerprintCache, before._fingerprintCache);
+			assert.strictEqual(after.fingerprintForCardID('a'), unchanged);
+		});
+
+		it('refreshes concepts and synonyms on add, edit, type change, and removal', () => {
+			const engine = makeEngine();
+			engine._ensureSuggestGenerator();
+			const compareFresh = () => {
+				const fresh = new QueryEngine();
+				fresh.updateCards({...engine.rawCards}, []);
+				const actual = engine._ensureSuggestGenerator();
+				const expected = fresh._ensureSuggestGenerator();
+				assert.deepStrictEqual(actual._concepts, expected._concepts);
+				assert.deepStrictEqual(actual._synonyms, expected._synonyms);
+				assert.deepStrictEqual([...actual.fingerprintForCardID('a').entries()], [...expected.fingerprintForCardID('a').entries()]);
+			};
+			engine.updateCards({concept: card('concept', {card_type: 'concept', title: 'Zebra', title_alternates: 'Equid'})}, []);
+			compareFresh();
+			engine.updateCards({concept: {...engine.rawCards.concept, title: 'Horse', title_alternates: 'Pony'}}, []);
+			compareFresh();
+			engine.updateCards({concept: {...engine.rawCards.concept, card_type: 'content'}}, []);
+			compareFresh();
+			engine.updateCards({concept: {...engine.rawCards.concept, card_type: 'concept'}}, []);
+			compareFresh();
+			engine.updateCards({}, ['concept']);
+			compareFresh();
+		});
+
+		it('preserves duplicate-title precedence when an existing card becomes a concept', () => {
+			const engine = new QueryEngine();
+			const a = card('a', {title: 'Zebra'});
+			engine.updateCards({a, b: card('b', {title: 'Zebra', card_type: 'concept'})}, []);
+			engine._ensureSuggestGenerator();
+			engine.updateCards({a: {...a, card_type: 'concept'}}, []);
+			assert.strictEqual(engine._ensureSuggestGenerator()._concepts.Zebra, 'b');
+		});
+
 		it('ranks tags by fingerprint overlap with the mirrored editing card, excluding existing tags', async () => {
 			const engine = new QueryEngine();
 			const cards = {};
