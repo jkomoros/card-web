@@ -29,13 +29,13 @@
 //test/security.
 
 import assert from 'assert';
-import {bootstrapApp, clearAuxQueue, clearHarnessAlerts, harnessAlerts, wireCard as harnessWireCard} from '../harness-support/app-harness.js';
+import {bootstrapApp, clearAuxQueue, clearHarnessAlerts, clearWhatUserWasTold, harnessAlerts, wireCard as harnessWireCard} from '../harness-support/app-harness.js';
 
 const app = await bootstrapApp();
 const {db, store, uid: UID, firestore} = app;
 const {doc, getDoc, setDoc, getDocs, collection} = firestore;
 
-const {modifyCardsWithDurableMultiEdit, modifyCardsWithDurableTagOperation, retryPendingBulkTagOperation, modifyCardWithBatch} = await import('../../lib/src/actions/data.js');
+const {modifyCardsWithDurableMultiEdit, modifyCardsWithDurableTagOperation, retryPendingBulkTagOperation, modifyCardWithBatch, receiveCards} = await import('../../lib/src/actions/data.js');
 const {MultiBatch} = await import('../../lib/src/multi_batch.js');
 const {applyCardFirebaseUpdate} = await import('../../lib/src/card_diff.js');
 const {arrayUnionSentinel} = await import('../../lib/src/firebase.js');
@@ -411,7 +411,85 @@ describe('durable multi-edit chunk loop (real thunk against the emulator)', func
 		}
 	};
 
+	for (const mixed of [false, true]) {
+		for (const afterCommit of [false, true]) {
+			it(`${mixed ? 'mixed' : 'pure-tag'} echo preserves concurrent edits delivered ${afterCommit ? 'after' : 'before'} commit`, async () => {
+				const tag = `race-${Date.now()}-${counter++}`;
+				await withTagEditPermission([tag], async () => {
+					const cards = await Promise.all([seedCard('race-first'), seedCard('race-second')]);
+					putCardsInStore(cards);
+					const originalCommit = MultiBatch.prototype.commit;
+					let delivered = false;
+					const deliverConcurrentEdit = async () => {
+						const ref = doc(db, 'cards', cards[0].id);
+						await firestore.updateDoc(ref, {body: '<p>New concurrent content</p>', tags: ['keep-concurrent-tag'], updated: firestore.serverTimestamp()});
+						const snapshot = await getDoc(ref);
+						//The real ingestion thunk PARKS this card while the other
+						//target is pending. A direct UPDATE_CARDS misses that path.
+						store.dispatch(receiveCards({[cards[0].id]: {...snapshot.data(), id: cards[0].id}}, 'unpublished'));
+						delivered = true;
+					};
+					MultiBatch.prototype.commit = async function() {
+						if (!afterCommit) await deliverConcurrentEdit();
+						const result = await originalCommit.call(this);
+						if (afterCommit) await deliverConcurrentEdit();
+						return result;
+					};
+					try {
+						await store.dispatch(mixed
+							? modifyCardsWithDurableMultiEdit(cards, {add_tags: [tag], auto_todo_overrides_disablements: ['prioritized']})
+							: modifyCardsWithDurableTagOperation(cards, tag, true));
+					} finally {
+						MultiBatch.prototype.commit = originalCommit;
+					}
+					assert.ok(delivered, 'must exercise the concurrent server edit and listener delivery');
+					const remote = (await getDoc(doc(db, 'cards', cards[0].id))).data();
+					const local = store.getState().data.cards[cards[0].id];
+					assert.equal(local.body, remote.body, 'the old echo must not revert newer content');
+					assert.deepEqual(local.tags, remote.tags, 'preserve unrelated labels and a later removal of the requested label');
+					assert.ok(local.tags.includes('keep-concurrent-tag'));
+					assert.equal(local.tags.includes(tag), !afterCommit);
+					assert.ok((await getDoc(doc(db, 'cards', cards[1].id))).data().tags.includes(tag));
+				});
+			});
+		}
+	}
+
+	it('reconciles mixed-edit targets after recovering a committed marker', async () => {
+		await withTagEditPermission(['mixed-marker-tag'], async () => {
+			const card = await seedCard('mixed-marker-echo');
+			putCardsInStore([card]);
+			const update = {add_tags: ['mixed-marker-tag'], auto_todo_overrides_disablements: ['prioritized']};
+			const originalCommit = MultiBatch.prototype.commit;
+			MultiBatch.prototype.commit = async function() {
+				await originalCommit.call(this);
+				throw new Error('Lost mixed-edit acknowledgement');
+			};
+			try {
+				await store.dispatch(modifyCardsWithDurableMultiEdit([card], update));
+			} finally {
+				MultiBatch.prototype.commit = originalCommit;
+			}
+			assert.equal(readRecord().nextIndex, 0, 'the acknowledgement must be lost before local progress');
+			await store.dispatch(modifyCardsWithDurableMultiEdit([], update, false, 'multi', [card.id]));
+			const server = (await getDoc(doc(db, 'cards', card.id))).data();
+			assert.deepEqual(store.getState().data.cards[card.id].tags, server.tags);
+			assert.deepEqual(store.getState().data.cards[card.id].auto_todo_overrides, server.auto_todo_overrides);
+			assert.equal(await updateDocCount(card.id), 1, 'reconciliation must not repeat the write');
+		});
+	});
+
 	for (const adding of [true, false]) {
+		it(`echoes a pure tag ${adding ? 'addition' : 'removal'} into the local corpus after commit`, async () => {
+			await withTagEditPermission(['pure-echo'], async () => {
+				const card = await seedCard('pure-echo', {tags: adding ? ['keep'] : ['keep', 'pure-echo']});
+				putCardsInStore([card]);
+				await store.dispatch(modifyCardsWithDurableTagOperation([card], 'pure-echo', adding));
+				assert.deepEqual(storeTags(card.id), adding ? ['keep', 'pure-echo'] : ['keep']);
+				assert.deepEqual(storeTags(card.id), (await getDoc(doc(db, 'cards', card.id))).data().tags);
+			});
+		});
+
 		it(`uses server tag state for every selected card when ${adding ? 'adding' : 'removing'} a tag`, async () => {
 			await withTagEditPermission(['stale-selection'], async () => {
 				const card = await seedCard('stale-tag', {tags: adding ? [] : ['stale-selection']});
@@ -435,8 +513,78 @@ describe('durable multi-edit chunk loop (real thunk against the emulator)', func
 			await store.dispatch(modifyCardsWithDurableTagOperation([stale], 'matching-tag', true));
 			assert.equal(await updateDocCount(card.id), 0, 'no-op must not invent card history');
 			assert.deepStrictEqual((await getDoc(doc(db, 'cards', card.id))).data().tags, card.tags);
+			assert.deepStrictEqual(storeTags(card.id), card.tags, 'authoritative no-op must repair the stale local tags too');
 		});
 	});
+
+	for (const scopeChange of ['account', 'permissions']) {
+		it(`does not echo private pure-tag cards after ${scopeChange} change during commit`, async () => {
+			await withTagEditPermission(['scope-echo'], async () => {
+				const card = await seedCard('scope-echo');
+				putCardsInStore([card]);
+				const originalCommit = MultiBatch.prototype.commit;
+				const originalUser = store.getState().user.user;
+				MultiBatch.prototype.commit = async function(...args) {
+					await originalCommit.apply(this, args);
+					if (scopeChange === 'account') store.dispatch({type: 'SIGNIN_SUCCESS', user: {...originalUser, uid: 'other-account'}});
+					else store.dispatch({type: 'UPDATE_USER_PERMISSIONS', permissions: {}});
+					store.dispatch({type: 'REMOVE_CARDS', cardIDs: [card.id]});
+				};
+				try {
+					await store.dispatch(modifyCardsWithDurableTagOperation([card], 'scope-echo', true));
+					assert.equal(store.getState().data.cards[card.id], undefined, 'old private card must not be republished');
+					assert.deepEqual((await getDoc(doc(db, 'cards', card.id))).data().tags, ['scope-echo']);
+				} finally {
+					MultiBatch.prototype.commit = originalCommit;
+					store.dispatch({type: 'SIGNIN_SUCCESS', user: originalUser});
+				}
+			});
+		});
+	}
+
+	for (const lostAcknowledgement of [false, true]) {
+		it(`retains skipped pure-tag targets across ${lostAcknowledgement ? 'a lost acknowledgement' : 'a later chunk failure'} and retry`, async () => {
+			await withTagEditPermission(['skip-resume'], async () => {
+				const cards = [];
+				for (let i = 0; i < 17; i++) cards.push(await seedCard(`skip-resume-${i}`));
+				putCardsInStore(cards);
+				await firestore.deleteDoc(doc(db, 'cards', cards[0].id));
+				const originalCommit = MultiBatch.prototype.commit;
+				let commits = 0;
+				MultiBatch.prototype.commit = async function(...args) {
+					commits++;
+					if (lostAcknowledgement) {
+						await originalCommit.apply(this, args);
+						throw new Error('injected lost acknowledgement');
+					}
+					if (commits === 2) throw new Error('injected later chunk failure');
+					return originalCommit.apply(this, args);
+				};
+				try {
+					await store.dispatch(modifyCardsWithDurableTagOperation(cards, 'skip-resume', true));
+				} finally {
+					MultiBatch.prototype.commit = originalCommit;
+				}
+				const key = 'card-web-pending-bulk-tag-operation-v1';
+				const paused = JSON.parse(localStorage.getItem(key));
+				assert.equal(paused.nextIndex, lostAcknowledgement ? 0 : 15);
+				if (!lostAcknowledgement) assert.equal(paused.skippedCount, 1, 'durable progress must retain prior skipped cards');
+				const marker = (await getDoc(doc(db, 'users', UID, 'multi_edit_chunks', `${paused.id}-0`))).data();
+				assert.equal(marker.skipped_count, 1, 'server acknowledgement must carry skips for crash recovery');
+				//A later edit must remain intact when a confirmed chunk is
+				//reconciled from its marker instead of replaying old intent.
+				if (lostAcknowledgement) await setDoc(doc(db, 'cards', cards[1].id), {...cards[1], tags: ['newer-tag']});
+				clearWhatUserWasTold(store);
+				await store.dispatch(retryPendingBulkTagOperation());
+				assert.equal(localStorage.getItem(key), null);
+				assert.ok(store.getState().app.snackbars.some(item => /1 no longer existed and were skipped/.test(item.message)));
+				for (const card of cards.slice(1)) {
+					assert.equal(await updateDocCount(card.id), 1, 'retry must not duplicate committed card history');
+					assert.deepEqual(storeTags(card.id), lostAcknowledgement && card === cards[1] ? ['newer-tag'] : ['skip-resume']);
+				}
+			});
+		});
+	}
 
 	it('refuses a new tag selection while another selection is pending', async () => {
 		await withTagEditPermission(['same-tag'], async () => {

@@ -1289,6 +1289,9 @@ export type AIState = {
 export type BulkImportDialogMode = 'import' | 'export';
 
 export type BulkImportState = {
+	//Invalidates async UI work when the dialog, draft, operation or account changes.
+	session: number,
+	accountUid: string | null,
 	open: boolean,
 	mode: BulkImportDialogMode,
 	//Whether or not the import is running

@@ -6,6 +6,8 @@ import {
 	confirmDestructive
 } from '../modal.js';
 
+import {bulkImportSessionIsCurrent} from '../bulk-import-session.js';
+
 import {
 	blockedError,
 	SAVE_VERB,
@@ -528,6 +530,7 @@ type BulkTagOperation = {
 	adding: boolean,
 	targetIDs: CardID[],
 	nextIndex: number,
+	skippedCount?: number,
 	lastError?: string,
 };
 
@@ -543,6 +546,7 @@ const readBulkTagOperation = () : BulkTagOperation | null => {
 		if (value.version !== 1 || !value.id || !value.uid || !value.tag ||
 			typeof value.adding !== 'boolean' || !Array.isArray(value.targetIDs) ||
 			!Number.isInteger(value.nextIndex) || value.nextIndex < 0 || value.nextIndex > value.targetIDs.length ||
+			(value.skippedCount !== undefined && (!Number.isInteger(value.skippedCount) || value.skippedCount < 0 || value.skippedCount > value.nextIndex)) ||
 			(value.lastError !== undefined && typeof value.lastError !== 'string') ||
 			value.targetIDs.some(id => typeof id !== 'string' || !id) ||
 			new Set(value.targetIDs).size !== value.targetIDs.length) throw new Error('invalid shape');
@@ -598,7 +602,6 @@ export const modifyCardsWithDurableTagOperation = (cards : Card[], tag : TagID, 
 	//for the rest of the page (the same flag guards resumePendingDurableMultiEdit).
 	//The resume paths set it themselves, which is where it belongs.
 	let operation : BulkTagOperation | null = null;
-	let bulkSkippedCount = 0;
 	try {
 		const state = getState();
 		const uid = selectUid(state);
@@ -647,6 +650,12 @@ export const modifyCardsWithDurableTagOperation = (cards : Card[], tag : TagID, 
 		for (let offset = 0; offset < remaining.length; offset += chunkSize) {
 			const chunkIDs = remaining.slice(offset, offset + chunkSize);
 			const chunkStart = operation.nextIndex;
+			//Capture before any reads or writes can yield to an account or
+			//permission change. Old private cards must never enter the new scope.
+			const chunkScope = {
+				uid: operation.uid,
+				mayViewUnpublished: selectUserMayViewUnpublished(getState()),
+			};
 			const markerRef = doc(db, 'users', operation.uid, 'multi_edit_chunks', `${operation.id}-${chunkStart}`);
 			if (checkingServerMarker) {
 				const marker = await getDocFromServer(markerRef);
@@ -662,7 +671,14 @@ export const modifyCardsWithDurableTagOperation = (cards : Card[], tag : TagID, 
 				//already done (the else branch below).
 				if (marker.exists() && marker.data().operation_id === operation.id &&
 					marker.data().next_index === chunkStart + chunkIDs.length) {
+					const skippedCount = marker.data().skipped_count ?? 0;
+					if (!Number.isInteger(skippedCount) || skippedCount < 0 || skippedCount > chunkIDs.length) throw new Error('The saved bulk-label completion marker is invalid');
+					//An acknowledgement can be lost before the local echo too.
+					//Read current truth: replaying the original intent here could
+					//hide a later edit that happened after this chunk committed.
+					await dispatch(echoCommittedCardModifications(chunkIDs, chunkScope));
 					operation.nextIndex += chunkIDs.length;
+					operation.skippedCount = (operation.skippedCount || 0) + skippedCount;
 					persistBulkTagOperation(operation);
 					dispatch(bulkTagProgressAction(operation));
 					continue;
@@ -687,7 +703,7 @@ export const modifyCardsWithDurableTagOperation = (cards : Card[], tag : TagID, 
 			const rawCards = selectRawCards(currentState);
 			const authoritative = await authoritativeCardsAfterFailedCommit(chunkIDs);
 			if (authoritative.failedIDs.length) throw new Error(`Could not load ${authoritative.failedIDs.length} target cards from the server`);
-			bulkSkippedCount += authoritative.removedIDs.length;
+			const skippedCount = authoritative.removedIDs.length;
 			const chunkCards = chunkIDs
 				.map(id => authoritative.cards[id])
 				.filter((card) => card && (adding
@@ -733,6 +749,7 @@ export const modifyCardsWithDurableTagOperation = (cards : Card[], tag : TagID, 
 			batch.set(markerRef, {
 				operation_id: operation.id,
 				next_index: chunkStart + chunkIDs.length,
+				skipped_count: skippedCount,
 				tag: operation.tag,
 				adding: operation.adding,
 				card_ids: chunkIDs,
@@ -741,13 +758,18 @@ export const modifyCardsWithDurableTagOperation = (cards : Card[], tag : TagID, 
 			batch.endAtomicGroup();
 			if (selectUid(getState()) !== operation.uid) throw new Error('Account changed before the next bulk-label chunk could commit');
 			await batch.commit();
+			//Include authoritative no-ops too: the server may already match
+			//while this tab still displays an older set of labels.
+			await dispatch(echoCommittedCardModifications(chunkIDs, chunkScope));
 
 			operation.nextIndex += chunkIDs.length;
+			operation.skippedCount = (operation.skippedCount || 0) + skippedCount;
 			persistBulkTagOperation(operation);
 			dispatch(bulkTagProgressAction(operation));
 		}
 
 		clearBulkTagOperation();
+		const bulkSkippedCount = operation.skippedCount || 0;
 		const total = operation.targetIDs.length - bulkSkippedCount;
 		//Transient success belongs in the snack-bar, not a blocking modal
 		//(#758): the dialog has closed, the work is done, and there is
@@ -1093,6 +1115,7 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 			const chunkStart = operation.nextIndex;
 			const markerRef = doc(db, 'users', operation.uid, 'multi_edit_chunks', `${operation.id}-${chunkStart}`);
 			if (checkingServerMarker) {
+				const markerScope = {uid: operation.uid, mayViewUnpublished: selectUserMayViewUnpublished(getState())};
 				const marker = await getDocFromServer(markerRef);
 				//Do NOT stop probing here. Clearing the flag after the FIRST
 				//probe meant that once a marker advanced us past one chunk, the
@@ -1111,6 +1134,7 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 					Number.isInteger(markerNextIndex) && markerNextIndex > chunkStart && markerNextIndex <= operation.targetIDs.length &&
 					Number.isInteger(markerModifiedCount) && markerModifiedCount >= 0 && markerModifiedCount <= markerNextIndex - chunkStart &&
 					Number.isInteger(markerSkippedCount) && markerSkippedCount >= 0 && markerSkippedCount <= markerNextIndex - chunkStart) {
+					await dispatch(echoCommittedCardModifications(operation.targetIDs.slice(chunkStart, markerNextIndex), markerScope));
 					operation.nextIndex = markerNextIndex;
 					operation.modifiedCount += markerModifiedCount;
 					operation.skippedCount = (operation.skippedCount || 0) + markerSkippedCount;
@@ -1280,7 +1304,7 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 				//sign-out or permission change landing between the commit and
 				//this echo pushed the chunk's cards — which may be UNPUBLISHED —
 				//into the corpus for whoever the tab now belongs to.
-				await dispatch(echoLocalCardModifications(chunkEchoes, chunkScope));
+				await dispatch(echoCommittedCardModifications(Object.keys(chunkEchoes), chunkScope));
 			}
 			operation.nextIndex += chunkIDs.length;
 			operation.modifiedCount += modifiedCount;
@@ -1660,6 +1684,39 @@ export const modifyCardsIndividually = (cards : Card[], updates : {[id : CardID]
 const LOCAL_ECHO_WORKER_CHUNK_SIZE = 500;
 
 type EchoAuthScope = {uid : string, mayViewUnpublished : boolean};
+
+//A committed array transform preserves edits from other tabs; materializing
+//it onto a pre-commit whole-card snapshot does not. Reread the committed cards
+//rather than reverting unrelated fields (or a later edit of the same label)
+//in this tab and the worker. This costs one bounded server read per card in
+//worker mode; the main-thread listener already supplies its own confirmation.
+const echoCommittedCardModifications = (ids : CardID[], scope : EchoAuthScope) => async (dispatch : AppThunkDispatch, getState : () => State): Promise<void> => {
+	if (!corpusWorkerOwnsCardIngestion()) return;
+	const scopeStillCurrent = () => selectUid(getState()) === scope.uid &&
+		selectUserMayViewUnpublished(getState()) === scope.mayViewUnpublished;
+	for (let index = 0; index < ids.length; index += FAILED_COMMIT_RECONCILIATION_CONCURRENCY) {
+		if (!scopeStillCurrent()) return;
+		const before = getState();
+		const rawBefore = selectRawCards(before);
+		const queuedBefore = selectEnqueuedCards(before);
+		const confirmed = await authoritativeCardsAfterFailedCommit(ids.slice(index, index + FAILED_COMMIT_RECONCILIATION_CONCURRENCY));
+		if (!scopeStillCurrent()) return;
+		const after = getState();
+		const rawAfter = selectRawCards(after);
+		const queuedAfter = selectEnqueuedCards(after);
+		const echoes : Cards = {};
+		for (const [id, card] of Object.entries(confirmed.cards)) {
+			//A listener delivery while the reread was outstanding may be even
+			//newer. Pending target-card deliveries are parked, so check both
+			//the visible corpus and its queue before replacing anything.
+			if (rawBefore[id] !== rawAfter[id]) continue;
+			if (TypedObject.keys({...queuedBefore, ...queuedAfter}).some(key =>
+				queuedBefore[key]?.[id] !== queuedAfter[key]?.[id])) continue;
+			echoes[id] = card;
+		}
+		await dispatch(echoLocalCardModifications(echoes, scope));
+	}
+};
 
 const echoLocalCardModifications = (localEchoes : Cards, expectedScope? : EchoAuthScope) => async (dispatch: AppThunkDispatch, getState : () => State): Promise<void> => {
 	if (!corpusWorkerOwnsCardIngestion()) return;
@@ -2406,15 +2463,19 @@ export const bulkCreateWorkingNotes = (bodies : string[], flags? : CardFlags) : 
 	if (!user) throw new Error('No user');
 
 	dispatch({
-		type: BULK_IMPORT_PENDING
+		type: BULK_IMPORT_PENDING,
+		uid: user.uid
 	});
+	const sessionIsCurrent = bulkImportSessionIsCurrent(getState);
 	//The two phases the code has always had but never named (#758): commit
 	//(write acked by the durable queue) and arrival (card echoed back into
 	//THIS tab). The one-per-second trickle is arrival, and it is not
 	//misbehavior; naming it stops it reading as a stall.
 	let committedCount = 0;
 	let arrivedCount = 0;
-	const reportProgress = () => dispatch({type: BULK_IMPORT_PROGRESS, progress: {total: bodies.length, committed: committedCount, arrived: arrivedCount}});
+	const reportProgress = () => {
+		if (sessionIsCurrent()) dispatch({type: BULK_IMPORT_PROGRESS, progress: {total: bodies.length, committed: committedCount, arrived: arrivedCount}});
+	};
 	reportProgress();
 
 	const ids : CardID[] = [];
@@ -2504,10 +2565,12 @@ export const bulkCreateWorkingNotes = (bodies : string[], flags? : CardFlags) : 
 			reportProgress();
 		});
 	} catch (err) {
+		if (!sessionIsCurrent()) return;
 		dispatch({type: BULK_IMPORT_FAILURE, error: err instanceof Error ? err.message : String(err)});
 		dispatch({type: EXPECTED_NEW_CARD_FAILED});
 		return;
 	}
+	if (!sessionIsCurrent()) return;
 	//A 'queued' outcome is a deadline snapshot, not a verdict: a slow first
 	//ack can pin it on EVERY card of a small group moments before they all
 	//commit (a group no larger than the queue's concurrency drains in one
@@ -2585,6 +2648,7 @@ export const bulkCreateWorkingNotes = (bodies : string[], flags? : CardFlags) : 
 		reportProgress();
 		return card;
 	})));
+	if (!sessionIsCurrent()) return;
 	const arrivedIDs = candidateIDs.filter((_, index) => arrivals[index].status === 'fulfilled');
 	const missingIDs = new Set(candidateIDs.filter((_, index) => arrivals[index].status !== 'fulfilled'));
 	//The two ways a card can be missing get different advice. A card whose

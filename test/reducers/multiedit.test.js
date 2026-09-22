@@ -117,12 +117,7 @@ describe('bulk import failure reporting (#758 slice)', () => {
 		assert.strictEqual(closed.outcome, null);
 	});
 
-	it('closing the dialog acknowledges the failure; a post-close failure still shows next time', () => {
-		//The review of 9484c181 caught the retention bug: a Monday import
-		//failure greeted Thursday's EXPORT dialog in warning red. Closing
-		//clears — but a late failure dispatched AFTER an impatient
-		//close-while-pending lands post-clear and must survive to the next
-		//open, which is why the clear lives on CLOSE and not on OPEN.
+	it('closing acknowledges the failure and a new session clears old reports', () => {
 		let state = bulkImportReducer(undefined, {type: bulkActions.BULK_IMPORT_DIALOG_OPEN, mode: 'import'});
 		state = bulkImportReducer(state, {type: bulkActions.BULK_IMPORT_PENDING});
 		state = bulkImportReducer(state, {type: bulkActions.BULK_IMPORT_FAILURE, error: 'boom'});
@@ -135,6 +130,6 @@ describe('bulk import failure reporting (#758 slice)', () => {
 		state = bulkImportReducer(state, {type: bulkActions.BULK_IMPORT_DIALOG_CLOSE});
 		state = bulkImportReducer(state, {type: bulkActions.BULK_IMPORT_FAILURE, error: 'late failure'});
 		state = bulkImportReducer(state, {type: bulkActions.BULK_IMPORT_DIALOG_OPEN, mode: 'import'});
-		assert.strictEqual(state.error, 'late failure', 'a post-close failure must not be lost');
+		assert.strictEqual(state.error, '', 'a new session must not inherit an older report');
 	});
 });

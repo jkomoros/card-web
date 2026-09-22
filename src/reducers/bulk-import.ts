@@ -8,7 +8,9 @@ import {
 	SomeAction,
 	BULK_IMPORT_FAILURE,
 	BULK_IMPORT_PROGRESS,
-	BULK_IMPORT_OUTCOME
+	BULK_IMPORT_OUTCOME,
+	SIGNIN_SUCCESS,
+	SIGNOUT_SUCCESS
 } from '../actions.js';
 
 import {
@@ -16,6 +18,8 @@ import {
 } from '../types.js';
 
 const INITIAL_STATE : BulkImportState = {
+	session: 0,
+	accountUid: null,
 	open: false,
 	mode: 'import',
 	pending: false,
@@ -30,18 +34,22 @@ const INITIAL_STATE : BulkImportState = {
 
 const app = (state : BulkImportState = INITIAL_STATE, action : SomeAction) : BulkImportState => {
 	switch (action.type) {
+	case SIGNIN_SUCCESS:
+		//Profile enrichment dispatches SIGNIN_SUCCESS again for the SAME
+		//account. It must not close a dialog or discard a draft entered while
+		//updateProfile was in flight.
+		if (state.accountUid === action.user.uid) return state;
+		return {...INITIAL_STATE, accountUid: action.user.uid, session: state.session + 1};
+	case SIGNOUT_SUCCESS:
+		return {...INITIAL_STATE, session: state.session + 1};
 	case BULK_IMPORT_DIALOG_CLOSE:
 		return {
 			...state,
 			open: false,
-			//Clear on CLOSE, not on OPEN (adversarial review of 9484c181):
-			//the user closing the dialog is the acknowledgement of a shown
-			//failure, so a stale message must not greet the NEXT session —
-			//it leaked into the Export dialog, in warning red, days later.
-			//Clearing here rather than on OPEN also keeps the one message a
-			//user can otherwise lose: a late failure dispatched AFTER an
-			//impatient close-while-pending lands post-clear and still shows
-			//on the next open.
+			pending: false,
+			session: state.session + 1,
+			//Closing acknowledges the report and detaches any outstanding
+			//operation. Durable writes continue, but cannot replace a new draft.
 			error: '',
 			outcome: null,
 			progress: null
@@ -50,7 +58,12 @@ const app = (state : BulkImportState = INITIAL_STATE, action : SomeAction) : Bul
 		return {
 			...state,
 			open: true,
+			session: state.session + 1,
+			accountUid: action.uid ?? state.accountUid,
 			mode: action.mode,
+			error: '',
+			outcome: null,
+			progress: null,
 			pending: false,
 			bodies: [],
 			overrideCardOrder: null,
@@ -61,6 +74,8 @@ const app = (state : BulkImportState = INITIAL_STATE, action : SomeAction) : Bul
 		return {
 			...state,
 			pending: true,
+			session: state.session + 1,
+			accountUid: action.uid ?? state.accountUid,
 			error: '',
 			outcome: null,
 			progress: null
@@ -107,6 +122,11 @@ const app = (state : BulkImportState = INITIAL_STATE, action : SomeAction) : Bul
 	case BULK_IMPORT_SET_BODIES:
 		return {
 			...state,
+			session: state.session + 1,
+			pending: false,
+			progress: null,
+			error: '',
+			outcome: null,
 			bodies: [...action.bodies],
 			importer: action.importer,
 			importerVersion: action.importerVersion

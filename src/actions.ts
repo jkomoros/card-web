@@ -443,10 +443,12 @@ type ActionTurnSuggestedMissingConcepts = {
 type ActionBulkImportDialogOpen = {
 	type: typeof BULK_IMPORT_DIALOG_OPEN
 	mode: BulkImportDialogMode
+	uid: string | null
 };
 
 type ActionBulkImportPending = {
-	type: typeof BULK_IMPORT_PENDING
+	type: typeof BULK_IMPORT_PENDING,
+	uid: string | null
 };
 
 type ActionBulkImportDialogSetOverrideCardOrder = {

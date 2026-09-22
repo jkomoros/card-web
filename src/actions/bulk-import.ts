@@ -17,6 +17,7 @@ import {
 	selectBulkImportDialogImporter,
 	selectBulkImportDialogImporterVersion,
 	selectSelectedCards,
+	selectUid,
 	selectUserMayUseAI
 } from '../selectors.js';
 
@@ -45,9 +46,12 @@ import {
 	bulkCreateWorkingNotes
 } from './data.js';
 
-export const openBulkImportDialog = (mode : BulkImportDialogMode) : SomeAction => ({
+import {bulkImportSessionIsCurrent} from '../bulk-import-session.js';
+
+export const openBulkImportDialog = (mode : BulkImportDialogMode) : ThunkSomeAction => (dispatch, getState) => dispatch({
 	type : BULK_IMPORT_DIALOG_OPEN,
-	mode
+	mode,
+	uid: selectUid(getState()) || null
 });
 
 export const closeBulkImportDialog = () : SomeAction =>  ({
@@ -72,7 +76,7 @@ export const commitBulkImport = () : ThunkSomeAction => (dispatch, getState) => 
 	const importer_version = selectBulkImportDialogImporterVersion(state);
 	//bulkCreateWorkingNotes will both set the pending flag and also success
 	//when done, which will close the dialog.
-	dispatch(bulkCreateWorkingNotes(bodies, {importer, importer_version}));
+	return dispatch(bulkCreateWorkingNotes(bodies, {importer, importer_version}));
 };
 
 const semanticSortCallable = httpsCallable<SemanticSortRequestData, SemanticSortResponseData>(functions, 'semanticSort');
@@ -83,16 +87,20 @@ export const semanticSortExport = () : ThunkSomeAction => async (dispatch, getSt
 	const cards = selectSelectedCards(state);
 	const cardIDs = cards.map(card => card.id);
 	dispatch({
-		type: BULK_IMPORT_PENDING
+		type: BULK_IMPORT_PENDING,
+		uid: selectUid(state) || null
 	});
+	const sessionIsCurrent = bulkImportSessionIsCurrent(getState);
 	try {
 		const result = await semanticSortCallable({cards: cardIDs});
+		if (!sessionIsCurrent()) return;
 		console.log('Number of swaps made: ', result.data.swaps);
 		dispatch({
 			type: BULK_IMPORT_SET_OVERRIDE_CARD_ORDER,
 			order: result.data.cards
 		});
 	} catch(e) {
+		if (!sessionIsCurrent()) return;
 		dispatch({
 			type: BULK_IMPORT_FAILURE,
 			error: String(e)
