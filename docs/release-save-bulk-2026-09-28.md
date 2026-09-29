@@ -1,7 +1,10 @@
 # Save and bulk-edit release validation — 2026-09-28
 
 Status: **not cleared for release**. Build, suite and bulk-integrity checks pass,
-but the 50,000-card browser validation failed during corpus loading.
+but a complete 50,000-card browser acceptance result is still outstanding. Earlier
+loading attempts failed; the candidate passed cold loading, then failed on warm reload. The matched
+deployed baseline also exhausted V8 memory during cold loading. Real-corpus
+editing validation remains outstanding.
 
 ## Scope
 
@@ -99,7 +102,10 @@ minidump's process ID (61911) and timestamp (14:26:35 UTC), and read its annotat
 `v8-oom-location = MarkCompactCollector: young object promotion failed`.
 This establishes a renderer V8 heap OOM in this run. It does not establish whether
 the three fixes introduced the failure: an equivalent deployed-baseline run has
-not been completed. It also does not establish equivalence between the generated
+not been completed. The first baseline attempt reached 39,694 cards without a
+crash, then hit its ten-minute harness timeout. That incomplete attempt is not
+proof that the candidate introduced the OOM; the longer paired runs must resolve
+the comparison. It also does not establish equivalence between the generated
 fixture's memory demand and the real production corpus.
 
 The isolated emulator uses byte-identical copies of the generated Rules and indexes;
@@ -113,17 +119,94 @@ failed at the first rapid-create wait, but that timeout was a **harness defect**
 `PERF_HARNESS.activeRawCard()` returns only ID, body and modification error; the
 new predicate incorrectly required its nonexistent `card_type` field. Parent
 verified the actual API implementation and the impossible predicate. It has been
-corrected locally to inspect the corresponding raw card in the store, but the
-corrected rapid-create check has not been rerun. Neither this timeout nor the
+corrected locally to inspect the corresponding raw card in the store. Neither this timeout nor the
 same timeout in a 2,000-card diagnostic is evidence of an application defect.
 The 12k emulator also logged its 10,001-message transport limit, but attributing
 the invalid timeout to that limit would be incorrect.
 
 The 2,000-card run independently completed the same bulk/recovery and single-save/
 navigation steps; the retained intermediate result records 20 down and 20 up,
-returning to the original ID. There is still no complete rapid-save/create result,
-and these smaller runs cannot clear the 50,000-card gate.
+returning to the original ID. These smaller runs cannot clear the 50,000-card gate.
+
+## Corrected rapid-create check
+
+The corrected 2,000-card run completed with exit 0 and exact server verification.
+It created three distinct private working-notes cards, saved exact bodies on the
+first two, and verified a collection count increase of exactly three. It observed
+the automatically opened editor for each new card; the earlier extra Edit click
+was another harness mistake, reproduced as an invisible-control timeout.
+Find was closed and focus cleared through actual Escape key events before the
+create shortcut. No semantic/corpus drain was inserted between save and creation.
+
+Observed create times were 152/134/106 ms; the first two saves settled in 156/130 ms.
+These are local-emulator observations, not production latency promises. The normal
+single-save body matched on the server, and 20 down/20 up returned to the starting
+card. Navigation p95 was 18 ms, above the existing advisory 16 ms budget; the run
+passed its correctness/counter gates, not every advisory timing budget.
+Evidence: `result-2000-actual-editor.json` in the local evidence directory.
 Earlier runs with weaker measurement assertions are not counted as acceptance.
 These checks do not establish full architecture cutover. Existing issue #775
 (obsolete creation replay recreating a
 later-deleted card) is not fixed by this stack.
+
+
+## Harness audit during the continuation
+
+A separate Sol audit identified misplaced Playwright timeout options in the
+release-only harness. Parent independently reproduced the signature mismatch:
+a 40 ms option passed as the second argument used the 200 ms default; passing
+`null` before the options enforced 40 ms. Most affected waits requested the same
+30-second default, but editor-close and Find requested five seconds. The passing
+2k result recorded those operations at 74 ms and 257 ms, respectively, so the
+wrong timeout did not hide a violation in that result. Corrected next-run copies
+are retained locally. Rapid-create waits already passed explicit arguments and
+options correctly.
+
+The initial bulk round-trip comparisons verify selected domains, not every field
+in the document. A stronger next-run comparator checks all authoritative fields
+except the expected `updated` clock. Parent independently verified its positive
+clock control and six negatives: changes to notes, todo, sort order, permissions,
+an added field, and a missing body all fail. The general multi-edit comparison
+still covers its explicitly selected fields; it is not whole-document proof.
+
+
+## Instrumented 50k continuation
+
+The candidate subsequently completed cold loading with exactly 50,000 cards in
+both page and Worker, authoritative sync live, and a persisted 50,000-card compact
+snapshot. The same process then restored all 50,000 cards from that snapshot on
+reload, but its renderer crashed before warm verification reached live. This is
+not a complete acceptance pass and no editing checks ran at 50k.
+
+Parent independently parsed the new minidump: PID 64334, 2026-09-28 15:25:04 UTC,
+`v8-oom-location = Scavenger: semi-space copy`. Dump SHA-256:
+`c23602c24e560c609f3f06b5bbccbe6fabb03a46ac5104b1a3f0be696b117fce`.
+The final sampled V8 used heap was approximately 805 MB in the page and 2.81 GB
+in the corpus Worker. These are separate-isolate samples, not exact crash-time
+heaps or process RSS. Sampling performed no forced GC and changed no heap limits.
+The cold-run Worker peaked at a sampled 2.78 GB and later dropped below 1 GB after
+natural collection; the successful cold retry disproves the earlier inference
+that merely reaching fewer cards established a candidate-specific regression.
+The paired baseline result below establishes that the fixture can also exhaust
+memory on the deployed version; it does not prove the two versions have identical
+memory behavior.
+
+
+## Matched deployed baseline
+
+The fair baseline run used deployed revision `294fcb56`, the same retained 50k
+fixture, Chrome for Testing 1228, default V8 heap, and the same separate page/Worker
+sampler. It reached 41,020 cards, then crashed during cold loading. Parent
+independently parsed its minidump: PID 65348, 2026-09-28 15:40:04 UTC,
+`v8-oom-location = MarkCompactCollector: young object promotion failed`.
+Dump SHA-256: `0b1c60cd65dec5ea808c720d08cd0b17a94ca6bdf35b6dbb672fe3a177910b60`.
+The final sample at 40,121 cards was page 269 MB and Worker 2.34 GB. The dump, log,
+samples and machine-readable summary are retained under the local `failures/`
+evidence directory.
+
+This proves that the synthetic default-heap loading failure is present in the
+deployed version. It does not establish equivalence of peak memory, clear the
+candidate's warm failure, or verify candidate editing at 50k. A preliminary run
+was deliberately stopped before cold completion and separately retained because
+its planned pre-warm IndexedDB export would have added allocations absent from
+the candidate run. The fair run performed no export and never reached warm load.
