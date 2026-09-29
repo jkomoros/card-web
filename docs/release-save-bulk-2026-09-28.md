@@ -1,10 +1,10 @@
 # Save and bulk-edit release validation — 2026-09-28
 
-Status: **not cleared for release**. Build, suite and bulk-integrity checks pass,
-but a complete 50,000-card browser acceptance result is still outstanding. Earlier
-loading attempts failed; the candidate passed cold loading, then failed on warm reload. The matched
-deployed baseline also exhausted V8 memory during cold loading. Real-corpus
-editing validation remains outstanding.
+Status: **ready for the limited three-commit save/bulk-integrity release**.
+The full suite and signed-in real DEV checks at 40,225 existing cards pass.
+The synthetic 50k memory failure also occurs on the deployed version and remains
+open under #522/#659. This is not a memory fix, a 50k editing acceptance result,
+or clearance to ship the separate principled-mutations architecture.
 
 ## Scope
 
@@ -210,3 +210,79 @@ candidate's warm failure, or verify candidate editing at 50k. A preliminary run
 was deliberately stopped before cold completion and separately retained because
 its planned pre-warm IndexedDB export would have added allocations absent from
 the candidate run. The fair run performed no export and never reached warm load.
+
+
+## Real DEV corpus validation
+
+On 2026-09-28 PDT (2026-09-29 UTC), the owner signed into DEV in the in-app
+browser. The local production bundle was served at `localhost:8081`; the app
+showed DEVMODE and the signed-in editor. After activating the offered service
+worker update, all 40,225 existing DEV cards loaded and the app reached up to date.
+Parent independently compared all five source/build anchors with the recorded
+`a2fe204e` manifest; all matched. No DEV deployment or production write was needed.
+
+Through the real UI, three private working-notes cards were created:
+`c-009-cad523`, `c-004-cff586`, and `c-105-ebc984`. The first two received distinct
+validation bodies and the third stayed blank. A direct Admin read explicitly
+scoped to `dev-complexity-compendium` proved exact bodies, private working-notes
+types, unique IDs, and an authoritative count increase from 40,225 to 40,228.
+The three cards were then selected in their own collection and bulk edited with
+Bits and Bobs plus Prioritize card. A second authoritative read proved all three
+had `tags: ["bits-and-bobs"]` and `auto_todo_overrides.prioritized: false` (the
+app's prioritization representation). Every unrelated field matched the pre-edit
+document; only the two intended fields and `updated` were excluded from comparison.
+
+UI automation observations, including control/verification overhead:
+
+| Operation | Observed time |
+| --- | ---: |
+| First save to editor close | 710 ms |
+| Create second note to editor ready | 1,572 ms |
+| Second save to settled status | 1,759 ms |
+| Second save through immediate third-note editor ready | 3,080 ms |
+| Three-card bulk tag plus prioritization to settled status | 2,762 ms |
+
+These are not CPU profiles, production guarantees, or an improvement ratio against
+the deployed code. The first creation's early snapshot timing is excluded because
+it preceded editor readiness. The first save-to-create check incorrectly looked
+for a drawer creation button absent in the `none` collection; the subsequent
+sequence used the normal working-note shortcut without semantic-drain delays.
+
+Twenty ArrowDown and twenty ArrowUp events each changed the active card URL;
+the return path exactly reversed the outward sequence and ended on the original
+`section-half-baked` card. The first endpoint assertion compared URL spellings
+and rejected the default section URL versus the explicit same-card URL; the card
+identity and reverse sequence were independently checked. Automation p95 was
+32 ms and maximum 64 ms, not isolated application frame times.
+A further warm reload reached up to date with all 40,228 cards. Its precise latency
+was not captured; the successful state is the evidence.
+
+Local evidence: `real-dev-before-bulk.json`, `real-dev-bulk-result.json`, and
+`real-dev-ui-result.json`. Three private DEV-only validation cards remain for
+inspection. The real DEV corpus is smaller than production's reported 47k+;
+this does not retroactively turn the synthetic 50k failures into passes.
+The preexisting memory risk is already tracked by
+[#522](https://github.com/jkomoros/card-web/issues/522) and
+[#659](https://github.com/jkomoros/card-web/issues/659).
+
+
+## Final release assessment
+
+A final separate Sol adversarial review found no verified blocking issue for this
+bounded release. Parent directly performed the DEV UI flows, independently read
+all three documents from the explicitly selected DEV backend, verified complete
+unrelated-field preservation, checked build hashes, and parsed both candidate and
+baseline crash dumps. The recommendation rests on those observations, not only
+on the reviewer's verdict.
+
+The 500-target bulk latency increase is an explicit correctness tradeoff;
+5,000-target completion and synthetic 50k editing remain unverified. Real DEV
+has 40,225 original cards, not the reported 47k+ production corpus. Existing
+memory issues #522/#659 and lifecycle issue #775 remain open. These limits must
+not be described as resolved by this release.
+
+Final build-freshness and deployment-deadline checks pass. Read-only remote-master
+verification still returns `294fcb5630e930a7ae09c3c3ad85900e42ad0dd5`. No runtime
+source changed during this validation, so the full suite applies to the same
+payload. Production release, backup, deployment, reindex and tag push remain for
+the owner to initiate using the environment block above.
