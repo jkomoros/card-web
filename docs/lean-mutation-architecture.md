@@ -90,6 +90,21 @@ same fixture, plus "no regression" on anything the journey measures.
 > 8%, `cardsThatWillBeRemoved` 7%, Proxy enumeration. Cold first edit: one
 > 5.6 s worker task on master, 2.6 s with P1+P2.
 >
+> **The ~8 s/cycle off main and worker is attributed** (per-thread trace,
+> 98% of process CPU accounted for): **7.3 s/cycle of V8 concurrent GC on
+> ThreadPool threads, 82% for the worker isolate** — 3.4 full mark-compacts
+> per cycle over a ~700 MB live heap, each ~1.4 s of concurrent marking,
+> driven by ~2 GB of worker allocation per cycle. Allocators: 30%
+> `semanticOverlap` (made allocation-free in P3a), 17%
+> `TypedObject.entries(extras.cards)` over the lazy processed-cards Proxy
+> on every configurable-filter evaluation (`collection_description.ts:766`;
+> a descriptor and a getter closure per card per evaluation), ~190 MB the
+> snapshot `toWire` walk, ~150 MB Firestore SDK. Compiler threads,
+> IndexedDB and the service worker are negligible. Snapshot persistence
+> off saves 1.6–2.7 s/cycle on the worker thread itself. So the lever is
+> allocation rate and live-heap size, not CPU in app code: P3a, P4a and
+> the Proxy-enumeration fix (next) are the right targets.
+>
 > **Memory (heap investigation):** the renderer's ~4 GB V8 budget is shared
 > by main thread and worker; at 47k synthetic they sit at ~3.2 GB before any
 > transient. Top worker retainers: memoized `wordCountsForSemantics`
