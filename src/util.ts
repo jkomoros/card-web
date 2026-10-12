@@ -645,7 +645,14 @@ export function setRemove(obj : {[name : string] : true}, items : string[]) : {[
 export function setUnion(obj : {[name : string] : true}, items : string[]) : {[name : string] : true} {
 	const result : {[name : string]: true } = {...obj};
 	for (const item of items) {
-		result[item] = true;
+		//Assignment treats `__proto__` specially on ordinary objects. Define an
+		//own data property so every valid key has the same set semantics.
+		Object.defineProperty(result, item, {
+			value: true,
+			enumerable: true,
+			configurable: true,
+			writable: true,
+		});
 	}
 	return result;
 }

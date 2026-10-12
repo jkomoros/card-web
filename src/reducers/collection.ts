@@ -288,16 +288,17 @@ const completeCardFilterProjection = (filters? : Filters) : filters is Filters =
 //by identity if no membership actually changed.
 const updateFilterMap = (previous : FilterMap, toRemove : CardID[], toAdd : CardID[]) : FilterMap => {
 	const prev = previous || {};
+	const owns = (id : CardID) => Object.prototype.hasOwnProperty.call(prev, id);
 	let changed = false;
 	for (const id of toRemove) {
-		if (prev[id]) {
+		if (owns(id)) {
 			changed = true;
 			break;
 		}
 	}
 	if (!changed) {
 		for (const id of toAdd) {
-			if (!prev[id]) {
+			if (!owns(id)) {
 				changed = true;
 				break;
 			}

@@ -1,10 +1,24 @@
 /*eslint-env node*/
 
 import {
-	cardIsPrioritized
+	cardIsPrioritized,
+	setUnion,
 } from '../../lib/src/util.js';
 
 import assert from 'assert';
+
+describe('setUnion', () => {
+	it('creates own entries for keys named by Object prototype properties', () => {
+		const ids = ['constructor', 'toString', '__proto__'];
+		const result = setUnion({}, ids);
+		assert.deepStrictEqual(Object.keys(result), ids);
+		for (const id of ids) {
+			assert.strictEqual(Object.prototype.hasOwnProperty.call(result, id), true, id);
+			assert.strictEqual(result[id], true, id);
+		}
+		assert.strictEqual(Object.getPrototypeOf(result), Object.prototype);
+	});
+});
 
 describe('cardIsPrioritized', () => {
 	it('returns false for null card', async () => {

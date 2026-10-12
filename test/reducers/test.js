@@ -30,6 +30,7 @@ after(() => {
 });
 
 let collectionReducer;
+let userReducer;
 let dataReducer;
 let editorReducer;
 let UPDATE_CARDS;
@@ -83,6 +84,7 @@ const makeCard = (id, extras) => ({
 describe('reducer identity preservation', () => {
 	before(async () => {
 		collectionReducer = (await import('../../lib/src/reducers/collection.js')).default;
+		userReducer = (await import('../../lib/src/reducers/user.js')).default;
 		dataReducer = (await import('../../lib/src/reducers/data.js')).default;
 		editorReducer = (await import('../../lib/src/reducers/editor.js')).default;
 		({
@@ -410,6 +412,25 @@ describe('reducer identity preservation', () => {
 		const state = primedCollectionState({'card-one': card});
 		const nextState = collectionReducer(state, {type: UPDATE_STARS, starsToAdd: [], starsToRemove: ['card-one']});
 		assert.strictEqual(nextState, state);
+	});
+
+	it('star and read reducers own Object prototype-named card IDs', () => {
+		const ids = ['constructor', 'toString', '__proto__'];
+		for (const [type, addKey, removeKey, collectionName, userName] of [
+			[UPDATE_STARS, 'starsToAdd', 'starsToRemove', 'starred', 'stars'],
+			[UPDATE_READS, 'readsToAdd', 'readsToRemove', 'read', 'reads'],
+		]) {
+			const action = {type, [addKey]: ids, [removeKey]: []};
+			const collectionState = collectionReducer(INITIAL_COLLECTION_STATE, action);
+			const userState = userReducer(undefined, action);
+			for (const map of [collectionState.filters[collectionName], userState[userName]]) {
+				assert.deepStrictEqual(Object.keys(map), ids);
+				for (const id of ids) {
+					assert.strictEqual(Object.prototype.hasOwnProperty.call(map, id), true, id);
+					assert.strictEqual(map[id], true, id);
+				}
+			}
+		}
 	});
 
 	it('MODIFY_CARD_SUCCESS corrects pendingModificationCount to the writes actually made', async () => {
