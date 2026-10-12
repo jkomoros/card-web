@@ -253,4 +253,25 @@ describe('editor sessions around a parked save (real thunks)', function() {
 		release();
 		await Promise.all([xSave, aSave]);
 	});
+
+	it('a parked save whose predecessor left an UNREADABLE record is refused, not left pending forever', async () => {
+		//The record readers throw on a corrupt record. Before the check was
+		//guarded, that throw escaped the thunk with the parked marker still
+		//set and no failure dispatched: Edit disabled on the card until reload.
+		const {a, release, xSave, aSave} = await parkASaveBehindX();
+		//X's run clears its own record on settle, so corrupt the slot from a
+		//subscriber the instant it empties — before A resumes.
+		const unsubscribe = store.subscribe(() => {
+			if (!localStorage.getItem(MULTI_EDIT_KEY)) localStorage.setItem(MULTI_EDIT_KEY, '{not json');
+		});
+		release();
+		await xSave;
+		await aSave;
+		unsubscribe();
+		localStorage.removeItem(MULTI_EDIT_KEY);
+		assert.strictEqual(faces()[a.id], undefined, 'A\'s face is cleared');
+		assert.strictEqual(draftFor(a.id)?.diff?.title, 'A2', 'A\'s stamped draft survives');
+		assert.strictEqual(durableCardMutationPendingForCard(a.id), false, 'the parked marker was released');
+		assert.strictEqual((await serverCard(a.id)).title, 'A', 'the refused edit was not written');
+	});
 });

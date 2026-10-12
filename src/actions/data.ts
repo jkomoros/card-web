@@ -1176,7 +1176,17 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 		//The settled run paused and left its record behind: refuse here, not
 		//inside the run, whose catch would write THIS save's error into that
 		//record and clear faces for that record's cards rather than this one's.
-		if (readDurableMultiEdit() || readBulkTagOperation()) {
+		//The readers THROW on a corrupt record (and storage itself can throw):
+		//an escape here would leave the parked marker set with no failure
+		//dispatched, so the card read pending until reload. An unreadable
+		//record is refused like a present one.
+		let recordLeftBehind : boolean;
+		try {
+			recordLeftBehind = Boolean(readDurableMultiEdit() || readBulkTagOperation());
+		} catch {
+			recordLeftBehind = true;
+		}
+		if (recordLeftBehind) {
 			refuseParked('The previous save paused and is waiting on Retry or Stop. The queued edit was not sent; its draft is kept.');
 			return;
 		}
