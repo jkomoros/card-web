@@ -531,13 +531,16 @@ export class QueryEngine {
 	//card's. Before this map existed each run called
 	//FingerprintGenerator.fingerprints(), which enumerated all ~40k cards
 	//through the lazy processing Proxy and built a fresh 40k-entry object
-	//every time the corpus version changed — 18% of warm worker CPU in a
-	//signed-in profile on the real corpus, paid once per corpus change per
-	//similar block. The engine now owns one map and updates only the cards
-	//that changed; the entries are the very Fingerprint objects the filter's
-	//own generator would return (both are un-enriched and fingerprintForCardObj
-	//memoizes per processed card object), so results are identical. The map is
-	//rebuilt from scratch only when the IDF epoch changes.
+	//every time the corpus version changed. Measured on the real corpus that
+	//rebuild is ~95ms per corpus change (per similar block), so the map is a
+	//modest per-change saving; its real value is that it can be built in
+	//idle slices after boot (warmSimilarityFingerprints) instead of as a
+	//~9s synchronous pass on the first similar request. The engine owns one
+	//map and updates only the cards that changed; the entries are the very
+	//Fingerprint objects the filter's own generator would return (both are
+	//un-enriched and fingerprintForCardObj memoizes per processed card
+	//object), so results are identical. The map is rebuilt from scratch only
+	//when the IDF epoch changes.
 	_similarityFingerprints : {[id : string] : Fingerprint} | null = null;
 	_similarityIDFMap : IDFMap | null = null;
 	_similarityPending : Set<CardID> = new Set();

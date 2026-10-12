@@ -82,7 +82,9 @@ same fixture, plus "no regression" on anything the journey measures.
 > helpers). Worker: collection re-runs 48% (~2.6 s; the similar-cards
 > fallback 41%, re-scanning 40k per key change; ~46 runs per cycle because
 > every editing-card mirror dirtied every subscription), enumerating all
-> cards through the lazy processing Proxy 18%, snapshot save ~16%
+> cards through the lazy processing Proxy 18% (NOT the similar filter's
+> `fingerprints()` rebuild, which measures ~95 ms warm — the enumerating
+> caller is still unattributed), snapshot save ~16%
 > (~0.85 s), GC 11%, Firestore SDK ~15%, tag fingerprints 5.6%. Main:
 > `diffCards` 18%, `makeFilterFromCards` 13%, `makeEverythingSetFromCards`
 > 8%, `cardsThatWillBeRemoved` 7%, Proxy enumeration. Cold first edit: one
