@@ -225,6 +225,24 @@ export const processCards = (rawCards : Cards) : ProcessedCards => {
 //enumerate the complete map and therefore produce the same result as
 //processCards when a caller really needs the whole corpus.
 const _lazyProcessedCardsCache = new WeakMap<Cards, ProcessedCards>();
+//Proxy → the raw map behind it, so enumerators can read ids without going
+//through the Proxy's ownKeys/getOwnPropertyDescriptor traps.
+const _lazyProxyRawCards = new WeakMap<ProcessedCards, Cards>();
+
+//The ids of a processed-cards map, WITHOUT enumerating through the lazy
+//Proxy. Object.keys/entries on the Proxy call getOwnPropertyDescriptor once
+//per card, and each call allocates a descriptor and a getter closure; a
+//configurable filter evaluated over the corpus did that for every one of
+//~40k cards on every evaluation — 17% of the worker's ~2 GB/cycle of
+//allocation in a signed-in profile, and that allocation is what drove the
+//worker isolate's full garbage collections (3.4 per Save→New cycle over a
+//~700 MB live heap, ~6 s/cycle of concurrent marking on pool threads).
+//Reading the raw map's keys allocates one array. Indexed access through the
+//Proxy afterwards hits processCard's per-card cache and allocates nothing.
+export const processedCardIDs = (cards : ProcessedCards) : CardID[] => {
+	const raw = _lazyProxyRawCards.get(cards);
+	return Object.keys(raw || cards) as CardID[];
+};
 
 //allCards defaults to rawCards but may be the full corpus when rawCards is a
 //narrowed view (e.g. search-recall candidates): reference/fallback backport
@@ -261,5 +279,6 @@ export const lazyProcessCards = (rawCards : Cards, allCards : Cards = rawCards) 
 	}) as ProcessedCards;
 
 	if (allCards === rawCards) _lazyProcessedCardsCache.set(rawCards, result);
+	_lazyProxyRawCards.set(result, rawCards);
 	return result;
 };

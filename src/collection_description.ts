@@ -24,10 +24,6 @@ import {
 } from '../shared/collection_description_base.js';
 
 import {
-	TypedObject
-} from '../shared/typed_object.js';
-
-import {
 	relativeDateCacheKey
 } from './relative-date.js';
 
@@ -763,7 +759,11 @@ const makeFilterFromConfigurableFilter = (name : ConfigurableFilterName, extras 
 	let sortValues : SortExtra | null = {};
 	let partialMatches : CardBooleanMap | null = {};
 	let hasPreview = false;
-	for (const [id, card] of TypedObject.entries(extras.cards)) {
+	//Ids from behind the lazy Proxy, then indexed access (which hits the
+	//per-card processing cache): see processedCardIDs for why entries() over
+	//the Proxy was the worker's second-largest allocator.
+	for (const id of processedCardIDs(extras.cards)) {
+		const card = extras.cards[id];
 		const {matches, sortExtra, partialMatch, preview} = func(card, extras);
 		//TODO: this doesn't handle cases where the func is a reversed func,
 		//right? This isn't currently exercised, since none of the reversed
@@ -1037,6 +1037,10 @@ export const cardPassesFilterSegment = (segment : FilterName, cardID : CardID, e
 //distinct rest-tuples (active + query + reference-block runs with
 //differing keyCardID/cardSimilarity) without thrashing that downstream
 //memo, which keys on this function's RESULT IDENTITY.
+import {
+	processedCardIDs
+} from './card-processing.js';
+
 const makeExtrasForFilterFunc = memoizeWeakFirstArg((cards : ProcessedCards, filterSetMemberships : Filters, keyCardID : CardID, editingCard : ProcessedCard | null, userID : Uid, randomSalt : string, cardSimilarity: CardSimilarityMap, editingCardSimilarity : SortExtra | null, idfMap : IDFMap | null, cardsContentToken : unknown = cards, fingerprints : FilterExtras['fingerprints'] = null) : FilterExtras => {
 	return {
 		filterSetMemberships,

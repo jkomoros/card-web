@@ -103,7 +103,10 @@ same fixture, plus "no regression" on anything the journey measures.
 > IndexedDB and the service worker are negligible. Snapshot persistence
 > off saves 1.6–2.7 s/cycle on the worker thread itself. So the lever is
 > allocation rate and live-heap size, not CPU in app code: P3a, P4a and
-> the Proxy-enumeration fix (next) are the right targets.
+> the Proxy-enumeration fix are the right targets. **P5** (`processedCardIDs`:
+> enumerate the raw ids behind the lazy Proxy) landed: on the real corpus a
+> scanning-filter evaluation went 61 → 34.5 ms and 80 evaluations caused
+> 19 minor GCs instead of 61 (23 ms vs 317 ms in GC).
 >
 > **Memory (heap investigation):** the renderer's ~4 GB V8 budget is shared
 > by main thread and worker; at 47k synthetic they sit at ~3.2 GB before any

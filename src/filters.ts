@@ -814,8 +814,10 @@ const makeExpandConfigurableFilter = (_ : ConfigurableFilterType, ...remainingPa
 
 		if (expandFilterPieces[0] == SIMILAR_CUTOFF_FILTER_NAME) {
 			const [similarFilter] = makeSimilarConfigurableFilter(SIMILAR_CUTOFF_FILTER_NAME, keyCardID(Object.keys(filterMembershipMain), false), expandFilterPieces[2]);
-			//Walk through each card and run the similarFilter manually.
-			for (const card of Object.values(extras.cards)) {
+			//Walk through each card and run the similarFilter manually (ids
+			//from behind the lazy Proxy; see processedCardIDs).
+			for (const id of processedCardIDs(extras.cards)) {
+				const card = extras.cards[id];
 				const {matches: include} = similarFilter(card, extras);
 				if (include) expandedSet[card.id] = true;
 			}
@@ -987,6 +989,10 @@ const fetchSimilarCardsForCardIfEnabled = (card : ProcessedCard) : boolean => {
 
 //This is how we'll keep track of if we need to fetch updated similarCard embeddings or not.
 let lastSeenEditingCard : ProcessedCard | null = null;
+
+import {
+	processedCardIDs
+} from './card-processing.js';
 
 const makeSimilarConfigurableFilter = (_ : ConfigurableFilterType, rawCardID : URLPart, rawFloatCutoff : URLPart = String(Number.MIN_SAFE_INTEGER)) : ConfigurableFilterFuncFactoryResult => {
 	//note: makeExpandConfigurableFilter needs to be updated if the number or order of parameters changes.

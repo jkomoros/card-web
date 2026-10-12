@@ -11,6 +11,7 @@ overrideDocument(dom.window.document);
 import {
 	lazyProcessCards,
 	processCards,
+	processedCardIDs,
 } from '../../lib/src/card-processing.js';
 
 const rawCard = (id, title) => ({
@@ -74,6 +75,26 @@ describe('lazy card processing', () => {
 		assert.strictEqual(Object.prototype.hasOwnProperty.call(lazy, 'second'), true);
 		assert.strictEqual(lazy.missing, undefined);
 		assert.strictEqual('missing' in lazy, false);
+	});
+
+	it('processedCardIDs reads the ids behind the lazy proxy without touching any card', () => {
+		//Raw cards that refuse every property read: processing any of them
+		//throws, so an enumeration that goes through the proxy's traps and
+		//[[Get]] (entries) fails, while reading the raw keys does not.
+		const refuse = id => new Proxy({id}, {get: (_target, property) => {
+			if (property === 'id') return id;
+			throw new Error(`card ${id} was read via ${String(property)}`);
+		}});
+		const raw = {one: refuse('one'), two: refuse('two'), three: refuse('three')};
+		const lazy = lazyProcessCards(raw);
+		assert.throws(() => Object.entries(lazy), /was read via/);
+		assert.deepStrictEqual(processedCardIDs(lazy), ['one', 'two', 'three']);
+		//A plain (eager) map enumerates normally.
+		const eager = processCards({first: rawCard('first', 'First'), second: rawCard('second', 'Second')});
+		assert.deepStrictEqual(processedCardIDs(eager), ['first', 'second']);
+		//And the ids match the proxy's own enumeration when reading is allowed.
+		const plain = {a: rawCard('a', 'A'), b: rawCard('b', 'B')};
+		assert.deepStrictEqual(processedCardIDs(lazyProcessCards(plain)), Object.keys(lazyProcessCards(plain)));
 	});
 
 	it('is stable for one raw map and refreshes when that map changes', () => {
