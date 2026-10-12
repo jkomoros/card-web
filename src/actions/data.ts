@@ -84,7 +84,8 @@ import {
 } from '../util.js';
 
 import {
-	admitCardImages
+	admitCardImages,
+	cardImageMayAdvance
 } from '../../shared/card-revision.js';
 
 import {
@@ -3827,11 +3828,15 @@ export const receiveCards = (incoming: Cards, fetchType : CardFetchType, fastDed
 	//consume that mark, or the real timestamp-only refresh that follows would
 	//be deduped away and the client-clock `updated` would stick.
 	const enqueued = selectEnqueuedCards(getState());
+	//The highest-revision copy across every bucket and the store: buckets
+	//are keyed by fetch type, and two of them can hold the same card.
 	const newestHeld = (id : CardID) : Card | undefined => {
+		let newest = existingCards[id];
 		for (const bucket of Object.values(enqueued)) {
-			if (bucket && bucket[id]) return bucket[id];
+			const candidate = bucket && bucket[id];
+			if (candidate && cardImageMayAdvance(newest, candidate)) newest = candidate;
 		}
-		return existingCards[id];
+		return newest;
 	};
 	const {admitted, refusedIDs} = admitCardImages(incoming, newestHeld);
 	if (refusedIDs.length && perfEnabled()) console.log(`[PERF] receiveCards(${fetchType}): refused ${refusedIDs.length} older image(s)`);
@@ -3946,7 +3951,17 @@ export const receiveCards = (incoming: Cards, fetchType : CardFetchType, fastDed
 	if (perfEnabled()) console.log(`[PERF] receiveCards(${fetchType}): total ${(performance.now() - startTime).toFixed(1)}ms`);
 };
 
-const updateCards = (cards : Cards, fetchType : CardFetchType, cardFilters? : Filters) : ThunkSomeAction => (dispatch) => {
+const updateCards = (incoming : Cards, fetchType : CardFetchType, cardFilters? : Filters) : ThunkSomeAction => (dispatch, getState) => {
+	//Admit HERE, once, against the store, so every reducer that consumes
+	//UPDATE_CARDS (data AND collection filters) sees the same map. An
+	//admission inside the data reducer alone left the collection reducer
+	//indexing an image the data reducer had refused — stale but consistent
+	//on master became inconsistent. receiveCards admits earlier against the
+	//enqueued buckets too; this pass is what makes the per-fetch-type flush
+	//of those buckets safe, since a later bucket can hold an older revision.
+	const held = selectRawCards(getState());
+	const {admitted: cards, refusedIDs} = admitCardImages(incoming, id => held[id]);
+	if (refusedIDs.length && perfEnabled()) console.log(`[PERF] updateCards(${fetchType}): refused ${refusedIDs.length} older image(s)`);
 	dispatch({
 		type: UPDATE_CARDS,
 		cards,

@@ -176,7 +176,19 @@ export const admitCardImages = <C>(incoming : {[id : string] : C}, held : (id : 
 Plus `revision?: number` on `Card` (`shared/types.ts`).
 
 - **Removals and tombstones** are not judged; a deletion always applies. A
-  recreate under the same id starts at 1 against nothing held.
+  recreate under the same id starts at 1 against nothing held — but a holder
+  that never saw the removal keeps revision N and refuses the recreated card
+  until its revision passes N. No UI path reuses an id (`createCard` always
+  vends `newID()`); the exposure is an Admin-SDK `set` over an existing
+  card (a future restore tool), which resets the clock to 1 and is then
+  silently refused by every live holder. Any such tool must either preserve
+  the stored revision or write one higher than it. (Review of 046e508d.)
+- **The pre-commit optimistic echo** (`modifyCardsIndividually`, the
+  suggestions path) carries the held revision, so an equal-revision stale
+  image is still admitted over it until the server's +1 arrives — the same
+  window as master. The durable save paths echo after commit at N+1 and are
+  closed. Fixing the pre-commit path means stamping its echo N+1 and
+  reverting on failure; not done here.
 - **Late pre-deletion image.** It is also admitted, which is pre-existing (Q3).
 - **Partial images.** Every strip is a denylist (`util.ts:622`,
   `corpus-worker.ts:620`), so `revision` survives the wire and the worker's

@@ -1555,8 +1555,7 @@ const connectPublishedFromSnapshot = async () => {
 		if (primedCount >= WARM_CACHE_THRESHOLD) {
 			send({type: 'corpusProgress', generation, expectedCorpusSize: primedCount});
 		}
-		updateLocalState(primedCards, [], true);
-		forwardBatch(primedCards, [], 'published', true, false,
+		forwardBatch(updateLocalState(primedCards, [], true), [], 'published', true, false,
 			engine.cardDerivedFilters(), [...corpus.keys()]);
 		status(`published compact snapshot prime: ${primedCount} cards`);
 		//Same reasoning as the privileged path: a compact snapshot is only ever
@@ -2960,11 +2959,13 @@ const connectUnpublishedWatermark = async (deferPublishedUntilAfterPrime = false
 	const primedCount = Object.keys(primedCards).length;
 	if (primedCount) {
 		const parseFinishedAt = performance.now();
-		updateLocalState(primedCards, [], true);
+		//A listener can deliver between building primedCards and this point
+		//(the ownership await above), so forward what the corpus admitted.
+		const admittedPrime = updateLocalState(primedCards, [], true);
 		const workerStateFinishedAt = performance.now();
 		const primedPublished : Cards = {};
 		const primedUnpublished : Cards = {};
-		for (const [id, card] of Object.entries(primedCards)) {
+		for (const [id, card] of Object.entries(admittedPrime)) {
 			(card.published ? primedPublished : primedUnpublished)[id] = card;
 		}
 		const cardFilters = engine.cardDerivedFilters();
