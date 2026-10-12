@@ -260,6 +260,8 @@ import {
 	CSSColorString
 } from './types.js';
 
+import {membershipSize} from '../shared/filter_membership.js';
+
 import {
 	exportContentForCards
 } from './contenteditable.js';
@@ -2553,7 +2555,7 @@ export const getCardIndexForActiveCollection = (state : State, cardId: CardID) :
 const selectBodyCardTypes = createSelector(
 	selectFilters,
 	//we can just take advantage of the fact that cards are already set, and there's a filter per card type
-	(filters) : CardType[] => (Object.keys(BODY_CARD_TYPES) as CardType[]).filter(cardType => Object.keys(filters[cardType] || {}).length > 0)
+	(filters) : CardType[] => (Object.keys(BODY_CARD_TYPES) as CardType[]).filter(cardType => membershipSize(filters[cardType] || {}) > 0)
 );
 
 export const selectFindLegalCardTypeFilters = createSelector(

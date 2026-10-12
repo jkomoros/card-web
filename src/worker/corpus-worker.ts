@@ -121,8 +121,13 @@ import {
 	Cards,
 	CardID,
 	CardFetchType,
+	FilterMap,
+	FilterMaps,
+	FilterMembership,
 	Filters
 } from '../types.js';
+
+import {membershipToFilterMap} from '../../shared/filter_membership.js';
 
 import {
 	MainToWorkerMessage,
@@ -1034,6 +1039,18 @@ const pushMetaDeltas = (cards : Cards, removedIDs : CardID[], suppressSend = fal
 	send({type: 'cardMeta', generation, metas: changed, removedIDs: removed});
 };
 
+const materializeCardFiltersForWire = (filters : Filters) : FilterMaps => {
+	const materializedByMembership = new Map<FilterMembership, FilterMap>();
+	return Object.fromEntries(Object.entries(filters).map(([name, membership]) => {
+		let map = materializedByMembership.get(membership);
+		if (!map) {
+			map = membershipToFilterMap(membership);
+			materializedByMembership.set(membership, map);
+		}
+		return [name, map];
+	}));
+};
+
 const forwardBatch = (cards : Cards, removedIDs : CardID[], fetchType : CardFetchType, fastDedupe : boolean, errorFallback = false, cardFilters? : Filters, cardFilterCorpusIDs? : CardID[]) => {
 	//One toWire over the whole stripped map, so the batch is Wire<Cards>
 	//end to end (#738) — no unknown hop for a receiver to fumble.
@@ -1041,7 +1058,7 @@ const forwardBatch = (cards : Cards, removedIDs : CardID[], fetchType : CardFetc
 	send({
 		type: 'cards',
 		generation,
-		batch: {cards: wireCards, removedIDs, fetchType, fastDedupe, errorFallback, corpusSize: corpus.size, cardFilters, cardFilterCorpusIDs}
+		batch: {cards: wireCards, removedIDs, fetchType, fastDedupe, errorFallback, corpusSize: corpus.size, cardFilters: cardFilters ? materializeCardFiltersForWire(cardFilters) : undefined, cardFilterCorpusIDs}
 	});
 };
 

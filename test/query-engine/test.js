@@ -8,6 +8,7 @@
 //with no DOM — the same environment constraint the worker has.
 
 import assert from 'assert';
+import {membershipKeys} from '../../lib/shared/filter_membership.js';
 
 let QueryEngine;
 let UPDATE_STARS;
@@ -164,12 +165,12 @@ describe('QueryEngine', () => {
 		assert.strictEqual(engine.cardCount, 2);
 	});
 
-	it('exports only complete card-derived filter maps', () => {
+	it('exports only complete card-derived filter memberships', () => {
 		const engine = makeEngine();
 		engine.applyAction({type: UPDATE_STARS, starsToAdd: ['a'], starsToRemove: []});
 		const filters = engine.cardDerivedFilters();
 		assert.ok(Object.keys(filters).length > 50);
-		assert.deepStrictEqual(Object.keys(filters.content || {}).sort(), ['a', 'b', 'c']);
+		assert.deepStrictEqual(membershipKeys(filters.content || {}).sort(), ['a', 'b', 'c']);
 		assert.strictEqual(Object.prototype.hasOwnProperty.call(filters, 'starred'), false);
 		for (const value of Object.values(filters)) assert.ok(value && typeof value === 'object' && !Array.isArray(value));
 	});

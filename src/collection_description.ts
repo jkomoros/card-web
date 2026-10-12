@@ -62,6 +62,7 @@ import {
 	Uid,
 	WebInfo,
 	FilterMap,
+	FilterMembership,
 	FilterExtras,
 	IDFMap,
 	CardIDMap,
@@ -71,6 +72,12 @@ import {
 	CardSimilarityMap,
 	ConfigurableFilterResult
 } from './types.js';
+
+import {
+	membershipEntries,
+	membershipHas,
+	membershipIdentity
+} from '../shared/filter_membership.js';
 
 import {
 	KEY_CARD_ID_PLACEHOLDER	
@@ -797,8 +804,8 @@ const makeFilterFromConfigurableFilter = (name : ConfigurableFilterName, extras 
 //never made literal like this, this is most useful for creating
 //unionFilterSets. allCardsFilter can also just be the full set of id =>
 //fullCard.
-export const makeConcreteInverseFilter = (inverseFilter : FilterMap, allCardsFilter : CardIDMap) : FilterMap => {
-	return Object.fromEntries(Object.entries(allCardsFilter).filter(entry => !inverseFilter[entry[0]]).map(entry => [entry[0], true]));
+export const makeConcreteInverseFilter = (inverseFilter : FilterMembership, allCardsFilter : CardIDMap) : FilterMap => {
+	return Object.fromEntries(Object.entries(allCardsFilter).filter(entry => !membershipHas(inverseFilter, entry[0])).map(entry => [entry[0], true]));
 };
 
 //makeFilterUnionSet takes a definition like "starred+in-reading-list" and
@@ -859,8 +866,8 @@ const makeFilterUnionSet = (unionFilterDefinition : UnionFilterName, filterSetMe
 	//the result depend on the full card set, so unions of normal filters
 	//don't recompute on unrelated card churn.
 	const sources : unknown[] = subFilterNames.map(filterName => {
-		if (filterSetMemberships[filterName]) return filterSetMemberships[filterName];
-		if (INVERSE_FILTER_NAMES[filterName]) return filterSetMemberships[INVERSE_FILTER_NAMES[filterName]];
+		if (filterSetMemberships[filterName]) return membershipIdentity(filterSetMemberships[filterName]);
+		if (INVERSE_FILTER_NAMES[filterName]) return membershipIdentity(filterSetMemberships[INVERSE_FILTER_NAMES[filterName]]);
 		return undefined;
 	});
 	if (subFilterNames.some(filterName => !filterSetMemberships[filterName] && INVERSE_FILTER_NAMES[filterName])) {
@@ -879,7 +886,7 @@ const makeFilterUnionSet = (unionFilterDefinition : UnionFilterName, filterSetMe
 			if (INVERSE_FILTER_NAMES[filterName]) return makeConcreteInverseFilter(filterSetMemberships[INVERSE_FILTER_NAMES[filterName]], cards);
 			return {};
 		});
-		return Object.fromEntries(subFilters.map(filter => Object.entries(filter)).reduce((accum, val) => accum.concat(val),[]));
+		return Object.fromEntries(subFilters.map(filter => membershipEntries(filter)).reduce((accum, val) => accum.concat(val),[]));
 	};
 	//The weak key must be an object that DIES WITH ITS CORPUS. A
 	//never-populated card filter (a user with zero stars) keeps the
@@ -917,13 +924,13 @@ const makeFilterUnionSet = (unionFilterDefinition : UnionFilterName, filterSetMe
 
 //Returns a function that takes an item and returns true if it's in ALL
 //includeSets and not in any exclude sets.
-const makeCombinedFilter = (includeSets : FilterMap[], excludeSets : FilterMap[]) : FilterFunc => {
+const makeCombinedFilter = (includeSets : FilterMembership[], excludeSets : FilterMembership[]) : FilterFunc => {
 	return function(item) {
 		for (const set of includeSets) {
-			if (!set[item]) return false;
+			if (!membershipHas(set, item)) return false;
 		}
 		for (const set of excludeSets) {
-			if (set[item]) return false;
+			if (membershipHas(set, item)) return false;
 		}
 		return true;
 	};
@@ -1019,7 +1026,7 @@ export const filterSetForFilterDefinitionItem = (filterDefinitionItem : FilterNa
 //member verdict too.
 export const cardPassesFilterSegment = (segment : FilterName, cardID : CardID, extras : FilterExtras) : boolean => {
 	const [filterSet, reverse] = withURLDiagnosticsSuppressed(() => filterSetForFilterDefinitionItem(segment, extras));
-	return reverse ? !filterSet[cardID] : Boolean(filterSet[cardID]);
+	return reverse ? !membershipHas(filterSet, cardID) : membershipHas(filterSet, cardID);
 };
 
 //makeExtrasForFilterFunc makes a new extras object containing the extra

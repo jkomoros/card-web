@@ -279,9 +279,11 @@ import {
 	TweetMap,
 	CardFetchType,
 	CardFlags,
-	Filters,
+	FilterMaps,
 	FirestoreLeafValue,
 } from '../types.js';
+
+import {cardFilterDomainMatches} from '../card-filter-domain.js';
 
 import {
 	COMMITTED_PENDING_FILTERS_WHEN_FULLY_LOADED,
@@ -3902,7 +3904,7 @@ const FAST_DEDUPE_VALIDATION_RATE = 0.01;
 //timestamps are then treated as proof of equivalence, replacing an O(full
 //card) deep compare per doc with a two-number compare. A small sample is
 //still deep-checked and logged (and applied) on mismatch.
-export const receiveCards = (incoming: Cards, fetchType : CardFetchType, fastDedupe = false, ownsInput = false, cardFilters? : Filters, cardFilterCorpusIDs? : CardID[]) : ThunkSomeAction => (dispatch, getState) => {
+export const receiveCards = (incoming: Cards, fetchType : CardFetchType, fastDedupe = false, ownsInput = false, cardFilters? : FilterMaps, cardFilterCorpusIDs? : CardID[]) : ThunkSomeAction => (dispatch, getState) => {
 	const startTime = performance.now();
 	const existingCards = selectRawCards(getState());
 	//Admission comes FIRST, against the newest copy held anywhere (an
@@ -3940,12 +3942,9 @@ export const receiveCards = (incoming: Cards, fetchType : CardFetchType, fastDed
 	//post-action Redux corpus have the exact same ID domain. Otherwise a stale
 	//Redux ghost (or a partial prime) would silently disappear from filters
 	//before authoritative reconciliation.
-	let safeCardFilters : Filters | undefined;
+	let safeCardFilters : FilterMaps | undefined;
 	if (cardFilters && cardFilterCorpusIDs) {
-		const existingIDs = Object.keys(existingCards);
-		const incomingIDs = Object.keys(cards);
-		const combinedCount = existingIDs.length + incomingIDs.filter(id => !existingCards[id]).length;
-		if (combinedCount === cardFilterCorpusIDs.length && cardFilterCorpusIDs.every(id => existingCards[id] || cards[id])) {
+		if (cardFilterDomainMatches(existingCards, cards, cardFilterCorpusIDs)) {
 			safeCardFilters = cardFilters;
 		}
 	}
@@ -4040,7 +4039,7 @@ export const receiveCards = (incoming: Cards, fetchType : CardFetchType, fastDed
 	if (perfEnabled()) console.log(`[PERF] receiveCards(${fetchType}): total ${(performance.now() - startTime).toFixed(1)}ms`);
 };
 
-const updateCards = (incoming : Cards, fetchType : CardFetchType, cardFilters? : Filters) : ThunkSomeAction => (dispatch, getState) => {
+const updateCards = (incoming : Cards, fetchType : CardFetchType, cardFilters? : FilterMaps) : ThunkSomeAction => (dispatch, getState) => {
 	//Admit HERE, once, against the store, so every reducer that consumes
 	//UPDATE_CARDS (data AND collection filters) sees the same map. An
 	//admission inside the data reducer alone left the collection reducer

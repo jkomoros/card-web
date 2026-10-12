@@ -6,6 +6,8 @@ import {
 	Timestamp
 } from './timestamp.js';
 
+import type {CardDerivedMembership} from './filter_membership.js';
+
 import * as icons from './../shared/icons.js';
 
 export type IconName = keyof(typeof icons);
@@ -101,8 +103,16 @@ export type FilterMap = {
 	[id : CardID] : true
 };
 
-export type Filters = {
+export type FilterMembership = FilterMap | CardDerivedMembership;
+
+//The explicit worker/main-thread transfer shape. CardDerivedMembership is an
+//in-process representation and must be materialized before structured clone.
+export type FilterMaps = {
 	[filterName : ConcreteFilterName] : FilterMap
+};
+
+export type Filters = {
+	[filterName : ConcreteFilterName] : FilterMembership
 };
 
 export type SectionID = string;

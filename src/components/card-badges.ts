@@ -18,6 +18,8 @@ import {
 	OptionalFieldsCard
 } from '../types.js';
 
+import {membershipHas} from '../../shared/filter_membership.js';
+
 type BadgeName = string;
 
 const badge = (name : BadgeName, icon : TemplateResult, countOrVisible : boolean | number, highlighted? : boolean) => {
@@ -138,7 +140,7 @@ export const cardBadges = (light : boolean, card : OptionalFieldsCard, badgeMap 
 	  <div class="badges-container ${light ? 'light' : ''}">
 		<div class='top-right'>
 			${badge('star-count', STAR_ICON, nonBlankCard?.star_count || 0, starMap[id])}
-			${badge('todo', ASSIGNMENT_TURNED_IN_ICON, todoMap[id])}
+			${badge('todo', ASSIGNMENT_TURNED_IN_ICON, membershipHas(todoMap, id))}
 		</div>
 		${badge('read', VISIBILITY_ICON, readMap[id])}
 		<div class='bottom-right'>

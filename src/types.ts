@@ -58,6 +58,8 @@ import {
 	ReferencesArrayByType,
 	CardBooleanMap,
 	FilterMap,
+	FilterMaps,
+	FilterMembership,
 	Filters,
 	SectionID,
 	TagID,
@@ -140,6 +142,8 @@ export {
 	ReferencesArrayByType,
 	CardBooleanMap,
 	FilterMap,
+	FilterMaps,
+	FilterMembership,
 	Filters,
 	SectionID,
 	TagID,
@@ -365,7 +369,7 @@ export type FilterFuncResult = {
 }
 
 //preview is true if any item returned preview:true in the whole set
-export type ConfigurableFilterResult = [result : FilterMap, reverse : boolean, sortValues : SortExtra | null, partialMatches: CardBooleanMap | null, preview : boolean];
+export type ConfigurableFilterResult = [result : FilterMembership, reverse : boolean, sortValues : SortExtra | null, partialMatches: CardBooleanMap | null, preview : boolean];
 
 export type ConfigurableFilterFunc = (card : ProcessedCard, extras? : FilterExtras) => FilterFuncResult;
 
@@ -742,7 +746,7 @@ export type Logger = {
 export interface BadgeMap {
 	stars: FilterMap,
 	reads: FilterMap,
-	todos: FilterMap,
+	todos: FilterMembership,
 	readingList: CardBooleanMap,
 	selected: FilterMap
 }

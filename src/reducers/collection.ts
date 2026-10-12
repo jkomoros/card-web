@@ -39,12 +39,21 @@ import {
 import {
 	CollectionState,
 	Filters,
+	FilterMaps,
+	FilterMembership,
 	Cards,
 	CardID,
 	FilterMap,
 	Sections,
 	CardTestFunc
 } from '../types.js';
+
+import {
+	isCardDerivedMembership,
+	membershipHas,
+	membershipSize,
+	updateCardDerivedMembership,
+} from '../../shared/filter_membership.js';
 
 import {
 	TypedObject
@@ -153,7 +162,7 @@ const app = (state : CollectionState = INITIAL_STATE, action : SomeAction) : Col
 	case REMOVE_CARDS:
 		return removeCardIDsFromSubState(action.cardIDs, state);
 	case UPDATE_STARS: {
-		const starred = updateFilterMap(state.filters.starred, action.starsToRemove, action.starsToAdd);
+		const starred = updateFilterMap(plainFilterMap(state.filters.starred), action.starsToRemove, action.starsToAdd);
 		if (starred === state.filters.starred) return state;
 		return {
 			...state,
@@ -161,7 +170,7 @@ const app = (state : CollectionState = INITIAL_STATE, action : SomeAction) : Col
 		};
 	}
 	case UPDATE_READS: {
-		const read = updateFilterMap(state.filters.read, action.readsToRemove, action.readsToAdd);
+		const read = updateFilterMap(plainFilterMap(state.filters.read), action.readsToRemove, action.readsToAdd);
 		if (read === state.filters.read) return state;
 		return {
 			...state,
@@ -275,13 +284,27 @@ const makeFilterFromSection = (sections : Sections, includeDefaultSet? : boolean
 	return result;
 };
 
-const completeCardFilterProjection = (filters? : Filters) : filters is Filters => {
+//The wire shape is plain maps and nothing else: a membership token that
+//crossed the worker boundary arrives as {} (structuredClone drops it), and
+//would otherwise install as an empty filter. Accept only own-key
+//plain-object maps of `true`.
+const completeCardFilterProjection = (filters? : FilterMaps) : filters is FilterMaps => {
 	if (!filters) return false;
 	const expected = Object.keys(CARD_FILTER_FUNCS);
 	const actual = Object.keys(filters);
 	return actual.length === expected.length &&
 		expected.every(name => Object.prototype.hasOwnProperty.call(filters, name) &&
-			typeof filters[name] === 'object' && filters[name] !== null && !Array.isArray(filters[name]));
+			typeof filters[name] === 'object' && filters[name] !== null && !Array.isArray(filters[name]) &&
+			(Object.getPrototypeOf(filters[name]) === Object.prototype || Object.getPrototypeOf(filters[name]) === null) &&
+			Reflect.ownKeys(filters[name]).length === Object.keys(filters[name]).length &&
+			Object.values(filters[name]).every(value => value === true));
+};
+
+//Stars and reads are user-owned filters: their reducers edit plain maps and
+//never receive card-derived storage.
+const plainFilterMap = (membership : FilterMembership) : FilterMap => {
+	if (isCardDerivedMembership(membership)) throw new Error('User-owned filter unexpectedly used card-derived membership storage');
+	return membership;
 };
 
 //Applies removals then additions to a filter map, returning the previous map
@@ -324,27 +347,31 @@ const makeFilterFromCards = (cards : Cards, previousFilters : Filters) : Filters
 	//incremental algorithm below repeatedly checks empty prior membership,
 	//allocates add lists, and then copies maps. Card-major construction is
 	//semantically identical here and substantially cheaper for a 40k-card boot.
-	if (cardValues.length >= 1000 && filterFuncs.every(([name]) => Object.keys(previousFilters[name] || {}).length === 0)) {
-		for (const [name] of filterFuncs) result[name] = {};
+	if (cardValues.length >= 1000 && filterFuncs.every(([name]) => membershipSize(previousFilters[name] || {}) === 0)) {
+		const built : {[name : string] : FilterMap} = {};
+		for (const [name] of filterFuncs) built[name] = {};
 		for (const card of cardValues) {
 			for (const [name, func] of filterFuncs) {
 				if (!func) throw new Error('Invalid func name: ' + name);
-				if (func(card)) result[name][card.id] = true;
+				if (func(card)) built[name][card.id] = true;
 			}
 		}
+		for (const [name] of filterFuncs) result[name] = built[name];
 		perfCount('makeFilterFromCards:calls');
 		perfCount('makeFilterFromCards:changedMaps', Object.keys(result).length);
 		return result;
 	}
 	for (const [filterName, func] of filterFuncs) {
 		if(!func) throw new Error('Invalid func name: ' + filterName);
-		const previous = previousFilters[filterName] || {};
+		//Card-derived storage arrives in step 4; until then every prior is a
+		//plain map, read through the same helper the consumers use.
+		const previous = plainFilterMap(previousFilters[filterName] || {});
 		let toAdd : CardID[] | null = null;
 		let toRemove : CardID[] | null = null;
 		for (const card of cardValues) {
 			//Filter funcs return truthiness, not strict booleans.
 			const matches = Boolean(func(card));
-			const inPrevious = Boolean(previous[card.id]);
+			const inPrevious = membershipHas(previous, card.id);
 			if (matches === inPrevious) continue;
 			if (matches) {
 				(toAdd ||= []).push(card.id);
@@ -386,15 +413,18 @@ const removeCardIDsFromSubState = (cardIDs : CardID[], subState : CollectionStat
 
 //Returns a filter (cardID -> true) that contains none of the cardIDs. IF no
 //changes are made, returns the filter.
-const removeCardIDsFromFilter = (cardIDs : CardID[], filter : FilterMap) => {
+function removeCardIDsFromFilter(cardIDs : CardID[], filter : FilterMap) : FilterMap;
+function removeCardIDsFromFilter(cardIDs : CardID[], filter : FilterMembership) : FilterMembership;
+function removeCardIDsFromFilter(cardIDs : CardID[], filter : FilterMembership) : FilterMembership {
+	if (isCardDerivedMembership(filter)) return updateCardDerivedMembership(filter, {remove: cardIDs});
 	const newFilter = {...filter};
 	let changesMade = false;
 	for (const id of cardIDs) {
-		if (!newFilter[id]) continue;
+		if (!Object.prototype.hasOwnProperty.call(newFilter, id) || !newFilter[id]) continue;
 		delete newFilter[id];
 		changesMade = true;
 	}
 	return changesMade ? newFilter : filter;
-};
+}
 
 export default app;

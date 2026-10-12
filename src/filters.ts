@@ -125,12 +125,12 @@ import {
 	ConfigurableFilterFuncFactoryResult,
 	FilterExtras,
 	IDFMap,
-	CardIDMap,
 	Sections,
 	CardType,
 	ReferenceType,
 	CollectionState,
 	FilterMap,
+	FilterMembership,
 	SortExtra,
 	TODOType,
 	StringCardMap,
@@ -152,6 +152,12 @@ import {
 	autoTODOType,
 	FreeformTODOKey
 } from './types.js';
+
+import {
+	membershipHas,
+	membershipKeys,
+	membershipToFilterMap
+} from '../shared/filter_membership.js';
 
 import {
 	Timestamp
@@ -533,7 +539,7 @@ const INVALID_FILTER_NAME_SENTINEL = () => ({});
 //Returns a function that takes cards, activeCardID, and editingCard and returns
 //a map of cardID -> depth from the keycard. If optOverrideCards is defined,
 //then cardID is ignored, and instead it passes the keys of that map to the BFS.
-const cardBFSMaker = (filterName : ConfigurableFilterType, cardID : CardID, countOrTypeStr : string, countStr : string, optOverrideCards? : CardIDMap) : (cards : Cards, activeCardID : CardID, editingCard? : Card | null) => SortExtra => {
+const cardBFSMaker = (filterName : ConfigurableFilterType, cardID : CardID, countOrTypeStr : string, countStr : string, optOverrideCards? : FilterMembership) : (cards : Cards, activeCardID : CardID, editingCard? : Card | null) => SortExtra => {
 	//note: makeExpandConfigurableFilter needs to be updated if the number or order of parameters changes.
 
 	if (!LINKS_FILTER_NAMES[filterName]) {
@@ -569,7 +575,7 @@ const cardBFSMaker = (filterName : ConfigurableFilterType, cardID : CardID, coun
 	let includeKeyCard = false;
 	[cardID, includeKeyCard] = parseKeyCardID(cardID);
 
-	const overrideCardIDs = optOverrideCards ? Object.keys(optOverrideCards) : null;
+	const overrideCardIDs = optOverrideCards ? membershipKeys(optOverrideCards) : null;
 
 	//We have to memoize the functor we return, even though the filter machinery
 	//will memoize too, because otherwise literally every card in a given run
@@ -780,7 +786,7 @@ const makeExcludeConfigurableFilter = (_ : ConfigurableFilterType, ...remainingP
 		//good way to figure out if it will be reversed early enough to say
 		//whether the function's results should be reversed. The current
 		//approach works, it just requires a bit more memory.
-		return {matches: reversed ? !filterSet[id] : filterSet[id]};
+		return {matches: reversed ? !membershipHas(filterSet, id) : membershipHas(filterSet, id)};
 	};
 	//The true is the whole business end of this configurable filter,
 	//reversing the filter it operates on.
@@ -817,7 +823,7 @@ const makeExpandConfigurableFilter = (_ : ConfigurableFilterType, ...remainingPa
 		let expandedSet : FilterMap = {};
 
 		if (expandFilterPieces[0] == SIMILAR_CUTOFF_FILTER_NAME) {
-			const [similarFilter] = makeSimilarConfigurableFilter(SIMILAR_CUTOFF_FILTER_NAME, keyCardID(Object.keys(filterMembershipMain), false), expandFilterPieces[2]);
+			const [similarFilter] = makeSimilarConfigurableFilter(SIMILAR_CUTOFF_FILTER_NAME, keyCardID(membershipKeys(filterMembershipMain), false), expandFilterPieces[2]);
 			//Walk through each card and run the similarFilter manually (ids
 			//from behind the lazy Proxy; see processedCardIDs).
 			for (const id of processedCardIDs(extras.cards)) {
@@ -831,14 +837,17 @@ const makeExpandConfigurableFilter = (_ : ConfigurableFilterType, ...remainingPa
 
 			if (bfs == INVALID_FILTER_NAME_SENTINEL) {
 				console.warn('Invalid links filter for second part: ' + expandFilter);
-				return filterMembershipMain;
+				return membershipToFilterMap(filterMembershipMain);
 			}
 
 			//We just pass '' for activeCardID each time because we don't acutally use it since we passed filterMembershipMain
 			expandedSet = Object.fromEntries(Object.entries(bfs(extras.cards, '', extras.editingCard)).map(entry => [entry[0], true]));
 		}
 
-		return unionSet(filterMembershipMain, expandedSet);
+		const result : FilterMap = {};
+		for (const id of membershipKeys(filterMembershipMain)) result[id] = true;
+		for (const id of Object.keys(expandedSet)) result[id] = true;
+		return result;
 	});
 	
 	const func = function(card : ProcessedCard, extras : FilterExtras) : FilterFuncResult {
@@ -867,10 +876,10 @@ const makeCombineConfigurableFilter = (_ : ConfigurableFilterType, ...remainingP
 		if (excludeTwo) filterMembershipTwo = makeConcreteInverseFilter(filterMembershipTwo, extras.cards);
 
 		const result : FilterMap = {};
-		for (const key of Object.keys(filterMembershipOne)) {
+		for (const key of membershipKeys(filterMembershipOne)) {
 			result[key] = true;
 		}
-		for (const key of Object.keys(filterMembershipTwo)) {
+		for (const key of membershipKeys(filterMembershipTwo)) {
 			result[key] = true;
 		}
 		return result;

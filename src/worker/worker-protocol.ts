@@ -12,7 +12,7 @@ import {
 	CardMeta,
 	CardMetas,
 	CardSimilarityMap,
-	Filters,
+	FilterMaps,
 	ProcessedCard,
 	SerializedDescriptionToCardList,
 	SortExtra,
@@ -255,7 +255,7 @@ export type CardBatch = {
 	cards : Wire<Cards>,
 	//Present only on the final compact-prime batch. These are the worker's
 	//complete card-derived filter maps for the same atomic corpus generation.
-	cardFilters? : Filters,
+	cardFilters? : FilterMaps,
 	//Exact domain for cardFilters. Main Redux must already hold or receive
 	//every one of these IDs and no extras before it may install the snapshot.
 	cardFilterCorpusIDs? : CardID[],
