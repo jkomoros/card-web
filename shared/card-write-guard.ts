@@ -44,6 +44,28 @@ export const COUNTER_FIELDS_EXEMPT_FROM_UPDATED : readonly string[] = [
 	'last_tweeted'
 ];
 
+//The only card fields a write may touch WITHOUT advancing `revision`: the
+//denormalized inbound-reference mirror that accompanies another card's edit
+//(plus the `updated` bump the mirror must carry). Mirrors the hasOnly list
+//inside the Rules' cardContentUpdate. Keys may be dotted field paths
+//('references_inbound.<id>').
+export const INBOUND_REFERENCE_WRITE_FIELDS : readonly string[] = ['references_inbound', 'references_info_inbound', 'updated'];
+
+//True when a card update's keys include anything beyond the inbound mirror,
+//i.e. it is a content write that must advance `revision`.
+export const cardUpdateAdvancesRevision = (keys : readonly string[]) : boolean =>
+	!keys.every(key => INBOUND_REFERENCE_WRITE_FIELDS.includes(key.split('.')[0]));
+
+//MultiBatch owns `revision`: it injects increment(1) on content updates and
+//1 on creates. A caller supplying its own value would double-bump (denied by
+//the Rules) or forge an ordering token, so it is refused at queue time.
+export const callerRevisionViolation = (path : string, cardsCollection : string, keys : readonly string[]) : string | null => {
+	if (!isTopLevelDocPath(path, cardsCollection)) return null;
+	if (!keys.some(key => key === 'revision' || key.startsWith('revision.'))) return null;
+	return `Card write to ${path} sets \`revision\` itself. MultiBatch advances the revision on every ` +
+		'content write (increment(1), or 1 on create); callers must not supply one.';
+};
+
 //Returns a violation message if a no-bump card write (updateWithoutTimestampBump)
 //touches any field outside the counter allowlist, or null if it is a
 //legitimate counter-only write. `keys` are the top-level field names being

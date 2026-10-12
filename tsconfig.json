@@ -69,6 +69,6 @@
       }
     ]
   },
-  "include": ["src/**/*.ts", "tools/**/*.ts"],
+  "include": ["src/**/*.ts", "tools/**/*.ts", "shared/card-revision.ts"],
   "exclude": []
 }

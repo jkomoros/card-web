@@ -154,6 +154,24 @@ service cloud.firestore {
       return request.resource.data.get('updated', null) == request.time;
     }
 
+    //Card revision: the ordering token every client-side holder of a card
+    //image admits by (docs/lean-architecture/01-revision-and-admission.md).
+    //A content write advances it by exactly one; missing reads as 0, so
+    //legacy cards need no backfill. Clients write increment(1), and
+    //request.resource sees the post-transform value, so this holds with no
+    //read even inside a transaction. The inbound-reference mirror (the key
+    //set cardEditInboundReferences admits) leaves it unchanged: that keeps
+    //the path an author/editor of THIS card had before revisions existed —
+    //widening cardEditInboundReferences' identity floor instead exceeded the
+    //rules expression budget. The counter branches never touch `revision`
+    //(their hasOnly lists exclude it), so a counter write that bumps it falls
+    //through to here and is denied for not bumping `updated`.
+    function cardContentUpdate() {
+      return bumpsUpdated() && (
+        request.resource.data.get('revision', -1) == resource.data.get('revision', 0) + 1
+        || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['references_inbound', 'references_info_inbound', 'updated']));
+    }
+
     function cardEditInboundReferences() {
       let affectedKeys = request.resource.data.diff(resource.data).affectedKeys();
       //`updated` is REQUIRED and must be the request server-time. Inbound
@@ -330,12 +348,14 @@ service cloud.firestore {
     
     match /cards/{card} {
       allow read: if userMayViewApp() && (resource.data.published == true || userMayViewUnpublished());
-      allow create: if userMayCreateCard() && createIsAuthor() && bumpsUpdated();
+      //A new card starts at revision 1 (see cardContentUpdate).
+      allow create: if userMayCreateCard() && createIsAuthor() && bumpsUpdated()
+        && request.resource.data.get('revision', -1) == 1;
       //Keep the common admin path first. The emulator and production rules
       //engine have a finite expression budget per atomic write; evaluating
       //every minor/inbound branch before an already-authorized admin made even
       //a one-card denormalized edit exceed that budget.
-      allow update: if userIsAdmin() ? (bumpsUpdated() || cardEditMinor(card) || cardEditInboundReferences()) : (cardEditMinor(card) || cardEditInboundReferences() || (userMayEditCard(card) && bumpsUpdated()));
+      allow update: if userIsAdmin() ? (cardContentUpdate() || cardEditMinor(card) || cardEditInboundReferences()) : (cardEditMinor(card) || cardEditInboundReferences() || (userMayEditCard(card) && cardContentUpdate()));
       //This logic mirrors the logic in selectors/getReasonUserMayNotDeleteCard
       allow delete: if userMayEditCard(card)
         && resource.data.get('section', '') == ''

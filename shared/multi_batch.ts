@@ -7,7 +7,10 @@ import {
 
 import {
 	cardWriteViolation,
-	nonBumpCardWriteViolation
+	nonBumpCardWriteViolation,
+	callerRevisionViolation,
+	cardUpdateAdvancesRevision,
+	isTopLevelDocPath
 } from './card-write-guard.js';
 
 const FIRESTORE_BATCH_LIMIT = 500;
@@ -40,6 +43,13 @@ export interface MultiBatchConfig<TBatch, TRef> {
 		cardsCollection: string;
 		refPath: (ref: TRef) => string;
 		isServerTimestampValue: (value: unknown) => boolean;
+		// The SDK's numeric increment(1) sentinel. Every content update on a
+		// top-level card gets `revision: increment(1)` injected ONCE per card
+		// per underlying Firestore batch (the Rules judge a batch's final
+		// state, so two increments on one card would read as +2 and be
+		// denied), and every card set gets `revision: 1`. See
+		// shared/card-revision.ts for why.
+		revisionIncrement: () => unknown;
 	};
 }
 
@@ -196,10 +206,37 @@ export class MultiBatchBase<TBatch, TRef> {
 			? nonBumpCardWriteViolation(path, guard.cardsCollection, Object.keys(data))
 			: cardWriteViolation(path, guard.cardsCollection, guard.isServerTimestampValue((data as {updated?: unknown}).updated));
 		if (violation) throw new Error(violation);
+		const revisionViolation = callerRevisionViolation(path, guard.cardsCollection, Object.keys(data));
+		if (revisionViolation) throw new Error(revisionViolation);
+	}
+
+	//Which card paths already carry a revision bump in each underlying batch.
+	//Keyed on the batch object because atomic groups materialize into their
+	//real batch only at endAtomicGroup/commit, and a split fanout can put the
+	//same card into two batches, each of which must bump exactly once.
+	protected _revisionBumped = new WeakMap<object, Set<string>>();
+
+	protected _withRevision(batch: TBatch, ref: TRef, data: object): object {
+		const guard = this._config.cardWriteGuard;
+		if (!guard) return data;
+		const path = guard.refPath(ref);
+		if (!isTopLevelDocPath(path, guard.cardsCollection) || !cardUpdateAdvancesRevision(Object.keys(data))) return data;
+		let bumped = this._revisionBumped.get(batch as object);
+		if (!bumped) this._revisionBumped.set(batch as object, bumped = new Set());
+		if (bumped.has(path)) return data;
+		bumped.add(path);
+		return {...data, revision: guard.revisionIncrement()};
 	}
 
 	set(ref: TRef, data: object, options?: object) {
 		this._assertCardWriteAllowed(ref, data, false);
+		const guard = this._config.cardWriteGuard;
+		if (guard && isTopLevelDocPath(guard.refPath(ref), guard.cardsCollection)) {
+			//A merge-set on a card would reset an existing revision to 1; no
+			//writer does this, and one that starts must say what it means.
+			if (options) throw new Error(`Card set to ${guard.refPath(ref)} with options is not supported; use update() for an existing card.`);
+			data = {...data, revision: 1};
+		}
 		if (this._config.preprocessData) {
 			data = this._config.preprocessData(data);
 		}
@@ -214,7 +251,7 @@ export class MultiBatchBase<TBatch, TRef> {
 			data = this._config.preprocessData(data);
 		}
 		const count = this._writeCountForUpdate(data);
-		this._queueOperation(count, batch => this._config.batchUpdate(batch, ref, data));
+		this._queueOperation(count, batch => this._config.batchUpdate(batch, ref, this._withRevision(batch, ref, data)));
 		return this;
 	}
 

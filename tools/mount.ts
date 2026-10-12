@@ -552,6 +552,7 @@ const createAdminMultiBatch = (db: FirebaseFirestore.Firestore) => {
 		cardWriteGuard: {
 			cardsCollection: 'cards',
 			refPath: (ref) => ref.path,
+			revisionIncrement: () => FieldValue.increment(1),
 			isServerTimestampValue: (value : unknown) : boolean => {
 				if (!value || typeof value !== 'object') return false;
 				const candidate = value as {isEqual? : (other : unknown) => boolean};

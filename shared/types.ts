@@ -498,6 +498,12 @@ export interface Card {
 	created: Timestamp,
 	updated: Timestamp,
 	updated_substantive: Timestamp,
+	//Monotonic per-card revision, advanced by exactly one on every content
+	//write (enforced by the Rules; written as increment(1) by MultiBatch).
+	//Counter and inbound-reference-mirror writes leave it unchanged. Missing
+	//on legacy cards and read as 0. Every holder of a card image refuses an
+	//image with a lower revision than the one it holds (shared/card-revision.ts).
+	revision?: number,
 	updated_message: Timestamp,
 
 	//star_count is sum of star_count_manual, tweet_favorite_count, tweet_retweet_count.

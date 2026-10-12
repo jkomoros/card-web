@@ -16,6 +16,7 @@ import {
 import firebase from 'firebase/compat/app';
 import 'firebase/compat/firestore';
 import fs from 'fs';
+import assert from 'assert';
 
 const projectId = 'compendium-tester';
 const firebaseConfig = JSON.parse(fs.readFileSync('firebase.json').toString());
@@ -403,20 +404,20 @@ describe('Compendium Rules', () => {
 	it('allows admins to create a card', async() => {
 		const db = authedApp(adminAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId + 'new');
-		await assertSucceeds(card.set({tile:'foo', body:'foo', author:adminUid, updated: firebase.firestore.FieldValue.serverTimestamp()}));
+		await assertSucceeds(card.set({tile:'foo', body:'foo', author:adminUid, updated: firebase.firestore.FieldValue.serverTimestamp(), revision: 1}));
 	});
 
 	it('allows users with edit permission to create a card', async() => {
 		const db = authedApp(jerryAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId + 'new');
-		await assertSucceeds(card.set({tile:'foo', body:'foo', author:jerryUid, updated: firebase.firestore.FieldValue.serverTimestamp()}));
+		await assertSucceeds(card.set({tile:'foo', body:'foo', author:jerryUid, updated: firebase.firestore.FieldValue.serverTimestamp(), revision: 1}));
 	});
 
 	it('allows users with createCard permission to create a card', async() => {
 		const db = authedApp(genericAuth);
 		await addPermissionForUser(genericUid, 'createCard');
 		const card = db.collection(CARDS_COLLECTION).doc(cardId + 'new');
-		await assertSucceeds(card.set({tile:'foo', body:'foo', author:genericUid, updated: firebase.firestore.FieldValue.serverTimestamp()}));
+		await assertSucceeds(card.set({tile:'foo', body:'foo', author:genericUid, updated: firebase.firestore.FieldValue.serverTimestamp(), revision: 1}));
 	});
 
 	it('disallows admins to create a card they aren\'t author of', async() => {
@@ -657,35 +658,131 @@ describe('Compendium Rules', () => {
 	it('allows users with edit permission to arbitrarily edit a card', async () => {
 		const db = authedApp(jerryAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await assertSucceeds(card.update({foo:5, updated: firebase.firestore.FieldValue.serverTimestamp()}));
+		await assertSucceeds(card.update({foo:5, updated: firebase.firestore.FieldValue.serverTimestamp(), revision: firebase.firestore.FieldValue.increment(1)}));
 	});
 
 	it('allows users with editCard permission to arbitrarily edit a card', async () => {
 		const db = authedApp(genericAuth);
 		await addPermissionForUser(genericUid, 'editCard');
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await assertSucceeds(card.update({foo:5, updated: firebase.firestore.FieldValue.serverTimestamp()}));
+		await assertSucceeds(card.update({foo:5, updated: firebase.firestore.FieldValue.serverTimestamp(), revision: firebase.firestore.FieldValue.increment(1)}));
 	});
 
 	it('allows users explicitly marked as author for that card to arbitrarily edit a card', async () => {
 		//bob is explictly the author
 		const db = authedApp(bobAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await assertSucceeds(card.update({foo:5, updated: firebase.firestore.FieldValue.serverTimestamp()}));
+		await assertSucceeds(card.update({foo:5, updated: firebase.firestore.FieldValue.serverTimestamp(), revision: firebase.firestore.FieldValue.increment(1)}));
 	});
 
 	it('allows users explicitly marked as editors for that card to arbitrarily edit a card', async () => {
 		//Sally is explicitly listed as an editor on the card
 		const db = authedApp(sallyAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await assertSucceeds(card.update({foo:5, updated: firebase.firestore.FieldValue.serverTimestamp()}));
+		await assertSucceeds(card.update({foo:5, updated: firebase.firestore.FieldValue.serverTimestamp(), revision: firebase.firestore.FieldValue.increment(1)}));
 	});
 
 	it('allows users explicitly marked as editors to arbitrarily edit a card', async () => {
 		//jerry has blanket edit permission
 		const db = authedApp(jerryAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await assertSucceeds(card.update({foo:5, updated: firebase.firestore.FieldValue.serverTimestamp()}));
+		await assertSucceeds(card.update({foo:5, updated: firebase.firestore.FieldValue.serverTimestamp(), revision: firebase.firestore.FieldValue.increment(1)}));
+	});
+
+	//The card revision clock (shared/card-revision.ts): a content write must
+	//advance `revision` by exactly one, a create starts it at 1, and the
+	//counter and inbound-reference-mirror branches must leave it alone. The
+	//seeded fixture card has NO revision (legacy), so it reads as 0.
+	describe('card revision', () => {
+		const stamp = () => firebase.firestore.FieldValue.serverTimestamp();
+		const inc = (n = 1) => firebase.firestore.FieldValue.increment(n);
+		const seedRevision = (id, revision) => testEnv.withSecurityRulesDisabled(context =>
+			context.firestore().collection(CARDS_COLLECTION).doc(id).update({revision}));
+		//withSecurityRulesDisabled discards the callback's value.
+		const storedRevision = async (id) => {
+			let value;
+			await testEnv.withSecurityRulesDisabled(async context => {
+				const snapshot = await context.firestore().collection(CARDS_COLLECTION).doc(id).get();
+				value = snapshot.data().revision;
+			});
+			return value;
+		};
+
+		for (const [who, auth] of [['an admin', () => adminAuth], ['an editor', () => jerryAuth]]) {
+			it(`allows ${who} a content write that advances revision by one, as a literal or an increment`, async () => {
+				await seedRevision(cardId, 5);
+				const card = authedApp(auth()).collection(CARDS_COLLECTION).doc(cardId);
+				await assertSucceeds(card.update({body: 'a', updated: stamp(), revision: 6}));
+				await assertSucceeds(card.update({body: 'b', updated: stamp(), revision: inc()}));
+				assert.strictEqual(await storedRevision(cardId), 7);
+			});
+
+			it(`denies ${who} a content write that skips, repeats, lowers, omits, or mistypes the revision`, async () => {
+				await seedRevision(cardId, 5);
+				const card = authedApp(auth()).collection(CARDS_COLLECTION).doc(cardId);
+				await assertFails(card.update({body: 'x', updated: stamp(), revision: 7}));
+				await assertFails(card.update({body: 'x', updated: stamp(), revision: 5}));
+				await assertFails(card.update({body: 'x', updated: stamp(), revision: 4}));
+				await assertFails(card.update({body: 'x', updated: stamp()}));
+				await assertFails(card.update({body: 'x', updated: stamp(), revision: '6'}));
+				await assertFails(card.update({body: 'x', updated: stamp(), revision: inc(2)}));
+			});
+		}
+
+		it('treats a legacy card with no revision as 0: 1 or increment(1) is accepted, 2 is not', async () => {
+			const card = authedApp(jerryAuth).collection(CARDS_COLLECTION).doc(cardId);
+			await assertFails(card.update({body: 'x', updated: stamp(), revision: 2}));
+			await assertSucceeds(card.update({body: 'x', updated: stamp(), revision: inc()}));
+			assert.strictEqual(await storedRevision(cardId), 1);
+		});
+
+		it('requires revision 1 on create, by literal or increment, and refuses 0 or absent', async () => {
+			const db = authedApp(jerryAuth);
+			await assertSucceeds(db.collection(CARDS_COLLECTION).doc('rev-create-1').set({body: 'n', author: jerryUid, updated: stamp(), revision: 1}));
+			await assertSucceeds(db.collection(CARDS_COLLECTION).doc('rev-create-2').set({body: 'n', author: jerryUid, updated: stamp(), revision: inc()}));
+			await assertFails(db.collection(CARDS_COLLECTION).doc('rev-create-3').set({body: 'n', author: jerryUid, updated: stamp(), revision: 0}));
+			await assertFails(db.collection(CARDS_COLLECTION).doc('rev-create-4').set({body: 'n', author: jerryUid, updated: stamp()}));
+		});
+
+		it('judges a batch by its final state: two increments on one card are +2 and denied; one increment plus an inbound-only update is allowed', async () => {
+			await seedRevision(cardId, 5);
+			const db = authedApp(jerryAuth);
+			const card = db.collection(CARDS_COLLECTION).doc(cardId);
+			const twice = db.batch();
+			twice.update(card, {body: 'a', updated: stamp(), revision: inc()});
+			twice.update(card, {title: 'b', updated: stamp(), revision: inc()});
+			await assertFails(twice.commit());
+			const once = db.batch();
+			once.update(card, {body: 'a', updated: stamp(), revision: inc()});
+			once.update(card, {['references_inbound.' + unpublishedCardId]: true, ['references_info_inbound.' + unpublishedCardId + '.link']: '', updated: stamp()});
+			await assertSucceeds(once.commit());
+			assert.strictEqual(await storedRevision(cardId), 6);
+		});
+
+		it('leaves the counter paths revision-neutral: unchanged is allowed, a bump is denied', async () => {
+			await seedRevision(cardId, 5);
+			const db = authedApp(jerryAuth);
+			const card = db.collection(CARDS_COLLECTION).doc(cardId);
+			await assertSucceeds(card.update({thread_count: cardThreadCount + 1}));
+			await assertFails(card.update({thread_count: cardThreadCount + 2, revision: inc()}));
+			await assertFails(card.update({updated_message: stamp(), revision: inc()}));
+			//A star write is bound to the user's own star document in the same commit.
+			const starDb = authedApp(genericAuth);
+			await addPermissionForUser(genericUid, 'star');
+			const starCard = starDb.collection(CARDS_COLLECTION).doc(cardId);
+			const bumping = starDb.batch();
+			bumping.update(starCard, {star_count: cardStarCount + 1, star_count_manual: cardStarCount + 1, revision: inc()});
+			bumping.set(starDb.collection(STARS_COLLECTION).doc(genericUid + '+' + cardId), {owner: genericUid, card: cardId});
+			await assertFails(bumping.commit());
+		});
+
+		it('leaves the inbound-reference mirror revision-neutral: unchanged is allowed, a bump without content is denied for a createCard-only user', async () => {
+			await seedRevision(cardId, 5);
+			await addPermissionForUser(genericUid, 'createCard');
+			const card = authedApp(genericAuth).collection(CARDS_COLLECTION).doc(cardId);
+			await assertSucceeds(card.update({['references_inbound.' + unpublishedCardId]: true, ['references_info_inbound.' + unpublishedCardId + '.link']: '', updated: stamp()}));
+			await assertFails(card.update({['references_inbound.' + unpublishedCardId]: true, ['references_info_inbound.' + unpublishedCardId + '.link']: '', updated: stamp(), revision: inc()}));
+		});
 	});
 
 	it('allows admins to read card updates', async() => {
@@ -1298,6 +1395,7 @@ describe('Compendium Rules', () => {
 			tags: [],
 			references_inbound: {},
 			updated: firebase.firestore.FieldValue.serverTimestamp(),
+			revision: 1,
 		}));
 		await assertFails(ref.delete());
 	});
@@ -1314,6 +1412,7 @@ describe('Compendium Rules', () => {
 			tags: ['bam'],
 			references_inbound: {},
 			updated: firebase.firestore.FieldValue.serverTimestamp(),
+			revision: 1,
 		}));
 		await assertFails(ref.delete());
 	});
@@ -1332,6 +1431,7 @@ describe('Compendium Rules', () => {
 				'foo': true,
 			},
 			updated: firebase.firestore.FieldValue.serverTimestamp(),
+			revision: 1,
 		}));
 		await assertFails(ref.delete());
 	});
@@ -1348,6 +1448,7 @@ describe('Compendium Rules', () => {
 			tags: [],
 			references_inbound: {},
 			updated: firebase.firestore.FieldValue.serverTimestamp(),
+			revision: 1,
 		}));
 		await assertFails(ref.delete());
 	});

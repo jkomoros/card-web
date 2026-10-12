@@ -15,6 +15,7 @@ import {
 
 import {
 	serverTimestamp,
+	increment,
 	arrayUnion,
 	writeBatch,
 	runTransaction,
@@ -181,6 +182,7 @@ export class MultiBatch extends MultiBatchBase<WriteBatch, DocumentReference> {
 				cardsCollection: CARDS_COLLECTION,
 				refPath: (ref : DocumentReference) => ref.path,
 				isServerTimestampValue: (value : unknown) => isServerTimestampSentinel(value as FirestoreLeafValue),
+				revisionIncrement: () => increment(1),
 			},
 		}, EFFECTIVE_BATCH_LIMIT, batchID);
 		this._protectedContent = protectedContent;

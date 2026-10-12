@@ -86,7 +86,6 @@ import {
 	setDoc,
 	getDoc,
 	serverTimestamp,
-	updateDoc,
 	DocumentSnapshot
 } from 'firebase/firestore';
 
@@ -163,14 +162,17 @@ const normalizeContentBody : MaintenanceTaskFunction = async() => {
 		const body = doc.data().body;
 		const card_type = doc.data().card_type as CardType;
 		if (body) {
-			//updated-invariant: bumps `updated` (a body rewrite is a content
-			//change that must resync). This is a raw updateDoc, not MultiBatch,
-			//so the structural guard does not cover it — enforced by review.
-			await trackMutation(() => updateDoc(doc.ref,{
+			//A body rewrite is a content change: it must bump `updated` (so
+			//other devices resync) and advance `revision` (so every holder
+			//admits the new image). Both are MultiBatch's job; this was the
+			//one raw card-content writer outside it.
+			const batch = new MultiBatch(db);
+			batch.update(doc.ref, {
 				body: normalizeBodyHTML(body, config.overrideLegalTopLevelNodes?.[card_type]),
 				updated: serverTimestamp(),
 				updated_normalize_body: serverTimestamp(),
-			}));
+			});
+			await batch.commit();
 		}
 		console.log('Processed ' + doc.id + ' (' + counter + '/' + size + ')' );
 	}

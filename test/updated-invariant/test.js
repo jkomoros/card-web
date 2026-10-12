@@ -280,10 +280,12 @@ describe('updated-invariant bypass audit', () => {
 	});
 
 	it('finds the known card-write bypass sites (guards against a broken scan)', () => {
-		//normalize-body (maintenance), 2 comment transactions, 2 twitter admin
-		//writes, 2 mount admin writes, 1 nlp migration = 8. A collapse to near
-		//zero means the scan silently stopped detecting bypasses.
-		assert.ok(sites.length >= 8, `expected >=8 bypass sites, found ${sites.length}:\n` +
+		//2 comment transactions, 2 twitter admin writes, 2 mount admin writes,
+		//1 nlp migration = 7 (the maintenance normalize-body writer moved onto
+		//MultiBatch when `revision` made every content write MultiBatch's
+		//job). A collapse to near zero means the scan silently stopped
+		//detecting bypasses.
+		assert.ok(sites.length >= 7, `expected >=7 bypass sites, found ${sites.length}:\n` +
 			sites.map(s => `  ${path.relative(process.cwd(), s.file)}:${s.line}`).join('\n'));
 	});
 
@@ -516,6 +518,9 @@ describe('MultiBatchBase chokepoint wiring (the enforcement, not just the policy
 				cardsCollection: 'cards',
 				refPath: ref => ref.path,
 				isServerTimestampValue: value => value === SENTINEL,
+				//The revision bump is injected through the same guard; its
+				//own behaviour is covered in test/card-revision.
+				revisionIncrement: () => ({__increment: 1}),
 			};
 		}
 		return {batch: new MultiBatchBase(config, effectiveBatchLimit), writes, config};
