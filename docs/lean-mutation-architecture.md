@@ -104,7 +104,16 @@ same fixture, plus "no regression" on anything the journey measures.
 > Landed on this branch: P1 `933ba32c`, P2 `a1f5ae56`, P3a `c3002587`
 > (allocation-free `semanticOverlap`, 280→116 ms per 40k scan), P3b
 > `fa2b11d4` (`'editing'` dirty scope), P4a `800b7f77` (word-count memo
-> removed).
+> removed), P3c `073d6eb3`+`ef631c46` (engine-owned fingerprint map; fixed
+> stale similar results; idle warm-up for signed-in sessions), and
+> **slice 1** `024381a4`+`41f7519c`+`046e508d` (the revision clock: Rules
+> `+1`, MultiBatch injection once per card per batch, admission at the
+> worker, store, enqueued buckets and editor; the blank-card race
+> reproduced with real reducers and real server revisions and closed).
+> Known gap from the slice-1 review, to be filed: no suite drives the real
+> client `MultiBatch` shapes against the real Rules (the executor suites
+> run on permissive harness rules); the reviewer hand-verified the triple
+> update, the transaction replay and the create fanout on the emulator.
 
 Verified by reading or by synthetic measurement at 47k cards, unless marked.
 
