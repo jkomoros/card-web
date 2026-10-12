@@ -2,6 +2,11 @@ import {
 	ModalValidatorName
 } from './modal-validators.js';
 
+//Type-only: nlp.ts imports from here, and a value import would be a cycle.
+import type {
+	Fingerprint
+} from './nlp.js';
+
 import {
 	z
 } from 'zod';
@@ -688,7 +693,12 @@ export type FilterExtras = {
 	//The frozen worker-epoch IDF map when one exists (worker modes); null in
 	//off mode, where the similar-fallback computes a local map for small
 	//corpora instead.
-	idfMap: IDFMap | null
+	idfMap: IDFMap | null,
+	//Worker only: the engine's incrementally maintained per-card fingerprint
+	//map for the similar-cards fallback, so a run does not re-enumerate the
+	//corpus. A thunk, so collections that never reach a similar filter never
+	//pay for it. Absent on the main thread.
+	fingerprints? : (() => {[id : string] : Fingerprint}) | null
 };
 
 // CardBooleanMap, FilterMap, and Filters now imported from shared/types.js
@@ -717,7 +727,9 @@ export interface CollectionConstructorArguments {
 	editingCardSimilarity? : SortExtra,
 	//See FilterExtras.idfMap. Threaded through so the similar-cards
 	//fingerprint fallback scores with the same frozen map fingerprints use.
-	idfMap? : IDFMap
+	idfMap? : IDFMap,
+	//See FilterExtras.fingerprints. Worker only.
+	fingerprintsProvider? : (() => {[id : string] : Fingerprint}) | null
 }
 
 export type Logger = {

@@ -476,6 +476,35 @@ const publishIDFMap = () => {
 		maxIDF: published.maxIDF
 	});
 	status(`idf epoch ${idfIndex.epoch}: ${termCount} terms over ${idfIndex.publishedCardCount} body cards, materialized in ${(performance.now() - startedAt).toFixed(1)}ms`);
+	scheduleFingerprintWarmup();
+};
+
+//Build the per-card fingerprints (similar-cards fallback) and the per-tag
+//fingerprints (tag suggestions) in idle slices after each epoch publication,
+//so the first similar block and the first edit after boot do not pay the
+//whole-corpus pass synchronously (a single 2.6-5.6s worker task on the real
+//corpus, during which collection requests time out). Strictly background:
+//12ms slices, deferred while the initial load is still delivering, abandoned
+//on reconnect or when a newer epoch supersedes it.
+let fingerprintWarmupToken = 0;
+const scheduleFingerprintWarmup = () => {
+	const myConnectionGeneration = connectionGeneration;
+	const myToken = ++fingerprintWarmupToken;
+	const shouldContinue = () => myConnectionGeneration === connectionGeneration && myToken === fingerprintWarmupToken;
+	const yieldFn = async () => {
+		if (initialLoadPending) await new Promise<void>(resolve => setTimeout(resolve, SEARCH_RECALL_BOOT_GAP_MS));
+		await yieldToWorkerQueue();
+	};
+	void (async () => {
+		await yieldFn();
+		if (!shouldContinue()) return;
+		const startedAt = performance.now();
+		const similar = await engine.warmSimilarityFingerprints(yieldFn, shouldContinue);
+		if (!similar) return;
+		const tags = await engine.warmTagFingerprints(yieldFn, shouldContinue);
+		if (!tags) return;
+		status(`fingerprints warm: similarity and tags in ${(performance.now() - startedAt).toFixed(0)}ms wall (chunked)`);
+	})();
 };
 
 const scheduleIDFBuild = () => {

@@ -282,12 +282,14 @@ export class QueryEngine {
 			if (!previous || previous.sort_order !== card.sort_order || previous.section !== card.section) setsChanged = true;
 			this._cards[id] = card;
 			this._markTagsDirtyForCard(id);
+			this._noteSimilarityCardChanged(id, false);
 			changed = true;
 		}
 		for (const id of removedIDs) {
 			if (!(id in this._cards)) continue;
 			if (this._cards[id].card_type === 'concept') conceptsChanged = true;
 			this._markTagsDirtyForCard(id);
+			this._noteSimilarityCardChanged(id, true);
 			delete this._cards[id];
 			changed = true;
 			setsChanged = true;
@@ -525,6 +527,122 @@ export class QueryEngine {
 	_tagFingerprintsConcepts : StringCardMap | null = null;
 	_tagFingerprintsSynonyms : SynonymMap | null = null;
 
+	//The similar-cards fallback scores a key fingerprint against every
+	//card's. Before this map existed each run called
+	//FingerprintGenerator.fingerprints(), which enumerated all ~40k cards
+	//through the lazy processing Proxy and built a fresh 40k-entry object
+	//every time the corpus version changed — 18% of warm worker CPU in a
+	//signed-in profile on the real corpus, paid once per corpus change per
+	//similar block. The engine now owns one map and updates only the cards
+	//that changed; the entries are the very Fingerprint objects the filter's
+	//own generator would return (both are un-enriched and fingerprintForCardObj
+	//memoizes per processed card object), so results are identical. The map is
+	//rebuilt from scratch only when the IDF epoch changes.
+	_similarityFingerprints : {[id : string] : Fingerprint} | null = null;
+	_similarityIDFMap : IDFMap | null = null;
+	_similarityPending : Set<CardID> = new Set();
+	_similarityRemoved : Set<CardID> = new Set();
+	//Stable identity: filter memos key on it.
+	_fingerprintsProvider = () : {[id : string] : Fingerprint} => this._ensureSimilarityFingerprints();
+
+	_noteSimilarityCardChanged(id : CardID, removed : boolean) : void {
+		if (!this._similarityFingerprints) return;
+		if (removed) {
+			this._similarityPending.delete(id);
+			this._similarityRemoved.add(id);
+		} else {
+			this._similarityRemoved.delete(id);
+			this._similarityPending.add(id);
+		}
+	}
+
+	//Un-enriched and on the frozen epoch map: exactly what
+	//filters.ts memoizedFingerprintGenerator builds, so the shared per-card
+	//memo serves both.
+	_similarityGenerator() : FingerprintGenerator {
+		return new FingerprintGenerator(this._ensureProcessedCards(), undefined, undefined, this._effectiveIDFMap());
+	}
+
+	_resetSimilarityFingerprintsIfStale() : void {
+		const idfMap = this._effectiveIDFMap();
+		if (this._similarityFingerprints && this._similarityIDFMap === idfMap) return;
+		this._similarityFingerprints = {};
+		this._similarityIDFMap = idfMap;
+		this._similarityRemoved.clear();
+		this._similarityPending = new Set(Object.keys(this._cards));
+	}
+
+	//Applies pending work for up to budgetMs; returns true when nothing is
+	//left. The budget is checked every 64 cards: performance.now() per card
+	//would cost as much as the lookups it meters.
+	_applySimilarityDelta(budgetMs : number) : boolean {
+		const map = this._similarityFingerprints as {[id : string] : Fingerprint};
+		for (const id of this._similarityRemoved) delete map[id];
+		this._similarityRemoved.clear();
+		if (!this._similarityPending.size) return true;
+		const generator = this._similarityGenerator();
+		const start = performance.now();
+		let n = 0;
+		for (const id of this._similarityPending) {
+			this._similarityPending.delete(id);
+			if (id in this._cards) map[id] = generator.fingerprintForCardID(id);
+			else delete map[id];
+			if ((++n & 63) === 0 && performance.now() - start >= budgetMs) return this._similarityPending.size === 0;
+		}
+		return true;
+	}
+
+	_ensureSimilarityFingerprints() : {[id : string] : Fingerprint} {
+		this._resetSimilarityFingerprintsIfStale();
+		if (this._similarityPending.size || this._similarityRemoved.size) this._applySimilarityDelta(Infinity);
+		return this._similarityFingerprints as {[id : string] : Fingerprint};
+	}
+
+	//Builds the map in slices so the first similar-cards request after boot
+	//does not stall the worker for the whole-corpus fingerprint pass. Stops
+	//early when shouldContinue says so (reconnect, newer epoch); a later
+	//_ensureSimilarityFingerprints finishes whatever is left synchronously.
+	async warmSimilarityFingerprints(yieldFn : () => Promise<void>, shouldContinue : () => boolean, sliceMs = 12) : Promise<boolean> {
+		this._resetSimilarityFingerprintsIfStale();
+		while (!this._applySimilarityDelta(sliceMs)) {
+			await yieldFn();
+			if (!shouldContinue()) return false;
+			//A new epoch mid-warm: start over on the new map.
+			this._resetSimilarityFingerprintsIfStale();
+		}
+		return true;
+	}
+
+	//Warms the enriched per-card fingerprints of every tagged card and then
+	//each tag's combined fingerprint, in slices, so suggestTags on the first
+	//edit after boot finds everything cached (a single 2.6s worker task on
+	//the real corpus otherwise, 5.6s before the ngram lookup change).
+	async warmTagFingerprints(yieldFn : () => Promise<void>, shouldContinue : () => boolean, sliceMs = 12) : Promise<boolean> {
+		const generator = this._ensureSuggestGenerator();
+		const seen = new Set<CardID>();
+		let start = performance.now();
+		for (const tag of Object.values(this._tags)) {
+			for (const id of tag.cards || []) {
+				if (seen.has(id)) continue;
+				seen.add(id);
+				generator.fingerprintForCardID(id);
+				if ((seen.size & 63) === 0 && performance.now() - start >= sliceMs) {
+					await yieldFn();
+					if (!shouldContinue() || this._ensureSuggestGenerator() !== generator) return false;
+					start = performance.now();
+				}
+			}
+		}
+		//One tag per slice: the combine over a 9k-card tag is ~150ms.
+		for (const tagID of Object.keys(this._tags)) {
+			this._ensureTagFingerprint(tagID);
+			await yieldFn();
+			if (!shouldContinue()) return false;
+		}
+		this._ensureTagFingerprints();
+		return true;
+	}
+
 	_ensureCardTagIndex() : Map<CardID, string[]> {
 		if (this._cardTagIndex && this._cardTagIndexForTags === this._tags) return this._cardTagIndex;
 		const index = new Map<CardID, string[]>();
@@ -574,32 +692,12 @@ export class QueryEngine {
 		//card or tag change, so the memo must key on it too.
 		if (this._tagFingerprints && this._tagFingerprintsGenerator === generator && this._tagFingerprintsForTags === this._tags && this._tagFingerprintsForCards === this._cardsVersion) return this._tagFingerprints;
 		this._tagFingerprintsGenerator = generator;
-		const inputsChanged = this._tagFingerprintsIDFMap !== generator._idfMap ||
-			this._tagFingerprintsConcepts !== generator._concepts ||
-			this._tagFingerprintsSynonyms !== generator._synonyms;
-		if (inputsChanged) {
-			this._tagFingerprintCache.clear();
-			this._dirtyTagIDs.clear();
-			this._tagFingerprintsIDFMap = generator._idfMap;
-			this._tagFingerprintsConcepts = generator._concepts;
-			this._tagFingerprintsSynonyms = generator._synonyms;
-		}
+		this._syncTagFingerprintInputs(generator);
 		const result : {[tagID : string] : Fingerprint} = {};
 		const live = new Set<string>();
-		for (const [tagID, tag] of Object.entries(this._tags)) {
+		for (const tagID of Object.keys(this._tags)) {
 			live.add(tagID);
-			const cards = tag.cards || [];
-			const cached = this._tagFingerprintCache.get(tagID);
-			if (cached && !this._dirtyTagIDs.has(tagID) && sameCardList(cached.cards, cards)) {
-				//Adopt the newest array so the next comparison is by identity.
-				cached.cards = cards;
-				result[tagID] = cached.fingerprint;
-				continue;
-			}
-			perfCount('tagFingerprints:recompute');
-			const fingerprint = generator.fingerprintForCardIDList(cards);
-			this._tagFingerprintCache.set(tagID, {cards, fingerprint});
-			result[tagID] = fingerprint;
+			result[tagID] = this._ensureTagFingerprint(tagID, generator);
 		}
 		for (const tagID of this._tagFingerprintCache.keys()) {
 			if (!live.has(tagID)) this._tagFingerprintCache.delete(tagID);
@@ -609,6 +707,40 @@ export class QueryEngine {
 		this._tagFingerprintsForTags = this._tags;
 		this._tagFingerprintsForCards = this._cardsVersion;
 		return result;
+	}
+
+	//A new IDF epoch or a concept/synonym change invalidates every cached tag.
+	_syncTagFingerprintInputs(generator : FingerprintGenerator) : void {
+		if (this._tagFingerprintsIDFMap === generator._idfMap &&
+			this._tagFingerprintsConcepts === generator._concepts &&
+			this._tagFingerprintsSynonyms === generator._synonyms) return;
+		this._tagFingerprintCache.clear();
+		this._dirtyTagIDs.clear();
+		this._tagFingerprintsIDFMap = generator._idfMap;
+		this._tagFingerprintsConcepts = generator._concepts;
+		this._tagFingerprintsSynonyms = generator._synonyms;
+	}
+
+	//One tag's combined fingerprint, from the cache when its membership is
+	//unchanged and no member card changed since.
+	_ensureTagFingerprint(tagID : string, generator? : FingerprintGenerator) : Fingerprint {
+		if (!generator) {
+			generator = this._ensureSuggestGenerator();
+			this._syncTagFingerprintInputs(generator);
+		}
+		const tag = this._tags[tagID];
+		const cards = tag?.cards || [];
+		const cached = this._tagFingerprintCache.get(tagID);
+		if (cached && !this._dirtyTagIDs.has(tagID) && sameCardList(cached.cards, cards)) {
+			//Adopt the newest array so the next comparison is by identity.
+			cached.cards = cards;
+			return cached.fingerprint;
+		}
+		perfCount('tagFingerprints:recompute');
+		const fingerprint = generator.fingerprintForCardIDList(cards);
+		this._tagFingerprintCache.set(tagID, {cards, fingerprint});
+		this._dirtyTagIDs.delete(tagID);
+		return fingerprint;
 	}
 
 	//Mirrors the main thread's selectEditingCardSuggestedTags exactly: rank
@@ -685,7 +817,10 @@ export class QueryEngine {
 			//The similar-cards fingerprint fallback scores with the same
 			//frozen epoch map as everything else (TF-only via the pending
 			//convention before the first publication).
-			idfMap: this._effectiveIDFMap()
+			idfMap: this._effectiveIDFMap(),
+			//...and matches over the engine's incrementally maintained map
+			//instead of re-enumerating the corpus per run.
+			fingerprintsProvider: this._fingerprintsProvider
 		} as CollectionConstructorArguments;
 		const collection = description.collection(args);
 		return {

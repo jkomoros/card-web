@@ -261,6 +261,92 @@ describe('QueryEngine', () => {
 	});
 
 
+	describe('similarity fingerprints', () => {
+		//The similar-cards fallback used to re-enumerate every card through
+		//the lazy Proxy and rebuild a corpus-sized map on each corpus change.
+		//The engine now maintains one map incrementally; its entries must be
+		//the exact objects the filter's own generator would produce.
+		let FingerprintGenerator;
+		before(async () => {
+			({FingerprintGenerator} = await import('../../lib/src/nlp.js'));
+		});
+		const expectedFor = (engine) => new FingerprintGenerator(engine._ensureProcessedCards(), undefined, undefined, engine._effectiveIDFMap()).fingerprints();
+
+		it('matches the generator and recomputes only changed cards', () => {
+			const engine = makeEngine();
+			const map = engine._ensureSimilarityFingerprints();
+			const expected = expectedFor(engine);
+			assert.deepStrictEqual(Object.keys(map).sort(), Object.keys(expected).sort());
+			for (const id of Object.keys(expected)) assert.strictEqual(map[id], expected[id], id);
+			const before = {...map};
+			const spy = [];
+			const original = FingerprintGenerator.prototype.fingerprintForCardID;
+			FingerprintGenerator.prototype.fingerprintForCardID = function (id) { spy.push(id); return original.call(this, id); };
+			try {
+				engine.updateCards({b: card('b', {title: 'Entirely different vocabulary'})}, ['c']);
+				const after = engine._ensureSimilarityFingerprints();
+				assert.deepStrictEqual(spy, ['b']);
+				assert.strictEqual(after.a, before.a);
+				assert.notStrictEqual(after.b, before.b);
+				assert.ok(!('c' in after), 'a removed card leaves the map');
+				assert.strictEqual(after, map, 'the map object is stable');
+			} finally {
+				FingerprintGenerator.prototype.fingerprintForCardID = original;
+			}
+			//Equivalent to a fresh enumeration.
+			const fresh = expectedFor(engine);
+			for (const id of Object.keys(fresh)) assert.strictEqual(map[id], fresh[id], id);
+		});
+
+		it('rebuilds on a new IDF epoch and completes a partial warm-up on demand', async () => {
+			const engine = makeEngine();
+			const first = engine._ensureSimilarityFingerprints();
+			engine.setIDFMap({idf: {zebra: 2}, maxIDF: 2});
+			const second = engine._ensureSimilarityFingerprints();
+			assert.notStrictEqual(second, first);
+			for (const id of Object.keys(first)) assert.notStrictEqual(second[id], first[id]);
+			//A warm-up the caller abandons after its first slice leaves the
+			//rest pending; the next synchronous ensure finishes it. The slice
+			//budget is checked every 64 cards, so the corpus must exceed that.
+			const many = {};
+			for (let i = 0; i < 200; i++) many['x' + i] = card('x' + i, {title: 'Card number ' + i});
+			engine.updateCards(many, []);
+			engine.setIDFMap({idf: {zebra: 3}, maxIDF: 3});
+			let yields = 0;
+			const done = await engine.warmSimilarityFingerprints(async () => { yields++; }, () => yields < 1, 0);
+			assert.strictEqual(done, false);
+			assert.ok(engine._similarityPending.size > 0, 'work was left pending');
+			const complete = engine._ensureSimilarityFingerprints();
+			assert.strictEqual(Object.keys(complete).length, 203);
+			const expected = expectedFor(engine);
+			for (const id of Object.keys(expected)) assert.strictEqual(complete[id], expected[id]);
+			//A warm-up left to run finishes and reports so.
+			engine.setIDFMap({idf: {zebra: 4}, maxIDF: 4});
+			assert.strictEqual(await engine.warmSimilarityFingerprints(async () => {}, () => true, 0), true);
+			assert.strictEqual(engine._similarityPending.size, 0);
+		});
+
+		it('gives the similar filter the same results as the enumerating path', () => {
+			const engine = makeEngine();
+			engine.updateCards({
+				z1: card('z1', {title: 'Zebra migration patterns', body: '<p>Zebra herds move with the rains</p>'}),
+				z2: card('z2', {title: 'Zebra crossing safety', body: '<p>Painted zebra stripes on roads</p>'}),
+				m1: card('m1', {title: 'Municipal budget planning', body: '<p>City budgets and taxes</p>'}),
+			}, []);
+			const withProvider = engine.runCollection('everything/similar/z1/');
+			const provider = engine._fingerprintsProvider;
+			engine._fingerprintsProvider = null;
+			try {
+				const without = engine.runCollection('everything/similar/z1/');
+				assert.deepStrictEqual(withProvider.ids, without.ids);
+				assert.deepStrictEqual(withProvider.labels, without.labels);
+				assert.ok(withProvider.ids.includes('z2'), withProvider.ids.join(','));
+			} finally {
+				engine._fingerprintsProvider = provider;
+			}
+		});
+	});
+
 	describe('worker-served tag suggestions', () => {
 		it('reuses unchanged card fingerprints after an ordinary card save', () => {
 			const engine = makeEngine();
@@ -433,6 +519,28 @@ describe('QueryEngine', () => {
 			engine.updateCards({concept: card('concept', {card_type: 'concept', title: 'Zebra', title_alternates: 'Equid'})}, []);
 			const after = engine._ensureTagFingerprints();
 			for (const tagID of Object.keys(before)) assert.notStrictEqual(after[tagID], before[tagID], tagID);
+		});
+
+		it('warms tag fingerprints in slices so the first suggestion finds everything cached', async () => {
+			const {engine} = tagged();
+			let yields = 0;
+			const done = await engine.warmTagFingerprints(async () => { yields++; }, () => true, 0);
+			assert.ok(done);
+			assert.ok(yields >= 3, 'one yield per tag at least');
+			const generator = engine._ensureSuggestGenerator();
+			const original = generator.constructor.prototype.fingerprintForCardIDList;
+			let combines = 0;
+			generator.constructor.prototype.fingerprintForCardIDList = function (ids) { combines++; return original.call(this, ids); };
+			try {
+				engine._ensureTagFingerprints();
+				assert.strictEqual(combines, 0, 'the warm-up computed every tag already');
+			} finally {
+				generator.constructor.prototype.fingerprintForCardIDList = original;
+			}
+			//A warm-up abandoned by its caller leaves a consistent cache.
+			const fresh = tagged().engine;
+			assert.strictEqual(await fresh.warmTagFingerprints(async () => {}, () => false, 0), false);
+			assert.deepStrictEqual(Object.keys(fresh._ensureTagFingerprints()).sort(), ['animals', 'art', 'civics']);
 		});
 
 		it('ranks tags by fingerprint overlap with the mirrored editing card, excluding existing tags', async () => {

@@ -1037,7 +1037,7 @@ export const cardPassesFilterSegment = (segment : FilterName, cardID : CardID, e
 //distinct rest-tuples (active + query + reference-block runs with
 //differing keyCardID/cardSimilarity) without thrashing that downstream
 //memo, which keys on this function's RESULT IDENTITY.
-const makeExtrasForFilterFunc = memoizeWeakFirstArg((cards : ProcessedCards, filterSetMemberships : Filters, keyCardID : CardID, editingCard : ProcessedCard | null, userID : Uid, randomSalt : string, cardSimilarity: CardSimilarityMap, editingCardSimilarity : SortExtra | null, idfMap : IDFMap | null, cardsContentToken : unknown = cards) : FilterExtras => {
+const makeExtrasForFilterFunc = memoizeWeakFirstArg((cards : ProcessedCards, filterSetMemberships : Filters, keyCardID : CardID, editingCard : ProcessedCard | null, userID : Uid, randomSalt : string, cardSimilarity: CardSimilarityMap, editingCardSimilarity : SortExtra | null, idfMap : IDFMap | null, cardsContentToken : unknown = cards, fingerprints : FilterExtras['fingerprints'] = null) : FilterExtras => {
 	return {
 		filterSetMemberships,
 		cards,
@@ -1048,7 +1048,8 @@ const makeExtrasForFilterFunc = memoizeWeakFirstArg((cards : ProcessedCards, fil
 		cardSimilarity,
 		editingCardSimilarity,
 		idfMap,
-		cardsContentToken
+		cardsContentToken,
+		fingerprints
 	};
 }, 8);
 
@@ -1169,6 +1170,7 @@ export class Collection {
 	_cardSimilarity : CardSimilarityMap;
 	_editingCardSimilarity? : SortExtra;
 	_idfMap : IDFMap | null;
+	_fingerprintsProvider : FilterExtras['fingerprints'];
 	_filteredCards : ProcessedCard[] | null;
 	_cachedFilterExtras : FilterExtras;
 	//See FilterExtras.cardsContentToken.
@@ -1229,6 +1231,7 @@ export class Collection {
 		this._cardSimilarity = collectionArguments.cardSimilarity || {};
 		this._editingCardSimilarity = collectionArguments.editingCardSimilarity;
 		this._idfMap = collectionArguments.idfMap || null;
+		this._fingerprintsProvider = collectionArguments.fingerprintsProvider || null;
 		//The filtered cards... before any size limit has been applied, if necessary
 		this._filteredCards = null;
 		this._preLimitlength = 0;
@@ -1282,6 +1285,7 @@ export class Collection {
 		//The idf map feeds filter extras (the similar-cards fallback), so a
 		//changed identity — a new epoch — must not reuse the old filter work.
 		if ((args.idfMap || null) !== (prevArgs.idfMap || null)) return null;
+		if ((args.fingerprintsProvider || null) !== (prevArgs.fingerprintsProvider || null)) return null;
 
 		const result = new Collection(description, args);
 		//Carry over everything _makeFilteredCards computed; only the expansion
@@ -1360,7 +1364,7 @@ export class Collection {
 
 	get _filterExtras() : FilterExtras {
 		if (!this._cachedFilterExtras) {
-			this._cachedFilterExtras = makeExtrasForFilterFunc(this._cardsForFiltering, this._filtersSnapshot || this._filters, this._keyCardID, this._editingCard || null, this._userID, this._randomSalt, this._cardSimilarity, this._editingCardSimilarity || null, this._idfMap, this._cardsContentToken);
+			this._cachedFilterExtras = makeExtrasForFilterFunc(this._cardsForFiltering, this._filtersSnapshot || this._filters, this._keyCardID, this._editingCard || null, this._userID, this._randomSalt, this._cardSimilarity, this._editingCardSimilarity || null, this._idfMap, this._cardsContentToken, this._fingerprintsProvider);
 		}
 		return this._cachedFilterExtras;
 	}
@@ -1502,8 +1506,8 @@ export class Collection {
 		const filterEquivalentForActiveSet = SET_INFOS[this._description.set].filterEquivalent;
 		if (filterEquivalentForActiveSet) filterDefinition = [...filterDefinition, filterEquivalentForActiveSet];
 
-		const [currentFilterFunc,,] = combinedFilterForFilterDefinition(filterDefinition, makeExtrasForFilterFunc(this._cardsForFiltering, this._filtersSnapshot, this._keyCardID, this._editingCard || null, this._userID, this._randomSalt, this._cardSimilarity, this._editingCardSimilarity || null, this._idfMap, this._cardsContentToken));
-		const [pendingFilterFunc,,] = combinedFilterForFilterDefinition(filterDefinition, makeExtrasForFilterFunc(this._cardsForExpansion, this._filters, this._keyCardID, this._editingCard || null, this._userID, this._randomSalt, this._cardSimilarity, this._editingCardSimilarity || null, this._idfMap, this._cardsContentToken));
+		const [currentFilterFunc,,] = combinedFilterForFilterDefinition(filterDefinition, makeExtrasForFilterFunc(this._cardsForFiltering, this._filtersSnapshot, this._keyCardID, this._editingCard || null, this._userID, this._randomSalt, this._cardSimilarity, this._editingCardSimilarity || null, this._idfMap, this._cardsContentToken, this._fingerprintsProvider));
+		const [pendingFilterFunc,,] = combinedFilterForFilterDefinition(filterDefinition, makeExtrasForFilterFunc(this._cardsForExpansion, this._filters, this._keyCardID, this._editingCard || null, this._userID, this._randomSalt, this._cardSimilarity, this._editingCardSimilarity || null, this._idfMap, this._cardsContentToken, this._fingerprintsProvider));
 		//Return the set of items that pass the current filters but won't pass the pending filters.
 		const itemsThatWillBeRemoved = Object.keys(this._cardsForFiltering).filter(item => currentFilterFunc(item) && !pendingFilterFunc(item));
 		return Object.fromEntries(itemsThatWillBeRemoved.map(item => [item, true]));

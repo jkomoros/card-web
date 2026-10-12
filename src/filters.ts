@@ -996,7 +996,7 @@ const makeSimilarConfigurableFilter = (_ : ConfigurableFilterType, rawCardID : U
 	let floatCutoff = parseFloat(rawFloatCutoff || '0');
 	if (isNaN(floatCutoff)) floatCutoff = 0;
 	
-	const generator = memoize((cards : ProcessedCards, rawCardIDsToUse : CardID[], editingCard : ProcessedCard | null, cardSimilarity : CardSimilarityMap, editingCardSimilarity : SortExtra | null, idfMap : IDFMap | null) : {map: Map<CardID, number>, preview: boolean}  => {
+	const generator = memoize((cards : ProcessedCards, rawCardIDsToUse : CardID[], editingCard : ProcessedCard | null, cardSimilarity : CardSimilarityMap, editingCardSimilarity : SortExtra | null, idfMap : IDFMap | null, fingerprints : FilterExtras['fingerprints'] = null) : {map: Map<CardID, number>, preview: boolean}  => {
 		const cardIDsToUse = normalizeCardSlugOrIDList(rawCardIDsToUse, cards);
 
 		let preview = false;
@@ -1046,7 +1046,10 @@ const makeSimilarConfigurableFilter = (_ : ConfigurableFilterType, rawCardID : U
 		const fingerprintGenerator = memoizedFingerprintGenerator(cards, idfMap);
 		const editingCardFingerprint = editingCard && cardIDsToUse.some(id => id == editingCard.id) ? fingerprintGenerator.fingerprintForCardObj(editingCard) : null;
 		const fingerprint = editingCardFingerprint || fingerprintGenerator.fingerprintForCardIDList(cardIDsToUse);
-		return {map: fingerprintGenerator.closestOverlappingItems('', fingerprint), preview};
+		//In the worker, match over the engine's incrementally maintained map
+		//rather than re-enumerating every card through the lazy Proxy on
+		//each corpus change (the entries are the same memoized objects).
+		return {map: fingerprintGenerator.closestOverlappingItems('', fingerprint, fingerprints ? fingerprints() : undefined), preview};
 	});
 
 	//Make sure that the key of the IDs list will have object equality for a downstream memoized thing
@@ -1061,7 +1064,7 @@ const makeSimilarConfigurableFilter = (_ : ConfigurableFilterType, rawCardID : U
 			return {matches: false, sortExtra: Number.MIN_SAFE_INTEGER};
 		}
 
-		const {map: closestItems, preview} = generator(extras.cards, cardIDsToUse, extras.editingCard, extras.cardSimilarity, extras.editingCardSimilarity, extras.idfMap);
+		const {map: closestItems, preview} = generator(extras.cards, cardIDsToUse, extras.editingCard, extras.cardSimilarity, extras.editingCardSimilarity, extras.idfMap, extras.fingerprints || null);
 
 		//Return 0 if the map is missing the item, which could happen if it's server similarity
 		const value : number = closestItems.get(card.id) || 0;
