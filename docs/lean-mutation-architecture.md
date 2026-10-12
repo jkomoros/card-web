@@ -51,6 +51,21 @@ same fixture, plus "no regression" on anything the journey measures.
 
 ## 2. Diagnosis (what the research established)
 
+> **Measured 2026-10-11 (supersedes the ranking below).** Signed-in, worker
+> on, 30k cards, 5 Save→New cycles, snapshot persistence on vs off: worker
+> CPU identical (59.4 s vs 59.8 s). The snapshot costs ~1 s per run and is
+> NOT the per-edit cost. The CPU profile attributes **7–8 s of worker CPU per
+> edit** to `suggestTags → _ensureTagFingerprints`: every tag's combined
+> fingerprint was rebuilt after any card change (`_cardsVersion` guard,
+> `src/worker/query-engine.ts`). Second: the similar-cards filter
+> (`closestOverlappingItems`, ~4 s per cycle). Third: a 60 s+ worker stall on
+> the first edit after boot, which is the per-card fingerprints being cold.
+> Slice P1 (commit `933ba32c`) fixes the first: per-edit 1.8–3.0 s → 0.1–0.3 s
+> at 47k. Emulator *latency* numbers at scale are artifacts (the emulator
+> re-sends corpus-sized payloads per write); CPU call stacks are not. The
+> 47k synthetic corpus also OOMs the renderer 3/3 times, and the owner
+> confirms production OOMs at 47k; that investigation is separate.
+
 Verified by reading or by synthetic measurement at 47k cards, unless marked.
 
 | Symptom | Mechanism on master | Evidence | Status |
@@ -318,7 +333,11 @@ Detail: `04` §4.
 
 | # | Slice | Criteria | Gate |
 |---|---|---|---|
-| 0 | **Measurement harness**: signed-in 47k journey (5× Save→New with 20 s gaps, 20 Down/20 Up), worker CPU profile, listener-delivery timing, snapshot-save on/off arm. Baseline numbers on master recorded in `test/perf-harness/baselines/`. | 1, 5 | Exists and runs; numbers published |
+| 0 | **Measurement harness**: signed-in 47k journey (5× Save→New with 20 s gaps, 20 Down/20 Up), worker CPU profile. Absolute CPU and listener-delivery timing must come from DEV (real Firestore); emulator latency at scale is an artifact. Baselines in a **tracked** path (`test/perf-harness/baselines/` is gitignored). | 1, 5 | Exists and runs; numbers published |
+| P1 | **Per-tag fingerprint cache** (`933ba32c`): recompute only tags whose `cards` list a changed card; keyed on `tag.cards` contents because the worker receives the full tag map as fresh objects on every snapshot | 1 | Done: 47k per-edit 1.8–3.0 s → 0.1–0.3 s; 7 tests, 5 vacuity-proven |
+| P2 | **Cold-start warm-up**: build per-card and per-tag fingerprints in idle slices after `live`, so the first edit does not stall the worker for 60 s+; bounded by the OOM investigation (memory of retained processed cards) | 1 | First-edit `suggestTags` latency at 47k |
+| P3 | **Similar-cards filter** (`closestOverlappingItems`, ~4 s per cycle) | 1, 5 | Per-cycle worker CPU |
+| P4 | **Memory at 47k**: top retainers from the heap investigation; production OOMs confirmed by the owner | 1 | Heap at live ≤ budget TBD; no OOM in the 47k journey |
 | 1 | **Revision + Rules + admission** at worker, store, editor | 4, 6 | 59 rules cases; blank-card repro fails without admission (already shown red/green in scratch) |
 | 2a | **Pre-save review dialog** replacing the three `confirm()`s in `editingCommit` (house style) | 8 | Native-modal pin falls by ≥3 |
 | 2 | **Editor session + intent-first saves**: `card-modify` queue kind, `cardLane`, session token, per-card pending faces, base-snapshot diff, one eligibility selector, draft simplification | 2, 6 | Ten behavioral tests on real thunks, each with a named master line that makes it fail |
@@ -329,8 +348,14 @@ Detail: `04` §4.
 | 7 | **Subscription dependency scoping**; reads no longer dirty everything; worker reference-block cache | 1, 5 | 200-delta equivalence battery; journey: ≤1 recompute per auto-read; 0 worker runs on Up revisit |
 | 8 | **Cutover** runbook + script; remove parked DEV functions | 8 | Rehearsed on DEV with a restored prod-shaped corpus |
 
-Order is by risk reduction: 0 first always; 1–2 are correctness and small;
-3–4 are the expected CPU wins; 5–7 follow the measurements; 8 last.
+Order after measurement: P1 (done) → P2/P4 (first-edit stall and memory,
+which the owner feels directly) → 1–2 (correctness, small; slice 2 in its
+~70-line form per the adversarial review: close the editor when a save parks,
+gate the post-park close on card id, per-card pending faces) → P3 → 3 → 6
+(~80 lines: per-target surfacing, resolve-thread double-decrement, honest
+suggestion refusal) → 7 (`reads`/`stars` dirty scopes only) → 5 → 8. Slice 4
+(snapshot persistence) is deferred unless DEV measurement shows it. "One
+queue" and "reopen while pending" are dropped (owner, 2026-10-11).
 
 ## 6. Measurement (slice 0)
 
