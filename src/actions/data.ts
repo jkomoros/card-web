@@ -503,7 +503,16 @@ const durableTargetIDsFor = (storageKey : string, read : () => {id : string, tar
 //BLOCKED storage fails open (nothing durable could have been written through
 //the same storage), while an UNREADABLE record fails closed for every card
 //(the recovery UI must resolve it explicitly before any edit overlaps it).
+//The cards of a single save that has released its editor and is waiting
+//for the running save to settle. No durable record exists for it yet (the
+//record is one slot, held by the running save), so without this the card
+//read as not pending during the wait: the editor could be reopened on it
+//(and the resumed save then closed that editor and dropped the new
+//keystrokes), and the orphaned-draft banner offered its stamped draft.
+const parkedCardIDs = new Set<CardID>();
+
 export const durableCardMutationPendingForCard = (cardID : CardID) : boolean => {
+	if (parkedCardIDs.has(cardID)) return true;
 	try {
 		if (typeof localStorage === 'undefined') return false;
 		const bulkIDs = durableTargetIDsFor(BULK_TAG_OPERATION_STORAGE_KEY, readBulkTagOperation);
@@ -601,11 +610,11 @@ const durableSaveEligible = (state : State) : boolean => {
 
 export const modifyCardsWithDurableTagOperation = (cards : Card[], tag : TagID, adding : boolean, resumeTargetIDs? : CardID[]) : ThunkSomeAction => async (dispatch, getState) => {
 	if (!durableSaveEligible(getState())) {
-		dispatch(modifyCardFailure(new Error(blockedError(selectCorpusStatus(getState()), LABEL_VERB))));
+		dispatch(modifyCardFailure(new Error(blockedError(selectCorpusStatus(getState()), LABEL_VERB)), undefined, []));
 		return;
 	}
 	if (bulkTagOperationRunning || durableMultiEditRunning) {
-		dispatch(modifyCardFailure(new Error('Another saved card operation is already running. Wait for it to finish or stop it before starting another.')));
+		dispatch(modifyCardFailure(new Error('Another saved card operation is already running. Wait for it to finish or stop it before starting another.'), undefined, []));
 		return;
 	}
 	bulkTagOperationRunning = true;
@@ -1082,8 +1091,9 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 	//Set when a parked single save released its editor before waiting; the
 	//operation then carries this id so the preserved draft matches it.
 	let parkedOperationID : string | null = null;
+	let parkedRelease : (() => void) | null = null;
 	if (!durableSaveEligible(getState())) {
-		dispatch(modifyCardFailure(new Error(blockedError(selectCorpusStatus(getState()), SAVE_VERB))));
+		dispatch(modifyCardFailure(new Error(blockedError(selectCorpusStatus(getState()), SAVE_VERB)), undefined, []));
 		return;
 	}
 	if (durableMultiEditRunning || bulkTagOperationRunning) {
@@ -1127,6 +1137,11 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 			}));
 			dispatch(editingFinish(true));
 		}
+		//From here until this save's own record exists (or it is refused),
+		//the card must read as pending: see parkedCardIDs.
+		const parkedIDs = cards.map(card => card.id);
+		for (const id of parkedIDs) parkedCardIDs.add(id);
+		const releaseParked = () => { for (const id of parkedIDs) parkedCardIDs.delete(id); };
 		durableMultiEditParkedKey = parkedKey;
 		try {
 			await durableMultiEditRunSettled;
@@ -1134,21 +1149,26 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 			durableMultiEditParkedKey = null;
 		}
 		//A parked save that cannot proceed had a face: clear it, and only it.
-		const parkedIDs = cards.map(card => card.id);
 		if (selectUid(getState()) !== requestedUid) {
+			releaseParked();
 			dispatch(modifyCardFailure(new Error('Your account changed while this save was waiting. The queued edit was not sent.'), undefined, parkedIDs));
 			return;
 		}
 		if (durableMultiEditRunning || bulkTagOperationRunning) {
 			//Another run started in the turn the previous one settled.
+			releaseParked();
 			dispatch(modifyCardFailure(new Error('Another saved card operation is already running. Wait for it to finish or stop it before starting another.'), undefined, parkedIDs));
 			return;
 		}
 		//Conditions may have drifted during the wait.
 		if (!durableSaveEligible(getState())) {
+			releaseParked();
 			dispatch(modifyCardFailure(new Error(blockedError(selectCorpusStatus(getState()), SAVE_VERB)), undefined, parkedIDs));
 			return;
 		}
+		//The run below owns pending-ness from its own record onward; the
+		//parked marker is released when the run settles (its finally).
+		parkedRelease = releaseParked;
 		//Fall through: if the settled run left its durable record behind (it
 		//paused), the record checks below refuse with the existing messages.
 	}
@@ -1187,8 +1207,10 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 			//truthfully as Saving rather than Saved. Only THIS card's editor: a
 			//parked save resumes after the user may have opened another card,
 			//and closing whatever editor was open then took B's editor down
-			//for A's save.
-			if (kind === 'single' && selectEditingCard(getState())?.id === operation.targetIDs[0]) {
+			//for A's save. A parked save already released its editor and
+			//stamped its draft before waiting, and the card has read as
+			//pending since, so there is nothing to release here.
+			if (!parkedOperationID && kind === 'single' && selectEditingCard(getState())?.id === operation.targetIDs[0]) {
 				window.dispatchEvent(new CustomEvent('card-web-preserve-edit-draft-for-save', {
 					detail: {cardID: operation.targetIDs[0], operationID: operation.id},
 				}));
@@ -1473,6 +1495,7 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 		if (Object.values(enqueued).some(group => Object.keys(group).length)) dispatch(updateEnqueuedCards());
 		if (operation) dispatch(durableMultiEditProgress(operation));
 	} finally {
+		if (parkedRelease) parkedRelease();
 		durableMultiEditRunning = false;
 		if (durableMultiEditRunSettledResolve) durableMultiEditRunSettledResolve();
 		durableMultiEditRunSettled = null;
@@ -1592,7 +1615,7 @@ export const modifyCardsIndividually = (cards : Card[], updates : {[id : CardID]
 	//suggestion accepted during the verifying window committed against an
 	//unverified corpus while Save two inches away was disabled.
 	if (!durableSaveEligible(state)) {
-		dispatch(modifyCardFailure(new Error(blockedError(selectCorpusStatus(state), SAVE_VERB))));
+		dispatch(modifyCardFailure(new Error(blockedError(selectCorpusStatus(state), SAVE_VERB)), undefined, []));
 		return;
 	}
 	const startingUid = selectUid(state);
@@ -1604,7 +1627,7 @@ export const modifyCardsIndividually = (cards : Card[], updates : {[id : CardID]
 		//tell a refusal from a success. applySuggestion took that silence as
 		//"applied", dismissed the suggestion, and the user believed the
 		//references had landed when nothing was written at all.
-		dispatch(modifyCardFailure(new Error('Another card is being modified. Wait for that save to finish, then try again.')));
+		dispatch(modifyCardFailure(new Error('Another card is being modified. Wait for that save to finish, then try again.'), undefined, []));
 		return;
 	}
 
@@ -2187,7 +2210,7 @@ export const reorderCard = (cardID : CardID, otherID: CardID, isAfter : boolean)
 	//commits its own batch directly. Refuse with the shared reason instead of
 	//silently persisting an order computed against an unverified corpus.
 	if (!durableSaveEligible(state)) {
-		dispatch(modifyCardFailure(new Error(blockedError(selectCorpusStatus(state), REORDER_VERB))));
+		dispatch(modifyCardFailure(new Error(blockedError(selectCorpusStatus(state), REORDER_VERB)), undefined, []));
 		return;
 	}
 
@@ -2563,7 +2586,7 @@ export const bulkCreateWorkingNotes = (bodies : string[], flags? : CardFlags) : 
 	//sort order is computed from the local corpus, so creating against a
 	//partial one produces wrong ordering that no replay can repair.
 	if (!durableSaveEligible(getState())) {
-		dispatch(modifyCardFailure(new Error(blockedError(selectCorpusStatus(getState()), IMPORT_VERB))));
+		dispatch(modifyCardFailure(new Error(blockedError(selectCorpusStatus(getState()), IMPORT_VERB)), undefined, []));
 		return;
 	}
 	const WORKING_NOTES_CONFIG = CARD_TYPE_CONFIGURATION['working-notes'];
@@ -3024,7 +3047,7 @@ export const createCard = (opts : CreateCardOpts) : ThunkSomeAction => async (di
 	//from the local corpus, so creating against a partial one produces
 	//ordering no replay can repair.
 	if (!durableSaveEligible(getState())) {
-		dispatch(modifyCardFailure(new Error(blockedError(selectCorpusStatus(getState()), CREATE_VERB))));
+		dispatch(modifyCardFailure(new Error(blockedError(selectCorpusStatus(getState()), CREATE_VERB)), undefined, []));
 		return;
 	}
 
@@ -3299,7 +3322,7 @@ export const createForkedCard = (cardToFork : Card | null) : ThunkSomeAction => 
 	//Same reasoning as createCard: durable now, but still gated because sort
 	//order is computed from the local corpus.
 	if (!durableSaveEligible(getState())) {
-		dispatch(modifyCardFailure(new Error(blockedError(selectCorpusStatus(getState()), CREATE_VERB))));
+		dispatch(modifyCardFailure(new Error(blockedError(selectCorpusStatus(getState()), CREATE_VERB)), undefined, []));
 		return;
 	}
 	//NOTE: if you modify this card you likely also want to modify
@@ -3336,7 +3359,7 @@ export const createForkedCard = (cardToFork : Card | null) : ThunkSomeAction => 
 	//it is open. This is the codebase's first confirmDestructive caller, so it
 	//sets the pattern for the ~30 still to migrate: capture ids, re-read state.
 	if (!durableSaveEligible(getState())) {
-		dispatch(modifyCardFailure(new Error(blockedError(selectCorpusStatus(getState()), CREATE_VERB))));
+		dispatch(modifyCardFailure(new Error(blockedError(selectCorpusStatus(getState()), CREATE_VERB)), undefined, []));
 		return;
 	}
 	//The card itself can have changed under the dialog. Re-read it by id rather
@@ -3352,7 +3375,7 @@ export const createForkedCard = (cardToFork : Card | null) : ThunkSomeAction => 
 	//nextCard.sort_order. card-view dispatches this with no .catch, so the user
 	//gets an unhandled rejection and a button that did nothing.
 	if (!freshCard) {
-		dispatch(modifyCardFailure(new Error('That card no longer exists, so there was nothing to fork.')));
+		dispatch(modifyCardFailure(new Error('That card no longer exists, so there was nothing to fork.'), undefined, []));
 		return;
 	}
 	cardToFork = freshCard;
@@ -3533,7 +3556,7 @@ export const deleteCard = (card : Card) : ThunkSomeAction => async (dispatch, ge
 	//other durable write. The editor's delete button is disabled with this
 	//same reason; this guards the paths that don't go through that button.
 	if (!durableSaveEligible(state)) {
-		dispatch(modifyCardFailure(new Error(blockedError(selectCorpusStatus(state), DELETE_VERB))));
+		dispatch(modifyCardFailure(new Error(blockedError(selectCorpusStatus(state), DELETE_VERB)), undefined, []));
 		return;
 	}
 

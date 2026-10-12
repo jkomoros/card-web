@@ -410,7 +410,7 @@ export const editingCommit = () : ThunkSomeAction => async (dispatch, getState) 
 		//silent no-op. The disabled Save button and its wrapper tooltip carry
 		//the explanation two inches away; route this through the same surface
 		//the rest of the app uses instead of interrupting.
-		dispatch(modifyCardFailure(new Error(blockedError(selectCorpusStatus(state), SAVE_VERB)), true));
+		dispatch(modifyCardFailure(new Error(blockedError(selectCorpusStatus(state), SAVE_VERB)), true, []));
 		return;
 	}
 	if (!selectUserMayEditActiveCard(state)) {

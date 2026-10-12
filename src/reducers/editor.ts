@@ -189,7 +189,9 @@ const app = (state : EditorState = INITIAL_STATE, action : SomeAction) : EditorS
 			//card, because with per-card editor sessions a save on A is
 			//routinely still round-tripping when B is opened and cancelled,
 			//and one slot made B's cancel revert A on screen. A teardown with
-			//no editor open (ownership purge, account change) clears them all.
+			//no editor open clears them all — a safety net: every product
+			//dispatcher of EDITING_FINISH is guarded by selectIsEditing today,
+			//so this branch is reached only from the perf harness.
 			pendingSaves: state.card
 				? pendingSavesWithout(state.pendingSaves, state.card.id, action.pendingSave ? state.card : null)
 				: {}

@@ -133,8 +133,13 @@ same fixture, plus "no regression" on anything the journey measures.
 > keystrokes were silently lost is gone), the post-park release closes only
 > the saved card's own editor, pending faces are per card, and a settle
 > clears only the faces of the cards it names (refusals that never had a
-> face clear none). Four behavioural tests with real thunks and held
-> commits. Not done, by decision: reopening a card while its save is
+> face clear none), and a parked card reads as pending through
+> `durableCardMutationPendingForCard` until its own record exists (the
+> review found that without this the card could be reopened during the
+> park — the resumed save then closed that editor and the confirmation
+> deleted the newer draft — and the orphaned-draft banner offered its
+> stamped draft). Five behavioural tests with real thunks, the real draft
+> watcher and held commits. Not done, by decision: reopening a card while its save is
 > pending, the editor session token, and the data reducer's pending-gating
 > reset on an unrelated refusal.
 > Known gap from the slice-1 review, to be filed: no suite drives the real
