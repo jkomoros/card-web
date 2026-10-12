@@ -17,7 +17,7 @@ function inspectMembershipUsage(projectPath) {
 	const owner = program.getSourceFile(ownerPath);
 	if (!owner) throw new Error('Membership owner missing from project: ' + ownerPath);
 	const ownerSymbol = checker.getSymbolAtLocation(owner);
-	const memberSymbols = ownerSymbol ? checker.getExportsOfModule(ownerSymbol).filter(s => ['CardDerivedMembership', 'CardMembershipDomain'].includes(s.name)) : [];
+	const memberSymbols = ownerSymbol ? checker.getExportsOfModule(ownerSymbol).filter(s => s.name === 'CardDerivedMembership') : [];
 	if (!memberSymbols.some(s => s.name === 'CardDerivedMembership')) throw new Error('CardDerivedMembership export missing');
 	const rootPrefix = path.dirname(project) + path.sep;
 	const localFiles = new Set(program.getSourceFiles().filter(s => !s.isDeclarationFile && path.resolve(s.fileName).startsWith(rootPrefix) && !s.fileName.includes('/node_modules/')).map(s => path.resolve(s.fileName)));

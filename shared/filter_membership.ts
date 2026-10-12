@@ -307,6 +307,54 @@ export const cardDerivedMembershipsFromFilterMaps = (maps : readonly PlainFilter
 	});
 };
 
+//The worker's full-corpus prime (and a main-thread import of it) evaluates
+//every predicate card-major into one flat bitset per filter, over the index
+//of the card in `ids`. Build memberships straight from those words: the
+//ordinal IS the card's index, so no id lookups happen, and filters with
+//equal bits share one membership (many of the ~78 card filters are equal
+//on a real corpus). `ids` must be unique; words[f] holds ceil(ids.length /
+//32) uint32s, bit i set when ids[i] is a member of filter f.
+export const cardDerivedMembershipsFromPrime = (ids : readonly string[], words : readonly Uint32Array[]) : CardDerivedMembership[] => {
+	const domain = extendDomain(emptyDomainState(), ids);
+	if (domain.size !== ids.length) throw new Error('Prime ids must be unique');
+	const chunkCount = Math.ceil(ids.length / IDS_PER_CHUNK);
+	const shared = new Map<string, CardDerivedMembership>();
+	return words.map(flat => {
+		if (flat.length !== Math.ceil(ids.length / 32)) throw new Error('Prime bitset length does not match ids');
+		const signature = flat.join(',');
+		let membership = shared.get(signature);
+		if (membership) return membership;
+		const bits : Uint32Array[] = [];
+		const versions : Uint32Array[] = [];
+		const entries : OrderEntry[] = [];
+		let size = 0;
+		for (let chunkIndex = 0; chunkIndex < chunkCount; chunkIndex++) {
+			const chunk = new Uint32Array(WORDS_PER_CHUNK);
+			const from = chunkIndex * WORDS_PER_CHUNK;
+			chunk.set(flat.subarray(from, from + WORDS_PER_CHUNK));
+			let any = false;
+			for (let wordIndex = 0; wordIndex < WORDS_PER_CHUNK; wordIndex++) {
+				let word = chunk[wordIndex];
+				if (!word) continue;
+				any = true;
+				if (!versions[chunkIndex]) versions[chunkIndex] = new Uint32Array(IDS_PER_CHUNK);
+				while (word) {
+					const bit = 31 - Math.clz32(word & -word);
+					const offset = (wordIndex << 5) + bit;
+					versions[chunkIndex][offset] = 1;
+					entries.push([chunkIndex * IDS_PER_CHUNK + offset, 1]);
+					size++;
+					word = (word & (word - 1)) >>> 0;
+				}
+			}
+			if (any) bits[chunkIndex] = chunk;
+		}
+		membership = wrapMembership({domain, bits: Object.freeze(bits), versions: Object.freeze(versions), order: appendOrder([], entries), size, orderEntries: size});
+		shared.set(signature, membership);
+		return membership;
+	});
+};
+
 export const cardDerivedMembershipFromFilterMap = (map : PlainFilterMap) : CardDerivedMembership => {
 	return cardDerivedMembershipsFromFilterMaps([map])[0];
 };

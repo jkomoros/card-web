@@ -1323,12 +1323,18 @@ export const selectTagInfosForCards = createSelector(
 	})
 );
 
+//Own-key lookups: a card whose id is 'constructor' or 'toString' must not
+//read as starred or read via Object.prototype (the reducers already use
+//own-key semantics; these are the readers the star/read actions consult
+//before dispatching).
 export const getCardHasStar = (state : State, cardId : CardID) : boolean => {
-	return (selectUserStars(state) || {})[cardId] || false;
+	const stars = selectUserStars(state) || {};
+	return Object.prototype.hasOwnProperty.call(stars, cardId) && Boolean(stars[cardId]);
 };
 
 export const getCardIsRead = (state : State, cardId : CardID) : boolean => {
-	return (selectUserReads(state) || {})[cardId] || false;
+	const reads = selectUserReads(state) || {};
+	return Object.prototype.hasOwnProperty.call(reads, cardId) && Boolean(reads[cardId]);
 };
 
 export const getCardInReadingList = (state : State, cardId : CardID) : boolean => {

@@ -50,7 +50,7 @@ describe('persistent card filter membership', () => {
 		assert.equal(membershipHas(membership,'a'),true,'transport mutation reached private membership state');
 	});
 
-	it('updates a 50k snapshot without changing or retaining future IDs in the old value', () => {
+	it('updates a 50k snapshot without the old value seeing future IDs', () => {
 		const ids=Array.from({length:50000},(_,index)=>`card-${String(index).padStart(5,'0')}`);
 		const original=cardDerivedMembershipFromFilterMap(mapFrom(ids));
 		const changed=updateCardDerivedMembership(original,{remove:ids.slice(0,30),add:['future-a','future-b']});
@@ -146,6 +146,19 @@ describe('persistent card filter membership', () => {
 		assert.match(strongControl.stderr,/discarded persistent history remained strongly reachable/);
 	});
 
+	it('compacts order churn and reclaims deleted ids instead of growing without bound', () => {
+		//Toggling one id 100k times writes 100k order-log tombstones, and
+		//100k rolling temporary ids append 100k dead ordinals to the shared
+		//domain. Without order compaction the log alone retains ~20 MB;
+		//without domain reclamation the index retains ~7 MB. The real code
+		//retains under 1 MB. The compaction tests above pass with both
+		//mechanisms disabled; this one does not.
+		const result=spawnSync(process.execPath,['--expose-gc',new URL('./churn-heap.fixture.js',import.meta.url).pathname],{encoding:'utf8',timeout:60000});
+		assert.equal(result.status,0,result.stdout+result.stderr);
+		const measurement=JSON.parse(result.stdout);
+		assert(measurement.bytes < 3*1024*1024,`churned memberships retained ${measurement.bytes} bytes`);
+	}).timeout(60000);
+
 	it('does not retain superseded domain indexes through the latest snapshot', () => {
 		const result=spawnSync(process.execPath,['--expose-gc',new URL('./retained-history.fixture.js',import.meta.url).pathname],{encoding:'utf8',timeout:30000});
 		assert.equal(result.status,0,result.stdout+result.stderr);
@@ -197,7 +210,7 @@ describe('lineage-tip id index', () => {
 		assert.strictEqual(grouped[1],base,'an untouched older sibling keeps its identity');
 	});
 
-	it('extending the tip does not allocate a new index, extending a held snapshot does', () => {
+	it('extending the tip is bounded per id (no index copy)', () => {
 		//50k ids added one at a time along the tip must stay far below the
 		//cost of copying the index each time; a quadratic index copy would
 		//take tens of seconds here.
@@ -206,5 +219,37 @@ describe('lineage-tip id index', () => {
 		for(let index=0;index<50000;index++)membership=updateCardDerivedMembership(membership,{add:[`id-${index}`]});
 		assert.equal(membershipSize(membership),50000);
 		assert(Date.now()-started<5000,'tip extension is not O(1) per id');
+	}).timeout(30000);
+});
+
+describe('prime bitset builder', () => {
+	it('builds the same memberships as the plain-map importer, sharing equal filters', async () => {
+		const {cardDerivedMembershipsFromPrime}=await import('../../shared/dist/filter_membership.js');
+		//6,500 ids crossing chunk boundaries, with ids a plain object would
+		//reorder (integer-like) and ids that collide with Object.prototype.
+		const ids=[];
+		for(let index=0;index<6500;index++)ids.push(index%7===0?String(index*3):index%11===0?`${'z'.repeat(40)}-${index}`:`card-${index}`);
+		ids[5]='__proto__';ids[6]='constructor';ids[7]='toString';ids[8]='4294967295';
+		const predicates=[i=>i%2===0,i=>i%3===0,i=>i%2===0,()=>false,i=>i>6000,()=>true];
+		const words=predicates.map(()=>new Uint32Array(Math.ceil(ids.length/32)));
+		//Null-prototype oracles: a plain {} cannot hold '__proto__' as a key.
+		const maps=predicates.map(()=>Object.create(null));
+		for(let i=0;i<ids.length;i++)for(let f=0;f<predicates.length;f++)if(predicates[f](i)){words[f][i>>>5]|=1<<(i&31);maps[f][ids[i]]=true;}
+		const fromPrime=cardDerivedMembershipsFromPrime(ids,words);
+		const fromMaps=cardDerivedMembershipsFromFilterMaps(maps);
+		for(let f=0;f<predicates.length;f++){
+			assert.deepEqual(membershipKeys(fromPrime[f]),membershipKeys(fromMaps[f]),`filter ${f} keys`);
+			assert.deepEqual(membershipKeys(fromPrime[f]),Object.keys(maps[f]),`filter ${f} plain-map order`);
+			assert.equal(membershipSize(fromPrime[f]),Object.keys(maps[f]).length);
+			for(const id of ids)assert.equal(membershipHas(fromPrime[f],id),Boolean(maps[f][id]),`filter ${f} has ${id}`);
+		}
+		assert.strictEqual(fromPrime[0],fromPrime[2],'equal bitsets share one membership');
+		assert.notStrictEqual(fromPrime[0],fromPrime[1]);
+		//The result is a normal membership: it updates and groups like any other.
+		const updated=updateCardDerivedMembershipGroup([{membership:fromPrime[3],add:['brand-new']},{membership:fromPrime[5],remove:[ids[0]]}]);
+		assert.deepEqual(membershipKeys(updated[0]),['brand-new']);
+		assert.equal(membershipHas(updated[1],ids[0]),false);
+		assert.equal(membershipSize(updated[1]),ids.length-1);
+		assert.throws(()=>cardDerivedMembershipsFromPrime(['a','a'],[new Uint32Array(1)]),/unique/);
 	}).timeout(30000);
 });

@@ -54,6 +54,9 @@ let EDITING_TEXT_FIELD_UPDATED;
 let EDITING_SIMILARITY_PENDING;
 let EDITING_UPDATE_SIMILAR_CARDS;
 let INITIAL_COLLECTION_STATE;
+let membershipHas;
+let membershipKeys;
+let membershipToFilterMap;
 
 const makeCard = (id, extras) => ({
 	id,
@@ -112,6 +115,7 @@ describe('reducer identity preservation', () => {
 		({
 			INITIAL_STATE: INITIAL_COLLECTION_STATE
 		} = await import('../../lib/src/filters.js'));
+		({membershipHas,membershipKeys,membershipToFilterMap}=await import('../../lib/shared/filter_membership.js'));
 	});
 
 	it('restores a draft only onto its matching active editor snapshot', () => {
@@ -280,6 +284,90 @@ describe('reducer identity preservation', () => {
 		return collectionReducer(INITIAL_COLLECTION_STATE, {type: UPDATE_CARDS, cards, fetchType: 'published'});
 	};
 
+	it('shares equal ordered predicate results through updates, snapshots, and removal', () => {
+		const cards = Object.fromEntries(['2', '01', 'first', 'last'].map(id => [id, makeCard(id)]));
+		let state = primedCollectionState(cards);
+		assert.strictEqual(state.filters['in-everything-set'], state.filters['has-content']);
+		assert.ok(Object.isFrozen(state.filters['has-content']));
+		const held = Object.freeze(state.filters['has-content']);
+		const heldKeys = membershipKeys(held);
+		state = collectionReducer(state, {type: UPDATE_COLLECTION_SHAPSHOT});
+		state = collectionReducer(state, {type: UPDATE_CARDS, cards: {new: makeCard('new')}, fetchType: 'published'});
+		assert.strictEqual(state.filters['in-everything-set'], state.filters['has-content']);
+		assert.ok(Object.isFrozen(state.filters['has-content']));
+		assert.deepStrictEqual(membershipKeys(held), heldKeys);
+		assert.strictEqual(state.filtersSnapshot['has-content'], held);
+		state = collectionReducer(state, {type: REMOVE_CARDS, cardIDs: ['first']});
+		assert.strictEqual(state.filters['in-everything-set'], state.filters['has-content']);
+		assert.ok(Object.isFrozen(state.filters['has-content']));
+		state = collectionReducer(state, {type: UPDATE_CARDS, cards: {first: cards.first}, fetchType: 'published'});
+		assert.deepStrictEqual(membershipKeys(state.filters['has-content']), ['2', '01', 'last', 'new', 'first']);
+		assert.strictEqual(state.filters['in-everything-set'], state.filters['has-content']);
+		assert.ok(Object.isFrozen(state.filters['has-content']));
+		assert.deepStrictEqual(membershipToFilterMap(state.filters['has-content']),Object.fromEntries(['2','01','last','new','first'].map(id=>[id,true])));
+		assert.strictEqual(collectionReducer(state, {type: UPDATE_CARDS, cards: {first: {...cards.first}}, fetchType: 'published'}), state);
+	});
+
+	it('shares exact large-prime truth patterns across word boundaries then shares later deltas', async () => {
+		const {CARD_FILTER_FUNCS} = await import('../../lib/src/filters.js');
+		const ids = Array.from({length: 1025}, (_, i) => `prime-${i}`);
+		ids[0] = '__proto__';ids[31] = 'constructor';ids[32] = '2';ids[1024] = '01';
+		const cards = Object.fromEntries(ids.map((id, i) => [id, makeCard(id, {published: i % 3 === 0, notes: i % 32 === 31 ? 'note' : ''})]));
+		let state = primedCollectionState(cards);
+		for (const [name, info] of Object.entries(CARD_FILTER_FUNCS)) {
+			// Independent predicate oracle with exact own-ID semantics, including
+			// IDs that would otherwise collide with Object.prototype properties.
+			const expected = Object.fromEntries(Object.values(cards).filter(card=>info.func(card)).map(card=>[card.id,true]));
+			assert.deepStrictEqual(membershipToFilterMap(state.filters[name]), expected, name);
+		}
+		assert.strictEqual(state.filters['in-everything-set'], state.filters['has-content']);
+		assert.ok(Object.isFrozen(state.filters['has-content']));
+		const held = state.filters['has-content'];
+		state = collectionReducer(state, {type: UPDATE_CARDS, cards: {later: makeCard('later')}, fetchType: 'published'});
+		assert.strictEqual(state.filters['in-everything-set'], state.filters['has-content']);
+		assert.ok(Object.isFrozen(state.filters['has-content']));
+		assert.equal(membershipHas(held,'later'),false);
+	});
+
+	it('keeps an empty initial card update unchanged and shares equal first deltas', () => {
+		assert.strictEqual(collectionReducer(INITIAL_COLLECTION_STATE, {type:UPDATE_CARDS,cards:{},fetchType:'published'}),INITIAL_COLLECTION_STATE);
+		const state=collectionReducer(INITIAL_COLLECTION_STATE,{type:UPDATE_CARDS,cards:{one:makeCard('one')},fetchType:'published'});
+		assert.strictEqual(state.filters['in-everything-set'],state.filters['has-content']);
+		assert.deepStrictEqual(membershipKeys(state.filters['has-content']),['one']);
+	});
+
+	it('adds prototype-named IDs through the incremental card path', () => {
+		let state=primedCollectionState({ordinary:makeCard('ordinary')});
+		const ids=['constructor','toString','__proto__'];
+		state=collectionReducer(state,{type:UPDATE_CARDS,cards:Object.fromEntries(ids.map(id=>[id,makeCard(id)])),fetchType:'published'});
+		assert.deepStrictEqual(membershipKeys(state.filters['has-content']),['ordinary',...ids]);
+	});
+
+	it('imports complete plain projections without mutating caller ownership', async () => {
+		const {CARD_FILTER_FUNCS} = await import('../../lib/src/filters.js');
+		const membership = {a: true};
+		const cardFilters = Object.fromEntries(Object.keys(CARD_FILTER_FUNCS).map(name => [name, membership]));
+		const state = collectionReducer(INITIAL_COLLECTION_STATE, {type: UPDATE_CARDS, cards: {a: makeCard('a')}, cardFilters, fetchType: 'published'});
+		assert.deepStrictEqual(membershipToFilterMap(state.filters['has-content']),membership);
+		assert.notStrictEqual(state.filters['has-content'],membership);
+		assert.strictEqual(Object.isFrozen(membership), false);
+		assert.strictEqual(Object.isFrozen(cardFilters), false);
+	});
+
+	it('sharing stays within one invocation and never conflates different prior membership', () => {
+		const one = primedCollectionState({a: makeCard('a')});
+		const two = primedCollectionState({a: makeCard('a')});
+		assert.notStrictEqual(one.filters['has-content'], two.filters['has-content']);
+		const left = Object.freeze(Object.fromEntries([['__proto__', true], ['2', true], ['01', true]]));
+		const right = Object.freeze(Object.fromEntries([['__proto__', true], ['2', true], ['different', true]]));
+		const state = {...one, filters: {...one.filters, left, right}};
+		const after = collectionReducer(state, {type: REMOVE_CARDS, cardIDs: ['__proto__']});
+		assert.deepStrictEqual(after.filters.left, {'2': true, '01': true});
+		assert.deepStrictEqual(after.filters.right, {'2': true, different: true});
+		assert.notStrictEqual(after.filters.left, after.filters.right);
+		assert.deepStrictEqual(Object.keys(left), ['2', '__proto__', '01']);
+	});
+
 	it('a worker collection error is per-slot, and any fresh result supersedes it (#739)', () => {
 		const error = {description: 'everything/', message: 'boom'};
 		let state = collectionReducer(INITIAL_COLLECTION_STATE, {type: 'UPDATE_WORKER_COLLECTION_ERROR', slot: 'active', error});
@@ -335,16 +423,21 @@ describe('reducer identity preservation', () => {
 		let baseline = primedCollectionState({'card-one': card});
 		baseline = collectionReducer(baseline, {type: UPDATE_STARS, starsToAdd: ['card-one'], starsToRemove: []});
 		const cardFilterNames = Object.keys((await import('../../lib/src/filters.js')).CARD_FILTER_FUNCS);
-		const projection = Object.fromEntries(cardFilterNames.map(name => [name, baseline.filters[name]]));
+		const projection = Object.fromEntries(cardFilterNames.map(name => [name, membershipToFilterMap(baseline.filters[name])]));
 		const empty = collectionReducer(INITIAL_COLLECTION_STATE, {type: UPDATE_STARS, starsToAdd: ['card-one'], starsToRemove: []});
 		const installed = collectionReducer(empty, {type: UPDATE_CARDS, cards: {'card-one': card}, fetchType: 'published', cardFilters: projection});
-		for (const name of cardFilterNames) assert.deepStrictEqual(installed.filters[name], baseline.filters[name], name);
+		for (const name of cardFilterNames) assert.deepStrictEqual(membershipToFilterMap(installed.filters[name]),membershipToFilterMap(baseline.filters[name]),name);
 		assert.deepStrictEqual(installed.filters.starred, {'card-one': true});
 
 		const incomplete = {...projection};
 		delete incomplete[cardFilterNames[0]];
 		const fallback = collectionReducer(INITIAL_COLLECTION_STATE, {type: UPDATE_CARDS, cards: {'card-one': card}, fetchType: 'published', cardFilters: incomplete});
-		assert.deepStrictEqual(fallback.filters.content, {'card-one': true});
+		assert.deepStrictEqual(membershipToFilterMap(fallback.filters.content),{'card-one': true});
+		for(const corrupt of [Object.assign(Object.create({inherited:true}),{bad:true}),['card-one'],{'card-one':1},Object.assign({'card-one':true},{[Symbol('hidden')]:true})]){
+			const malformed={...projection,[cardFilterNames[0]]:corrupt};
+			const rejected=collectionReducer(INITIAL_COLLECTION_STATE,{type:UPDATE_CARDS,cards:{'card-one':card},fetchType:'published',cardFilters:malformed});
+			assert.deepStrictEqual(membershipToFilterMap(rejected.filters.content),{'card-one':true});
+		}
 	});
 
 	it('large initial card-major projection matches every filter predicate and preserves non-card map identity', async () => {
@@ -372,7 +465,7 @@ describe('reducer identity preservation', () => {
 			const expected = Object.fromEntries(Object.values(cards)
 				.filter(card => Boolean(info.func(card)))
 				.map(card => [card.id, true]));
-			assert.deepStrictEqual(next.filters[name], expected, name);
+			assert.deepStrictEqual(membershipToFilterMap(next.filters[name]),expected,name);
 			//The direct projection installs a complete, independently-owned set
 			//of card-derived maps rather than mutating the empty initial maps.
 			assert.notStrictEqual(next.filters[name], before.filters[name], name);

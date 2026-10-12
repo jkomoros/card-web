@@ -279,7 +279,7 @@ class CardLink extends connect(store)(LitElement) {
 	get _read() {
 		if (!this.card) return false;
 		if (!this._reads) return false;
-		return this._reads[this.card] || false;
+		return Object.prototype.hasOwnProperty.call(this._reads, this.card) && Boolean(this._reads[this.card]);
 	}
 
 	get _cardIsNotContent() {

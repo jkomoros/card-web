@@ -49,10 +49,13 @@ import {
 } from '../types.js';
 
 import {
+	cardDerivedMembershipsFromFilterMaps,
+	cardDerivedMembershipsFromPrime,
 	isCardDerivedMembership,
 	membershipHas,
 	membershipSize,
 	updateCardDerivedMembership,
+	updateCardDerivedMembershipGroup,
 } from '../../shared/filter_membership.js';
 
 import {
@@ -145,9 +148,15 @@ const app = (state : CollectionState = INITIAL_STATE, action : SomeAction) : Col
 		};
 	case UPDATE_CARDS: {
 		if (completeCardFilterProjection(action.cardFilters)) {
+			//Plain maps on the wire become memberships here, one shared
+			//domain for the whole projection; equal maps share a membership.
+			const cardFilters : Filters = {};
+			const entries = TypedObject.entries(action.cardFilters);
+			const memberships = cardDerivedMembershipsFromFilterMaps(entries.map(([, filter]) => filter));
+			for (let index = 0; index < entries.length; index++) cardFilters[entries[index][0]] = memberships[index];
 			return {
 				...state,
-				filters: {...state.filters, ...action.cardFilters}
+				filters: {...state.filters, ...cardFilters}
 			};
 		}
 		const changedFilters = makeFilterFromCards(action.cards, state.filters);
@@ -341,49 +350,65 @@ const updateFilterMap = (previous : FilterMap, toRemove : CardID[], toAdd : Card
 const makeFilterFromCards = (cards : Cards, previousFilters : Filters) : Filters => {
 	const result : Filters = {};
 	const cardValues = Object.values(cards);
+	if (!cardValues.length) {
+		perfCount('makeFilterFromCards:calls');
+		perfCount('makeFilterFromCards:changedMaps', 0);
+		return result;
+	}
 	const filterFuncs = TypedObject.entries(CARD_FILTER_FUNCS).map(entry => [entry[0], entry[1].func] as [string, CardTestFunc]);
-	//The worker's full-corpus prime starts from the initial empty card-derived
-	//maps. Build that projection directly in one card-major pass: the generic
-	//incremental algorithm below repeatedly checks empty prior membership,
-	//allocates add lists, and then copies maps. Card-major construction is
-	//semantically identical here and substantially cheaper for a 40k-card boot.
-	if (cardValues.length >= 1000 && filterFuncs.every(([name]) => membershipSize(previousFilters[name] || {}) === 0)) {
-		const built : {[name : string] : FilterMap} = {};
-		for (const [name] of filterFuncs) built[name] = {};
-		for (const card of cardValues) {
-			for (const [name, func] of filterFuncs) {
+	//The worker's full-corpus prime (and a worker respawn's rehydration)
+	//starts from empty card-derived filters. Evaluate every predicate
+	//card-major into one bitset per filter and build the memberships straight
+	//from those bits: no per-filter add lists, no id lookups, and filters
+	//with equal bits share one membership. The ordinal is the card's index
+	//in cardValues, so membershipKeys order equals the plain-map order the
+	//incremental path would have produced.
+	//The prime builder keys ordinals by position, so it requires unique ids; a
+	//map whose values disagree with their keys (two entries for one card.id)
+	//takes the incremental path, which tolerates that as the plain maps did,
+	//rather than throwing inside a reducer the worker also runs.
+	const primeIDs = cardValues.length >= 1000 ? cardValues.map(card => card.id) : null;
+	if (primeIDs && new Set(primeIDs).size === primeIDs.length && filterFuncs.every(([name]) => membershipSize(previousFilters[name] || {}) === 0)) {
+		const words = filterFuncs.map(() => new Uint32Array(Math.ceil(cardValues.length / 32)));
+		for (let cardIndex = 0; cardIndex < cardValues.length; cardIndex++) {
+			const card = cardValues[cardIndex];
+			for (let filterIndex = 0; filterIndex < filterFuncs.length; filterIndex++) {
+				const [name, func] = filterFuncs[filterIndex];
 				if (!func) throw new Error('Invalid func name: ' + name);
-				if (func(card)) built[name][card.id] = true;
+				if (func(card)) words[filterIndex][cardIndex >>> 5] |= 1 << (cardIndex & 31);
 			}
 		}
-		for (const [name] of filterFuncs) result[name] = built[name];
+		const memberships = cardDerivedMembershipsFromPrime(primeIDs, words);
+		for (let filterIndex = 0; filterIndex < filterFuncs.length; filterIndex++) result[filterFuncs[filterIndex][0]] = memberships[filterIndex];
 		perfCount('makeFilterFromCards:calls');
+		perfCount('makeFilterFromCards:primeBulk');
 		perfCount('makeFilterFromCards:changedMaps', Object.keys(result).length);
 		return result;
 	}
+	//Incremental: one group update over every card filter, so they all share
+	//one id domain and an unchanged filter keeps its identity. A plain-map
+	//prior (the initial empty maps) is imported on the way through.
+	const requests : {membership : FilterMembership; add : CardID[]; remove : CardID[]}[] = [];
 	for (const [filterName, func] of filterFuncs) {
 		if(!func) throw new Error('Invalid func name: ' + filterName);
-		//Card-derived storage arrives in step 4; until then every prior is a
-		//plain map, read through the same helper the consumers use.
-		const previous = plainFilterMap(previousFilters[filterName] || {});
-		let toAdd : CardID[] | null = null;
-		let toRemove : CardID[] | null = null;
+		const previous = previousFilters[filterName] || {};
+		const toAdd : CardID[] = [], toRemove : CardID[] = [];
 		for (const card of cardValues) {
 			//Filter funcs return truthiness, not strict booleans.
 			const matches = Boolean(func(card));
 			const inPrevious = membershipHas(previous, card.id);
 			if (matches === inPrevious) continue;
 			if (matches) {
-				(toAdd ||= []).push(card.id);
+				toAdd.push(card.id);
 			} else {
-				(toRemove ||= []).push(card.id);
+				toRemove.push(card.id);
 			}
 		}
-		if (!toAdd && !toRemove) continue;
-		const updated : FilterMap = {...previous};
-		if (toRemove) for (const id of toRemove) delete updated[id];
-		if (toAdd) for (const id of toAdd) updated[id] = true;
-		result[filterName] = updated;
+		requests.push({membership: previous, add: toAdd, remove: toRemove});
+	}
+	const updated = updateCardDerivedMembershipGroup(requests);
+	for (let index = 0; index < filterFuncs.length; index++) {
+		if (updated[index] !== requests[index].membership) result[filterFuncs[index][0]] = updated[index];
 	}
 	perfCount('makeFilterFromCards:calls');
 	perfCount('makeFilterFromCards:changedMaps', Object.keys(result).length);
@@ -396,7 +421,19 @@ const makeFilterFromCards = (cards : Cards, previousFilters : Filters) : Filters
 const removeCardIDsFromSubState = (cardIDs : CardID[], subState : CollectionState) => {
 	const newFilters = {...subState.filters};
 	let changesMade = false;
+	//Card-derived filters are removed from as one group (one shared domain);
+	//the user-owned plain maps (stars, reads, sections, tags) one by one.
+	const derivedEntries = Object.entries(newFilters).filter(([, filter]) => isCardDerivedMembership(filter));
+	const derivedUpdates = updateCardDerivedMembershipGroup(derivedEntries.map(([, filter]) => ({membership: filter, remove: cardIDs})));
+	for (let index = 0; index < derivedEntries.length; index++) {
+		const [filterName, filter] = derivedEntries[index];
+		const newFilter = derivedUpdates[index];
+		if (newFilter === filter) continue;
+		newFilters[filterName] = newFilter;
+		changesMade = true;
+	}
 	for (const [filterName, filter] of Object.entries(newFilters)) {
+		if (isCardDerivedMembership(filter)) continue;
 		const newFilter = removeCardIDsFromFilter(cardIDs, filter);
 		if (newFilter === filter) continue;
 		newFilters[filterName] = newFilter;

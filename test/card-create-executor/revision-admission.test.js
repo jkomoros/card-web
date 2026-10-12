@@ -18,6 +18,7 @@ const {MultiBatch} = await import('../../lib/src/multi_batch.js');
 const {EDITING_START, EDITING_UPDATE_UNDERLYING_CARD, MODIFY_CARD, MODIFY_CARD_SUCCESS, CLEAR_ENQUEUED_CARD_UPDATES} = await import('../../lib/src/actions.js');
 const {selectRawCards, selectEditingUnderlyingCardSnapshot} = await import('../../lib/src/selectors.js');
 const {CARD_FILTER_FUNCS} = await import('../../lib/src/filters.js');
+const {membershipHas} = await import('../../lib/shared/filter_membership.js');
 store.addReducers({collection: (await import('../../lib/src/reducers/collection.js')).default});
 store.addReducers({editor: (await import('../../lib/src/reducers/editor.js')).default});
 
@@ -32,7 +33,7 @@ const filterDisagreements = id => {
 	const card = held(id);
 	const filters = store.getState().collection.filters;
 	return Object.entries(CARD_FILTER_FUNCS)
-		.filter(([name, {func}]) => Boolean(func(card)) !== Boolean(filters[name]?.[id]))
+		.filter(([name, {func}]) => Boolean(func(card)) !== membershipHas(filters[name] || {}, id))
 		.map(([name]) => name);
 };
 
