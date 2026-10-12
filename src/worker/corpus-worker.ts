@@ -3411,7 +3411,7 @@ workerScope.addEventListener('message', event => {
 		//Re-push subscriptions so open collections and reference blocks
 		//reflect the new editing content immediately.
 		const editingCard = fromWire(message.card, (seconds, nanoseconds) => new Timestamp(seconds, nanoseconds));
-		if (engine.setEditingCard(editingCard, message.similarity)) subscriptions.markDirty();
+		if (engine.setEditingCard(editingCard, message.similarity)) subscriptions.markDirty('editing');
 		break;
 	}
 	case 'runCollection': {

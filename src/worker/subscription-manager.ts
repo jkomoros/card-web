@@ -17,7 +17,8 @@ import {
 } from '../types.js';
 
 import {
-	SELECTED_FILTER_NAME
+	SELECTED_FILTER_NAME,
+	descriptionMayReadEditingCard
 } from '../filter-constants.js';
 
 export type SubscriptionParams = {
@@ -36,8 +37,13 @@ export type SubscriptionPush = RunCollectionResult & {
 //What kind of engine change a markDirty describes. 'selection' means ONLY
 //the selected-cards set changed — a per-keypress user action whose result
 //can differ only for subscriptions that actually reference the selection
-//filters. Everything else is 'all'.
-export type DirtyScope = 'selection' | 'all';
+//filters. 'editing' means ONLY the mirrored editing card changed — which
+//happens on every extraction while the user types, and in a signed-in
+//profile on the real 40k corpus re-ran every open subscription each time
+//(~46 collection runs per Save→New cycle, the largest single warm cost on
+//the worker); only subscriptions whose description can read the editing
+//card (EDITING_CARD_FILTER_NAMES) can change. Everything else is 'all'.
+export type DirtyScope = 'selection' | 'editing' | 'all';
 
 type Subscription = SubscriptionParams & {
 	lastIDs : CardID[] | null,
@@ -58,6 +64,9 @@ type Subscription = SubscriptionParams & {
 	//query containing the word) merely recomputes — never skips a needed
 	//recompute.
 	dependsOnSelection : boolean,
+	//Whether the description names a configurable filter that reads the
+	//editing card (see DirtyScope 'editing'); computed once at subscribe.
+	dependsOnEditingCard : boolean,
 };
 
 const resultsEqual = (subscription : Subscription, result : RunCollectionResult) : boolean => {
@@ -146,6 +155,7 @@ export class SubscriptionManager {
 			lastLabels: null,
 			lastErrorMessage: null,
 			dependsOnSelection: params.description.includes(SELECTED_FILTER_NAME),
+			dependsOnEditingCard: descriptionMayReadEditingCard(params.description),
 		});
 		//New subscriptions get a result promptly.
 		this._scheduleFlush();
@@ -251,6 +261,10 @@ export class SubscriptionManager {
 			//recovery would otherwise wait for the next 'all'-scope dirt,
 			//leaving the failure banner up after the cause healed.
 			if (scope === 'selection' && subscription.lastIDs !== null && !subscription.dependsOnSelection && subscription.lastErrorMessage === null) continue;
+			//Same shape for the mirrored editing card: the worker corpus does
+			//not change until the card is saved, so a subscription that cannot
+			//read the editing card cannot change.
+			if (scope === 'editing' && subscription.lastIDs !== null && !subscription.dependsOnEditingCard && subscription.lastErrorMessage === null) continue;
 			let result : RunCollectionResult;
 			const start = performance.now();
 			try {

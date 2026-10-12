@@ -17,3 +17,25 @@ export const SELECTED_FILTER_NAME = 'selected';
 //rather than evaluate: the composer's history has to be able to refuse it
 //without importing the engine.
 export const NONE_FILTER_NAME = 'none';
+
+//The configurable filters whose results can depend on the live editing card
+//(filters.ts reads extras.editingCard in exactly three factories: the card
+//links/BFS family, similar, and expand, which composes both). The worker
+//mirrors the editing card on every extraction while the user types; only
+//subscriptions naming one of these can change as a result, so the others are
+//not recomputed for that dirt. test/subscription-manager pins this list
+//against the registry's factories. A false positive only costs a recompute.
+export const EDITING_CARD_FILTER_NAMES : readonly string[] = [
+	'similar', 'similar-cutoff', 'expand',
+	'children', 'descendants', 'parents', 'ancestors',
+	'direct-connections', 'connections',
+	'references', 'references-inbound', 'references-outbound',
+	'direct-references', 'direct-references-inbound', 'direct-references-outbound',
+];
+
+//Conservative substring test, like the selection test: a configurable filter
+//is written `name/args`, union members and configurable sub-expressions embed
+//the literal, so any description that could read the editing card contains
+//one of the names followed by '/'.
+export const descriptionMayReadEditingCard = (description : string) : boolean =>
+	EDITING_CARD_FILTER_NAMES.some(name => description.includes(name + '/'));

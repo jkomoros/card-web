@@ -67,6 +67,59 @@ describe('SubscriptionManager', () => {
 		assert.deepStrictEqual(pushes[1].ids, ['d', 'a', 'b', 'c']);
 	});
 
+	//The worker mirrors the editing card on every extraction while the user
+	//types. Only subscriptions that can read it may change; on the real
+	//corpus the undirected recompute was the largest warm worker cost.
+	const countingSetup = () => {
+		const {engine, manager, pushes} = setup();
+		const runs = [];
+		const original = engine.runCollection.bind(engine);
+		engine.runCollection = (description, options) => { runs.push(description); return original(description, options); };
+		return {engine, manager, pushes, runs};
+	};
+
+	it('recomputes only editing-card-dependent subscriptions on editing dirt', () => {
+		const {engine, manager, runs} = countingSetup();
+		manager.subscribe(1, params('everything/'));
+		manager.subscribe(2, params('similar/a'));
+		manager.subscribe(3, params('everything/children/a'));
+		manager.subscribe(4, params('everything/unread'));
+		manager.flush();
+		runs.length = 0;
+		engine.setEditingCard({...engine._ensureProcessedCards().a, title: 'Edited'}, null);
+		manager.markDirty('editing');
+		manager.flush();
+		assert.deepStrictEqual(runs.sort(), ['everything/children/a', 'similar/a']);
+		//A subscription that has never been pushed always computes, alongside
+		//the dependent ones; the independent pushed ones still skip.
+		manager.subscribe(5, params('everything/starred'));
+		runs.length = 0;
+		manager.markDirty('editing');
+		manager.flush();
+		assert.deepStrictEqual(runs.sort(), ['everything/children/a', 'everything/starred', 'similar/a']);
+		//Mixed dirt widens to everything.
+		runs.length = 0;
+		manager.markDirty('editing');
+		manager.markDirty();
+		manager.flush();
+		assert.strictEqual(runs.length, 5);
+	});
+
+	it('pins EDITING_CARD_FILTER_NAMES to the registry factories that read the editing card', async () => {
+		const {CONFIGURABLE_FILTER_INFO} = await import('../../lib/src/filters.js');
+		const {EDITING_CARD_FILTER_NAMES, descriptionMayReadEditingCard} = await import('../../lib/src/filter-constants.js');
+		//filters.ts reads extras.editingCard in exactly these factories. If a
+		//new factory starts reading it, add its names to the constant (or this
+		//assertion tells you so); if a listed name's factory stops, drop it.
+		const readers = new Set(['makeCardLinksConfigurableFilter', 'makeSimilarConfigurableFilter', 'makeExpandConfigurableFilter']);
+		const expected = Object.entries(CONFIGURABLE_FILTER_INFO).filter(([, info]) => readers.has(info.factory.name)).map(([name]) => name).sort();
+		assert.deepStrictEqual([...EDITING_CARD_FILTER_NAMES].sort(), expected);
+		assert.ok(descriptionMayReadEditingCard('main/similar/x'));
+		assert.ok(descriptionMayReadEditingCard('everything/exclude/children/a'));
+		assert.ok(!descriptionMayReadEditingCard('everything/unread'));
+		assert.ok(!descriptionMayReadEditingCard('reading-list/'));
+	});
+
 	it('flushImmediately is leading-edge only: a burst coalesces onto the batching floor', async () => {
 		const {engine, manager, pushes} = setup();
 		manager.subscribe(1, params('everything/'));
