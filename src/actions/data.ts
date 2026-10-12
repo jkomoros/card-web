@@ -3840,6 +3840,12 @@ export const receiveCards = (incoming: Cards, fetchType : CardFetchType, fastDed
 	};
 	const {admitted, refusedIDs} = admitCardImages(incoming, newestHeld);
 	if (refusedIDs.length && perfEnabled()) console.log(`[PERF] receiveCards(${fetchType}): refused ${refusedIDs.length} older image(s)`);
+	//A refused image means the worker's projection (built over ITS images)
+	//does not describe what this store holds: never install it.
+	if (refusedIDs.length) {
+		cardFilters = undefined;
+		cardFilterCorpusIDs = undefined;
+	}
 	let cards = admitted;
 	if (ownsInput && refusedIDs.length) {
 		//ownsInput mutates the input map in place below; drop the refused
@@ -3966,7 +3972,12 @@ const updateCards = (incoming : Cards, fetchType : CardFetchType, cardFilters? :
 		type: UPDATE_CARDS,
 		cards,
 		fetchType,
-		cardFilters
+		//The worker's filter projection describes the worker's images; if
+		//one of them was refused here, the projection would index an image
+		//the store does not hold. Drop it and let the reducer derive the
+		//filters from the cards it actually applies (a full pass, only in
+		//this rare case).
+		cardFilters: refusedIDs.length ? undefined : cardFilters
 	});
 	dispatch(refreshCardSelector(false));
 };

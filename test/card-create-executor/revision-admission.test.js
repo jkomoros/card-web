@@ -72,18 +72,37 @@ describe('revision admission (real reducers, real server revisions)', function()
 		//admits each bucket against the store, so both reducers see the
 		//same map (the review found a reducer-only backstop left the filters
 		//indexing the refused image).
+		//Buckets flush in key-insertion order, so the NEWEST image must sit in
+		//the bucket created FIRST for the flush order to matter (the re-review
+		//found the previous sequence passed even with the thunk's admission
+		//removed): unpublished(2), published(3), unpublished(4) → published
+		//flushes last with the older image.
 		const {id, createImage, savedImage} = await createAndSave();
-		const publishedImage = {...savedImage, published: true, revision: 3};
 		store.dispatch({type: MODIFY_CARD, modificationCount: 5, cardIDs: [id]});
 		store.dispatch(receiveCards({[id]: {...createImage, revision: 2}}, 'unpublished'));
-		store.dispatch(receiveCards({[id]: publishedImage}, 'published'));
+		store.dispatch(receiveCards({[id]: {...savedImage, published: true, title: 'pub3', revision: 3}}, 'published'));
+		store.dispatch(receiveCards({[id]: {...savedImage, published: false, title: 'unpub4', revision: 4}}, 'unpublished'));
 		store.dispatch({type: MODIFY_CARD_SUCCESS, modificationCount: 5});
 		//The next delivery flushes the leftovers, one bucket at a time.
 		store.dispatch(receiveCards({}, 'unpublished'));
-		assert.strictEqual(held(id).revision, 3, 'the newer bucket wins regardless of flush order');
-		assert.strictEqual(held(id).published, true);
+		assert.strictEqual(held(id).revision, 4, 'the newest image wins regardless of flush order');
+		assert.strictEqual(held(id).title, 'unpub4');
+		assert.strictEqual(held(id).published, false);
 		assert.deepStrictEqual(filterDisagreements(id), [], 'collection filters index exactly the held card');
 		store.dispatch({type: CLEAR_ENQUEUED_CARD_UPDATES});
+	});
+
+	it('a worker filter projection built over a refused image is not installed', async () => {
+		//The warm-prime handoff carries the worker's whole filter projection.
+		//If one of its images is older than what the store holds, the
+		//projection describes the worker's image, not the store's; it must
+		//be dropped so the reducer derives the filters from what it applies.
+		const {id, createImage} = await createAndSave();
+		const corpusIDs = Object.keys(selectRawCards(store.getState()));
+		const projection = Object.fromEntries(Object.entries(CARD_FILTER_FUNCS).map(([name, {func}]) => [name, func(createImage) ? {[id]: true} : {}]));
+		store.dispatch(receiveCards({[id]: createImage}, 'unpublished', false, true, projection, corpusIDs));
+		assert.strictEqual(held(id).revision, 2);
+		assert.deepStrictEqual(filterDisagreements(id), [], 'the stale projection was not installed over the held card');
 	});
 
 	it('receiveCards refuses an older image against a newer gated bucket, not just the store', async () => {
