@@ -561,9 +561,19 @@ export class QueryEngine {
 
 	//Un-enriched and on the frozen epoch map: exactly what
 	//filters.ts memoizedFingerprintGenerator builds, so the shared per-card
-	//memo serves both.
+	//memo serves both. Cached per IDF map (the lazy proxy is stable and
+	//reads cards live): constructing one per delta re-registered the shared
+	//fingerprint cache under this generator's fresh `{}` concepts and evicted
+	//the enriched suggestion generator's entry every time.
+	_similarityGeneratorCache : FingerprintGenerator | null = null;
+	_similarityGeneratorIDFMap : IDFMap | null = null;
 	_similarityGenerator() : FingerprintGenerator {
-		return new FingerprintGenerator(this._ensureProcessedCards(), undefined, undefined, this._effectiveIDFMap());
+		const idfMap = this._effectiveIDFMap();
+		if (!this._similarityGeneratorCache || this._similarityGeneratorIDFMap !== idfMap) {
+			this._similarityGeneratorCache = new FingerprintGenerator(this._ensureProcessedCards(), undefined, undefined, idfMap);
+			this._similarityGeneratorIDFMap = idfMap;
+		}
+		return this._similarityGeneratorCache;
 	}
 
 	_resetSimilarityFingerprintsIfStale() : void {
@@ -621,7 +631,11 @@ export class QueryEngine {
 	//edit after boot finds everything cached (a single 2.6s worker task on
 	//the real corpus otherwise, 5.6s before the ngram lookup change).
 	async warmTagFingerprints(yieldFn : () => Promise<void>, shouldContinue : () => boolean, sliceMs = 12) : Promise<boolean> {
-		const generator = this._ensureSuggestGenerator();
+		//Re-taken after every yield: the suggestion generator is rebuilt on
+		//any card change, and a live session sees arrivals during a warm-up.
+		//The per-card memo is keyed on the processed card, so work done under
+		//the previous generator is not lost.
+		let generator = this._ensureSuggestGenerator();
 		const seen = new Set<CardID>();
 		let start = performance.now();
 		for (const tag of Object.values(this._tags)) {
@@ -631,12 +645,14 @@ export class QueryEngine {
 				generator.fingerprintForCardID(id);
 				if ((seen.size & 63) === 0 && performance.now() - start >= sliceMs) {
 					await yieldFn();
-					if (!shouldContinue() || this._ensureSuggestGenerator() !== generator) return false;
+					if (!shouldContinue()) return false;
+					generator = this._ensureSuggestGenerator();
 					start = performance.now();
 				}
 			}
 		}
-		//One tag per slice: the combine over a 9k-card tag is ~150ms.
+		//One tag per slice. This is the coarse step: the combine over the
+		//largest real tag (9k cards) is ~150ms in one go.
 		for (const tagID of Object.keys(this._tags)) {
 			this._ensureTagFingerprint(tagID);
 			await yieldFn();
@@ -822,8 +838,12 @@ export class QueryEngine {
 			//convention before the first publication).
 			idfMap: this._effectiveIDFMap(),
 			//...and matches over the engine's incrementally maintained map
-			//instead of re-enumerating the corpus per run.
-			fingerprintsProvider: this._fingerprintsProvider
+			//(kept current across edits, unlike the memoized per-proxy
+			//generator, which served the fingerprints of its first run until
+			//the epoch rolled). A narrowed universe keeps the old path: it
+			//fingerprints only the restricted map, built fresh per run, and a
+			//whole-corpus map would cost more there, not less.
+			fingerprintsProvider: universe ? null : this._fingerprintsProvider
 		} as CollectionConstructorArguments;
 		const collection = description.collection(args);
 		return {

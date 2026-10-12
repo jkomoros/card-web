@@ -459,6 +459,10 @@ Lead's recommendation in parentheses; detail-document question numbers after.
     app's compact snapshot. (recommend: yes, measured on DEV first)
 14. Main-thread duplicate processed cards (~510 MB at 47k): keep lazy, or
     stop materializing the full set on the main thread in worker mode?
+16. **Fingerprint warm-ups are gated to signed-in sessions** (readers keep
+    the lazy build): ~150 MB and ~6 s of idle worker work per boot for the
+    similarity map, ~30 MB / ~2 s for tags. Keep the gate, widen it to
+    readers, or make the similarity warm-up opt-in? (recommend: keep)
 15. **Sign-off on P4a's trade** (`800b7f77`): 165–345 MB less worker heap
     for ~2 s more on the first similar-cards scan per IDF epoch and ~4 s
     more on the post-epoch re-fingerprint (never per keystroke; the review

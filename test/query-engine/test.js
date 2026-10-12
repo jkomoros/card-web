@@ -326,6 +326,47 @@ describe('QueryEngine', () => {
 			assert.strictEqual(engine._similarityPending.size, 0);
 		});
 
+		it('serves current similar results after edits, not the fingerprints of the first run', () => {
+			//The old path memoized its generator on the processed-cards proxy,
+			//which the engine keeps stable for its whole life, so the
+			//fingerprints enumerated on the first similar run were reused
+			//after every edit until the IDF epoch rolled: a card edited to
+			//resemble the key card never appeared.
+			const engine = makeEngine();
+			engine.updateCards({
+				z1: card('z1', {title: 'Zebra migration', body: '<p>zebra herds roam the savanna</p>'}),
+				m1: card('m1', {title: 'Budget', body: '<p>city taxes and budgets</p>'}),
+				m2: card('m2', {title: 'Elections', body: '<p>municipal election law</p>'}),
+			}, []);
+			const description = 'everything/similar/z1/';
+			assert.deepStrictEqual(engine.runCollection(description).ids, []);
+			engine.updateCards({m2: card('m2', {title: 'Zebra crossing', body: '<p>zebra stripes painted on roads for zebra herds</p>'})}, []);
+			const fresh = new QueryEngine();
+			fresh.updateCards({...engine.rawCards}, []);
+			assert.deepStrictEqual(fresh.runCollection(description).ids, ['m2'], 'the fixture must actually make m2 similar');
+			assert.deepStrictEqual(engine.runCollection(description).ids, ['m2']);
+			//And a card removed stops matching.
+			engine.updateCards({}, ['m2']);
+			assert.deepStrictEqual(engine.runCollection(description).ids, []);
+		});
+
+		it('keeps the tag warm-up going when cards arrive mid-way', async () => {
+			const engine = makeEngine();
+			const many = {};
+			for (let i = 0; i < 300; i++) many['t' + i] = card('t' + i, {title: 'Tagged card ' + i, tags: ['big']});
+			engine.updateCards(many, []);
+			engine.hydrateCollectionState({sections: {}, tags: {big: {id: 'big', title: 'Big', cards: Object.keys(many)}}, starredCardIDs: [], readCardIDs: [], readingList: [], selectedCardIDs: []});
+			let yields = 0;
+			const done = await engine.warmTagFingerprints(async () => {
+				yields++;
+				//A live session: an unrelated card lands between slices.
+				if (yields === 1) engine.updateCards({late: card('late', {title: 'Arrived late'})}, []);
+			}, () => true, 0);
+			assert.strictEqual(done, true);
+			assert.ok(yields > 1);
+			assert.ok(engine._tagFingerprintCache.has('big'));
+		});
+
 		it('gives the similar filter the same results as the enumerating path', () => {
 			const engine = makeEngine();
 			engine.updateCards({

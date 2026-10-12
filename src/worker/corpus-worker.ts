@@ -486,24 +486,35 @@ const publishIDFMap = () => {
 //corpus, during which collection requests time out). Strictly background:
 //12ms slices, deferred while the initial load is still delivering, abandoned
 //on reconnect or when a newer epoch supersedes it.
+//Signed-in sessions only: a reader cannot edit, so tag suggestions never
+//run for it, and the similarity map costs ~150MB of heap on the real corpus
+//that a reader would pay at every boot for a fallback it may never reach.
+//Readers keep the lazy path (built on the first similar request).
 let fingerprintWarmupToken = 0;
 const scheduleFingerprintWarmup = () => {
-	const myConnectionGeneration = connectionGeneration;
 	const myToken = ++fingerprintWarmupToken;
+	if (!currentUid) return;
+	const myConnectionGeneration = connectionGeneration;
 	const shouldContinue = () => myConnectionGeneration === connectionGeneration && myToken === fingerprintWarmupToken;
 	const yieldFn = async () => {
 		if (initialLoadPending) await new Promise<void>(resolve => setTimeout(resolve, SEARCH_RECALL_BOOT_GAP_MS));
 		await yieldToWorkerQueue();
 	};
 	void (async () => {
-		await yieldFn();
-		if (!shouldContinue()) return;
-		const startedAt = performance.now();
-		const similar = await engine.warmSimilarityFingerprints(yieldFn, shouldContinue);
-		if (!similar) return;
-		const tags = await engine.warmTagFingerprints(yieldFn, shouldContinue);
-		if (!tags) return;
-		status(`fingerprints warm: similarity and tags in ${(performance.now() - startedAt).toFixed(0)}ms wall (chunked)`);
+		try {
+			await yieldFn();
+			if (!shouldContinue()) return;
+			const startedAt = performance.now();
+			const similar = await engine.warmSimilarityFingerprints(yieldFn, shouldContinue);
+			if (!similar) return;
+			const tags = await engine.warmTagFingerprints(yieldFn, shouldContinue);
+			if (!tags) return;
+			status(`fingerprints warm: similarity and tags in ${(performance.now() - startedAt).toFixed(0)}ms wall (chunked)`);
+		} catch (e) {
+			//Background work: a failure must not become an unhandled
+			//rejection; the request path still builds lazily.
+			status(`fingerprint warm-up failed (${String(e)})`);
+		}
 	})();
 };
 
