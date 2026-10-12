@@ -77,6 +77,10 @@ import {
 } from './collection_description.js';
 
 import {
+	processedCardIDs
+} from './card-processing.js';
+
+import {
 	memoize,
 } from './memoize.js';
 
@@ -989,10 +993,6 @@ const fetchSimilarCardsForCardIfEnabled = (card : ProcessedCard) : boolean => {
 
 //This is how we'll keep track of if we need to fetch updated similarCard embeddings or not.
 let lastSeenEditingCard : ProcessedCard | null = null;
-
-import {
-	processedCardIDs
-} from './card-processing.js';
 
 const makeSimilarConfigurableFilter = (_ : ConfigurableFilterType, rawCardID : URLPart, rawFloatCutoff : URLPart = String(Number.MIN_SAFE_INTEGER)) : ConfigurableFilterFuncFactoryResult => {
 	//note: makeExpandConfigurableFilter needs to be updated if the number or order of parameters changes.

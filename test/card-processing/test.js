@@ -97,6 +97,19 @@ describe('lazy card processing', () => {
 		assert.deepStrictEqual(processedCardIDs(lazyProcessCards(plain)), Object.keys(lazyProcessCards(plain)));
 	});
 
+	it('processedCardIDs bypasses the proxy traps rather than enumerating through them', () => {
+		//Object.keys(proxy) never reads a card either (the trap hands back an
+		//accessor without calling it), so the throwing-card test above cannot
+		//tell the two paths apart. This can: the lazy trap reports every own
+		//key of the raw map as enumerable, so a non-enumerable own property
+		//shows up through the proxy and not through the raw map's own keys.
+		const raw = {a: rawCard('a', 'A')};
+		Object.defineProperty(raw, 'hidden', {value: rawCard('hidden', 'Hidden'), enumerable: false, configurable: true});
+		const lazy = lazyProcessCards(raw);
+		assert.deepStrictEqual(Object.keys(lazy), ['a', 'hidden'], 'the proxy path reports the hidden key');
+		assert.deepStrictEqual(processedCardIDs(lazy), ['a'], 'the raw path does not');
+	});
+
 	it('is stable for one raw map and refreshes when that map changes', () => {
 		const first = rawCard('first', 'First');
 		const raw = {first};

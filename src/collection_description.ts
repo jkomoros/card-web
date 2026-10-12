@@ -16,6 +16,10 @@ import {
 } from './filters.js';
 
 import {
+	processedCardIDs
+} from './card-processing.js';
+
+import {
 	extractFilterNamesSortAndView,
 	SORT_URL_KEYWORD,
 	SORT_REVERSED_URL_KEYWORD,
@@ -1037,10 +1041,6 @@ export const cardPassesFilterSegment = (segment : FilterName, cardID : CardID, e
 //distinct rest-tuples (active + query + reference-block runs with
 //differing keyCardID/cardSimilarity) without thrashing that downstream
 //memo, which keys on this function's RESULT IDENTITY.
-import {
-	processedCardIDs
-} from './card-processing.js';
-
 const makeExtrasForFilterFunc = memoizeWeakFirstArg((cards : ProcessedCards, filterSetMemberships : Filters, keyCardID : CardID, editingCard : ProcessedCard | null, userID : Uid, randomSalt : string, cardSimilarity: CardSimilarityMap, editingCardSimilarity : SortExtra | null, idfMap : IDFMap | null, cardsContentToken : unknown = cards, fingerprints : FilterExtras['fingerprints'] = null) : FilterExtras => {
 	return {
 		filterSetMemberships,
@@ -1513,7 +1513,11 @@ export class Collection {
 		const [currentFilterFunc,,] = combinedFilterForFilterDefinition(filterDefinition, makeExtrasForFilterFunc(this._cardsForFiltering, this._filtersSnapshot, this._keyCardID, this._editingCard || null, this._userID, this._randomSalt, this._cardSimilarity, this._editingCardSimilarity || null, this._idfMap, this._cardsContentToken, this._fingerprintsProvider));
 		const [pendingFilterFunc,,] = combinedFilterForFilterDefinition(filterDefinition, makeExtrasForFilterFunc(this._cardsForExpansion, this._filters, this._keyCardID, this._editingCard || null, this._userID, this._randomSalt, this._cardSimilarity, this._editingCardSimilarity || null, this._idfMap, this._cardsContentToken, this._fingerprintsProvider));
 		//Return the set of items that pass the current filters but won't pass the pending filters.
-		const itemsThatWillBeRemoved = Object.keys(this._cardsForFiltering).filter(item => currentFilterFunc(item) && !pendingFilterFunc(item));
+		//Ids from behind the lazy proxy (see processedCardIDs): this runs on
+		//the main thread on every drawer render while a modification is
+		//pending, and enumerating through the proxy allocated ~12 MB per call
+		//at 40k cards.
+		const itemsThatWillBeRemoved = processedCardIDs(this._cardsForFiltering).filter(item => currentFilterFunc(item) && !pendingFilterFunc(item));
 		return Object.fromEntries(itemsThatWillBeRemoved.map(item => [item, true]));
 	}
 
