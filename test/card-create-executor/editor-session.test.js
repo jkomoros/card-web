@@ -182,6 +182,10 @@ describe('editor sessions around a parked save (real thunks)', function() {
 		assert.strictEqual(faces()[a.id], undefined, 'the face is cleared');
 		assert.strictEqual(draftFor(a.id)?.diff?.title, 'A2', 'the stamped draft survives the refusal');
 		assert.ok(draftEvents >= 1, 'the recovery banner was told to re-read the drafts');
+		//The banner filters drafts by the signed-in uid, so under the other
+		//account it offers nothing; the draft is the original account's and
+		//is offered once that account is back.
+		assert.strictEqual(draftFor(a.id)?.uid, originalUser.uid, 'the draft still belongs to the account that wrote it');
 		assert.strictEqual((await serverCard(a.id)).title, 'A', 'the refused edit was not written');
 	});
 

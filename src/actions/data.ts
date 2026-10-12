@@ -1154,23 +1154,25 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 		//stamped draft is now the only copy of the edit: the card stops
 		//reading as pending and the recovery banner is told to re-read the
 		//slots so it offers that draft, as it does after a stopped save.
+		//A save that parked with no editor open (permissions.ts) stamped no
+		//draft, so it is not told one is kept.
 		const refuseParked = (message : string) => {
 			releaseParked();
-			dispatch(modifyCardFailure(new Error(message), undefined, parkedIDs));
+			dispatch(modifyCardFailure(new Error(`${message} The queued edit was not sent${parkedOperationID ? '; its draft is kept.' : '.'}`), undefined, parkedIDs));
 			window.dispatchEvent(new CustomEvent(EDIT_DRAFT_CHANGED_EVENT));
 		};
 		if (selectUid(getState()) !== requestedUid) {
-			refuseParked('Your account changed while this save was waiting. The queued edit was not sent; its draft is kept.');
+			refuseParked('Your account changed while this save was waiting.');
 			return;
 		}
 		if (durableMultiEditRunning || bulkTagOperationRunning) {
 			//Another run started in the turn the previous one settled.
-			refuseParked('Another saved card operation is already running. The queued edit was not sent; its draft is kept.');
+			refuseParked('Another saved card operation is already running.');
 			return;
 		}
 		//Conditions may have drifted during the wait.
 		if (!durableSaveEligible(getState())) {
-			refuseParked(blockedError(selectCorpusStatus(getState()), SAVE_VERB) + ' The queued edit was not sent; its draft is kept.');
+			refuseParked(blockedError(selectCorpusStatus(getState()), SAVE_VERB));
 			return;
 		}
 		//The settled run paused and left its record behind: refuse here, not
@@ -1187,7 +1189,7 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 			recordLeftBehind = true;
 		}
 		if (recordLeftBehind) {
-			refuseParked('The previous save paused and is waiting on Retry or Stop. The queued edit was not sent; its draft is kept.');
+			refuseParked('The previous save paused and is waiting on Retry or Stop.');
 			return;
 		}
 		//The run below owns pending-ness from its own record onward; the
