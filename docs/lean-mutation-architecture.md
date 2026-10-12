@@ -73,8 +73,36 @@ same fixture, plus "no regression" on anything the journey measures.
 > exaggerates NLP and tag costs ~30×. P1/P2 remain correct and worthwhile
 > (untagged edits → 0 ms; cold fingerprint build 11.3 s → 4.7 s) but do not
 > explain the owner's 5–20 s per card. **Hotspot ranking must come from a
-> profile on the DEV export**, which is in progress. Do not benchmark
-> against `gen-corpus.js` for ranking.
+> profile on the DEV export.** Do not benchmark against `gen-corpus.js` for
+> ranking.
+>
+> **Real-corpus profile (40,229 DEV cards, signed in, warm, per Save→New
+> cycle, master):** worker 5.4 s, main 1.9 s, plus ~8 s/cycle of renderer
+> CPU on threads other than main/worker (unattributed; likely GC/compile
+> helpers). Worker: collection re-runs 48% (~2.6 s; the similar-cards
+> fallback 41%, re-scanning 40k per key change; ~46 runs per cycle because
+> every editing-card mirror dirtied every subscription), enumerating all
+> cards through the lazy processing Proxy 18%, snapshot save ~16%
+> (~0.85 s), GC 11%, Firestore SDK ~15%, tag fingerprints 5.6%. Main:
+> `diffCards` 18%, `makeFilterFromCards` 13%, `makeEverythingSetFromCards`
+> 8%, `cardsThatWillBeRemoved` 7%, Proxy enumeration. Cold first edit: one
+> 5.6 s worker task on master, 2.6 s with P1+P2.
+>
+> **Memory (heap investigation):** the renderer's ~4 GB V8 budget is shared
+> by main thread and worker; at 47k synthetic they sit at ~3.2 GB before any
+> transient. Top worker retainers: memoized `wordCountsForSemantics`
+> dictionaries (31%; removed in P4a, 186–361 MB on the real corpus),
+> processed cards (~500 MB), raw cards incl. `nlp_search_tokens` (~440 MB),
+> search index (~170 MB). Crash triggers are transients on top: the Firestore
+> SDK's persistent-cache full-collection decode on **every** new listen
+> (~37 KB/doc ⇒ ~1.75 GB at 47k synthetic; prod docs are ~40–60% that size)
+> and the first-edit fingerprint pass. The main thread holds a second full
+> set of processed cards (~510 MB).
+>
+> Landed on this branch: P1 `933ba32c`, P2 `a1f5ae56`, P3a `c3002587`
+> (allocation-free `semanticOverlap`, 280→116 ms per 40k scan), P3b
+> `fa2b11d4` (`'editing'` dirty scope), P4a `800b7f77` (word-count memo
+> removed).
 
 Verified by reading or by synthetic measurement at 47k cards, unless marked.
 
@@ -422,6 +450,13 @@ Lead's recommendation in parentheses; detail-document question numbers after.
     shows the private title when authored is empty? (`04` Q1, Q2)
 12. Off-mode (worker off) pending-write admission in slice 1 or out of
     scope? (`01` Q2)
+13. **Worker Firestore cache**: switch the worker to `memoryLocalCache`?
+    It removes the per-listen full-cache decode (the largest OOM transient;
+    cold sweep 560 s → 80 s in the investigation) at the cost of the SDK's
+    persisted cache and resume tokens; warm boot already primes from the
+    app's compact snapshot. (recommend: yes, measured on DEV first)
+14. Main-thread duplicate processed cards (~510 MB at 47k): keep lazy, or
+    stop materializing the full set on the main thread in worker mode?
 
 ## 9. Risks
 
