@@ -930,7 +930,7 @@ const updateLocalState = (cards : Cards, removedIDs : CardID[], suppressMetaSend
 	}
 	//IDF maintenance: O(changed card) once the index is ready — the index
 	//still holds each card's PREVIOUS counted object, whose distinct-term set
-	//is re-derived through the per-card memo (nearly free) and decremented; a
+	//is re-derived (~1 ms; no memo, see wordCountsForSemantics) and decremented; a
 	//delete decrements once and never triggers a rebuild. During the sliced
 	//initial build, mutations park in the dirty set and are drained before
 	//the flip to ready, exactly like search recall.

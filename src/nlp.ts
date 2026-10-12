@@ -767,14 +767,18 @@ const IMPORTANT_NGRAM_BOOST_FACTOR = 1.1;
 //Deliberately NOT memoized. It used to be wrapped in memoizeFirstArg, which
 //kept every card's n-gram count dictionary alive for as long as the card
 //object lived: the single largest retainer in a worker heap snapshot (~31%
-//of the live heap), and 186-361 MB of the ~1 GB worker heap on the real 40k
-//corpus (measured: 710 vs 524 MB after fingerprinting every card, 995 vs
-//634 MB after a second IDF epoch). It bought nothing: its callers are either
-//memoized themselves on the same key (fingerprintForCardObj) or one-shot per
-//card per epoch (the IDF index, idfMapForCards), and the enrichment step
-//hands the fingerprint path a different card object than the IDF path sees,
-//so the two never shared an entry anyway — build times were identical with
-//and without it.
+//of the live heap), and 165-345 MB of the ~1 GB worker heap on the real 40k
+//corpus (forced GC: 626 vs 461 MB after the IDF build, 931 vs 586 MB after
+//fingerprinting every card). That memory is the trade for CPU that recurs
+//once per IDF epoch, never per keystroke: the memo DID hit when the
+//un-enriched similar-cards fingerprint pass followed the IDF index pass over
+//the same processed objects (first whole-corpus similar scan 2.4 s with the
+//memo vs 4.1 s without, measured), and across epochs while concept/synonym
+//identity is held (~2.8 s vs ~7.0 s to re-fingerprint everything). The
+//per-edit IDF update is ~1 ms either way. The owner sees production OOMs at
+//47k with the worker and main thread sharing one ~4 GB V8 budget, so the
+//memory wins; the engine-owned incremental fingerprint map keeps the
+//similar-scan cost from recurring anyway.
 const wordCountsForSemantics = ((cardObj : ProcessedCard, maxFingerprintSize : number = MAX_N_GRAM_FOR_FINGERPRINT, optFieldList? : CardFieldType[], excludeSynonyms? : boolean) => {
 	const fieldsToIndex = optFieldList ? Object.fromEntries(optFieldList.map(fieldName => [fieldName, true])) : TEXT_FIELD_CONFIGURATION;
 	const strsMap : {[type in CardFieldType]+?: string[]} = Object.fromEntries(TypedObject.keys(TEXT_FIELD_CONFIGURATION)
@@ -863,9 +867,9 @@ const wordCountsForSemantics = ((cardObj : ProcessedCard, maxFingerprintSize : n
 //keys of the same wordCountsForSemantics call the TF side makes, so the
 //worker's IDF index (src/worker/idf-index.ts) counts document frequency over
 //EXACTLY the vocabulary fingerprints score. One tokenization feeds both TF
-//and IDF; there is no second pipeline to drift. Memoized per card object via
-//wordCountsForSemantics, so re-deriving a previous card's terms (the
-//decrement half of an incremental IDF update) is nearly free.
+//and IDF; there is no second pipeline to drift. Not memoized (see
+//wordCountsForSemantics): re-deriving a previous card's terms for the
+//decrement half of an incremental IDF update recomputes them, ~1 ms per edit.
 export const semanticTermsForCard = (cardObj : ProcessedCard, ngramSize : number = MAX_N_GRAM_FOR_FINGERPRINT) : string[] => Object.keys(wordCountsForSemantics(cardObj, ngramSize));
 
 //targetNgram is the targted, withoutStopWords ngram to look for. Run is the

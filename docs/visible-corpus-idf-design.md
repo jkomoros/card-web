@@ -54,7 +54,8 @@ verified from the repo, and so is not done until someone does it by hand:
 - **Incremental maintenance is O(changed card)** (infrastructure design's
   detail, adopt as-is): hook `updateLocalState`, which still holds the
   previous card object — decrement its distinct-term set, increment the new
-  one's (~1-3ms/card; memo hits make the old set nearly free). Deletes
+  one's (~1-3ms/card; the old set is re-derived, ~1 ms — the per-card memo
+  was later removed for its memory cost). Deletes
   decrement; terms at zero are removed. `idf` values materialize from
   `docFreq` only at epoch publication (<10ms). Initial build: 12ms-sliced
   after `loadComplete`, same pattern and abort-guards as the search-recall

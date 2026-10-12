@@ -54,8 +54,9 @@ export class IDFIndex {
 	_docFreq : Map<string, number>;
 	//The exact card OBJECT whose terms are currently counted for each id, so
 	//every operation is idempotent and order-safe: an update decrements the
-	//recorded object's terms (re-derived via the per-card memo, nearly free)
-	//and increments the new one's. Entries are replaced on every update, so
+	//recorded object's terms (re-derived, ~1 ms per edit; the per-card memo
+	//that once made this free was removed for its memory cost) and
+	//increments the new one's. Entries are replaced on every update, so
 	//old card objects are only retained until their card's next mutation.
 	_countedCards : Map<CardID, Card>;
 	_bodyCardCount : number;

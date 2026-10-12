@@ -457,6 +457,11 @@ Lead's recommendation in parentheses; detail-document question numbers after.
     app's compact snapshot. (recommend: yes, measured on DEV first)
 14. Main-thread duplicate processed cards (~510 MB at 47k): keep lazy, or
     stop materializing the full set on the main thread in worker mode?
+15. **Sign-off on P4a's trade** (`800b7f77`): 165–345 MB less worker heap
+    for ~2 s more on the first similar-cards scan per IDF epoch and ~4 s
+    more on the post-epoch re-fingerprint (never per keystroke; the review
+    corrected the original "no cost" claim). The engine-owned fingerprint
+    map (P3c) removes the recurring part. (recommend: accept)
 
 ## 9. Risks
 
