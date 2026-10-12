@@ -138,7 +138,15 @@ same fixture, plus "no regression" on anything the journey measures.
 > review found that without this the card could be reopened during the
 > park — the resumed save then closed that editor and the confirmation
 > deleted the newer draft — and the orphaned-draft banner offered its
-> stamped draft). Five behavioural tests with real thunks, the real draft
+> stamped draft). A parked save refused AFTER the park (account change,
+> eligibility drift, another run, or the predecessor paused and left its
+> record) keeps its stamped draft, clears only its own face, stops reading
+> as pending and announces a draft change so the recovery banner offers the
+> draft — the same shape as a stopped save; the paused-predecessor case is
+> refused before the run so its error cannot land in the paused record. The
+> parked marker is released as soon as the save's own record exists, so the
+> settle dispatch already reads not-pending and Edit re-enables. Seven
+> behavioural tests with real thunks, the real draft
 > watcher and held commits. Not done, by decision: reopening a card while its save is
 > pending, the editor session token, and the data reducer's pending-gating
 > reset on an unrelated refusal.

@@ -7,6 +7,7 @@ import {
 } from '../modal.js';
 
 import {bulkImportSessionIsCurrent} from '../bulk-import-session.js';
+import {EDIT_DRAFT_CHANGED_EVENT} from '../edit-draft-confirmation.js';
 
 import {
 	blockedError,
@@ -816,7 +817,7 @@ export const modifyCardsWithDurableTagOperation = (cards : Card[], tag : TagID, 
 			operation.lastError = message;
 			try { persistBulkTagOperation(operation); } catch { /* retain the original failure */ }
 		}
-		dispatch(modifyCardFailure(new Error(message)));
+		dispatch(modifyCardFailure(new Error(message), undefined, []));
 		const enqueuedUpdates = selectEnqueuedCards(getState());
 		if (Object.values(enqueuedUpdates).some(cards => Object.keys(cards).length)) dispatch(updateEnqueuedCards());
 		if (operation) dispatch(bulkTagProgressAction(operation));
@@ -852,7 +853,7 @@ const resumePendingBulkTagOperation = () : ThunkSomeAction => async (dispatch, g
 		));
 	} catch (err) {
 		bulkTagResumeAttemptedThisPage = true;
-		dispatch(modifyCardFailure(err instanceof Error ? err : new Error(String(err))));
+		dispatch(modifyCardFailure(err instanceof Error ? err : new Error(String(err)), undefined, []));
 	}
 };
 
@@ -867,7 +868,7 @@ export const retryPendingBulkTagOperation = () : ThunkSomeAction => async (dispa
 		}
 		operation = pending;
 	} catch (err) {
-		dispatch(modifyCardFailure(err instanceof Error ? err : new Error(String(err))));
+		dispatch(modifyCardFailure(err instanceof Error ? err : new Error(String(err)), undefined, []));
 		return;
 	}
 	const rawCards = selectRawCards(getState());
@@ -894,7 +895,7 @@ const confirmCurrentSavedOperation = async (
 		bulkRaw = localStorage.getItem(BULK_TAG_OPERATION_STORAGE_KEY);
 		multiRaw = localStorage.getItem(DURABLE_MULTI_EDIT_STORAGE_KEY);
 	} catch {
-		dispatch(modifyCardFailure(new Error('Browser storage is unavailable, so the saved edit was left unchanged.')));
+		dispatch(modifyCardFailure(new Error('Browser storage is unavailable, so the saved edit was left unchanged.'), undefined, []));
 		return false;
 	}
 	if (!await confirmDestructive(request)) return false;
@@ -1149,28 +1150,40 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 			durableMultiEditParkedKey = null;
 		}
 		//A parked save that cannot proceed had a face: clear it, and only it.
-		if (selectUid(getState()) !== requestedUid) {
+		//Its editor was released at the park and its draft stamped, so the
+		//stamped draft is now the only copy of the edit: the card stops
+		//reading as pending and the recovery banner is told to re-read the
+		//slots so it offers that draft, as it does after a stopped save.
+		const refuseParked = (message : string) => {
 			releaseParked();
-			dispatch(modifyCardFailure(new Error('Your account changed while this save was waiting. The queued edit was not sent.'), undefined, parkedIDs));
+			dispatch(modifyCardFailure(new Error(message), undefined, parkedIDs));
+			window.dispatchEvent(new CustomEvent(EDIT_DRAFT_CHANGED_EVENT));
+		};
+		if (selectUid(getState()) !== requestedUid) {
+			refuseParked('Your account changed while this save was waiting. The queued edit was not sent; its draft is kept.');
 			return;
 		}
 		if (durableMultiEditRunning || bulkTagOperationRunning) {
 			//Another run started in the turn the previous one settled.
-			releaseParked();
-			dispatch(modifyCardFailure(new Error('Another saved card operation is already running. Wait for it to finish or stop it before starting another.'), undefined, parkedIDs));
+			refuseParked('Another saved card operation is already running. The queued edit was not sent; its draft is kept.');
 			return;
 		}
 		//Conditions may have drifted during the wait.
 		if (!durableSaveEligible(getState())) {
-			releaseParked();
-			dispatch(modifyCardFailure(new Error(blockedError(selectCorpusStatus(getState()), SAVE_VERB)), undefined, parkedIDs));
+			refuseParked(blockedError(selectCorpusStatus(getState()), SAVE_VERB) + ' The queued edit was not sent; its draft is kept.');
+			return;
+		}
+		//The settled run paused and left its record behind: refuse here, not
+		//inside the run, whose catch would write THIS save's error into that
+		//record and clear faces for that record's cards rather than this one's.
+		if (readDurableMultiEdit() || readBulkTagOperation()) {
+			refuseParked('The previous save paused and is waiting on Retry or Stop. The queued edit was not sent; its draft is kept.');
 			return;
 		}
 		//The run below owns pending-ness from its own record onward; the
-		//parked marker is released when the run settles (its finally).
+		//parked marker is released once that record exists (the finally is a
+		//backstop for a throw before then).
 		parkedRelease = releaseParked;
-		//Fall through: if the settled run left its durable record behind (it
-		//paused), the record checks below refuse with the existing messages.
 	}
 	durableMultiEditRunning = true;
 	durableMultiEditRunSettled = new Promise<void>(resolve => {
@@ -1202,6 +1215,11 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 			}
 			operation = {version: 1, id: parkedOperationID || `${kind}-edit-${Date.now()}-${newID()}`, uid, targetIDs, nextIndex: 0, modifiedCount: 0, update, substantive, kind, baseFields};
 			persistDurableMultiEdit(operation, true);
+			//The record now answers pending for a parked save's card. Release
+			//the marker here rather than only in the finally: that runs after
+			//the settle dispatch, so the card view's last stateChanged still
+			//saw pending and Edit stayed disabled until an unrelated dispatch.
+			if (parkedRelease) parkedRelease();
 			//The write-ahead intent is durable now. Release the blocking editor
 			//immediately, retain its draft until server confirmation, and report
 			//truthfully as Saving rather than Saved. Only THIS card's editor: a
@@ -1654,7 +1672,7 @@ export const modifyCardsIndividually = (cards : Card[], updates : {[id : CardID]
 				//MODIFY_CARD was already dispatched: returning without a
 				//SUCCESS/FAILURE leaves pendingModifications latched true
 				//forever, silently rejecting every future save until reload.
-				dispatch(modifyCardFailure(new Error('No id on card'), true));
+				dispatch(modifyCardFailure(new Error('No id on card'), true, []));
 				return;
 			}
 			continue;
@@ -1686,7 +1704,7 @@ export const modifyCardsIndividually = (cards : Card[], updates : {[id : CardID]
 			console.warn('Couldn\'t modify card: ' + err);
 			errorCount++;
 			if (failOnError) {
-				dispatch(modifyCardFailure(err));
+				dispatch(modifyCardFailure(err, undefined, []));
 				return;
 			}
 		}
@@ -1722,7 +1740,7 @@ export const modifyCardsIndividually = (cards : Card[], updates : {[id : CardID]
 			selectUserMayViewUnpublished(currentState) !== startingMayViewUnpublished) {
 			//Never replay optimistic or queued data from a more privileged auth
 			//scope into the newly restricted store.
-			dispatch(modifyCardFailure(new Error('Couldn\'t save card after account permissions changed: ' + err)));
+			dispatch(modifyCardFailure(new Error('Couldn\'t save card after account permissions changed: ' + err), undefined, []));
 			return;
 		}
 		const {ambiguousIDs, failedOnlyIDs} = recoveryIDsForGroupOutcomes(
@@ -1759,7 +1777,7 @@ export const modifyCardsIndividually = (cards : Card[], updates : {[id : CardID]
 			selectUserMayViewUnpublished(getState()) !== startingMayViewUnpublished) {
 			//The authoritative reread yields too. Do not flush old queued
 			//cards or install private server data in a different auth scope.
-			dispatch(modifyCardFailure(new Error('Couldn\'t save card after account permissions changed: ' + err)));
+			dispatch(modifyCardFailure(new Error('Couldn\'t save card after account permissions changed: ' + err), undefined, []));
 			return;
 		}
 		if (authoritative.failedIDs.length) {
@@ -1770,7 +1788,7 @@ export const modifyCardsIndividually = (cards : Card[], updates : {[id : CardID]
 		//in the queue (where they'd sit while the worker corpus was already
 		//corrected — main/worker divergence at the moment we claim to
 		//install server truth).
-		dispatch(modifyCardFailure(new Error('Couldn\'t save card: ' + err)));
+		dispatch(modifyCardFailure(new Error('Couldn\'t save card: ' + err), undefined, []));
 		//Flush anything the failed cycle stranded in the queue (including
 		//the rollback echoes above, which enqueue-merged over the phantom
 		//optimistic entries) BEFORE applying server truth, so server wins.
@@ -2503,7 +2521,7 @@ export const createTag = (name : TagID, displayName : string) : ThunkSomeAction 
 	try {
 		await batch.commit();
 	} catch (err) {
-		dispatch(modifyCardFailure(err instanceof Error ? err : new Error(String(err))));
+		dispatch(modifyCardFailure(err instanceof Error ? err : new Error(String(err)), undefined, []));
 		return;
 	}
 	dispatch(tagAdded(name));
@@ -3468,12 +3486,12 @@ export const createForkedCard = (cardToFork : Card | null) : ThunkSomeAction => 
 	try {
 		forkOutcome = await runDurableAuxWrite(forkIntent);
 	} catch (err) {
-		dispatch(modifyCardFailure(err instanceof Error ? err : new Error(String(err))));
+		dispatch(modifyCardFailure(err instanceof Error ? err : new Error(String(err)), undefined, []));
 		return;
 	}
 	if (forkOutcome === 'queued') {
 		dispatch({type: EXPECTED_NEW_CARD_FAILED});
-		dispatch(modifyCardFailure(new Error('That fork could not be created right now. It has been saved and will be created automatically when the connection recovers.')));
+		dispatch(modifyCardFailure(new Error('That fork could not be created right now. It has been saved and will be created automatically when the connection recovers.'), undefined, []));
 		return;
 	}
 	if (forkOutcome === 'discarded') {

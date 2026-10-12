@@ -22,7 +22,7 @@ const {editingFinish, editingStart, textFieldUpdated} = await import('../../lib/
 const {MultiBatch} = await import('../../lib/src/multi_batch.js');
 const {EDITING_START} = await import('../../lib/src/actions.js');
 const {selectIsEditing, selectEditingCard, selectPendingSaveCard} = await import('../../lib/src/selectors.js');
-const {installEditDraftWatcher, EDIT_DRAFT_STORAGE_PREFIX} = await import('../../lib/src/edit-draft.js');
+const {installEditDraftWatcher, EDIT_DRAFT_STORAGE_PREFIX, EDIT_DRAFT_CHANGED_EVENT} = await import('../../lib/src/edit-draft.js');
 store.addReducers({collection: (await import('../../lib/src/reducers/collection.js')).default});
 store.addReducers({editor: (await import('../../lib/src/reducers/editor.js')).default});
 //The product's draft watcher: it writes the per-card draft slot on every
@@ -55,6 +55,8 @@ describe('editor sessions around a parked save (real thunks)', function() {
 	//The current hold's release, so a failed assertion cannot leave a commit
 	//held (and every later test parked behind it) — afterEach releases it.
 	let pendingRelease = null;
+	let warnings = [];
+	let originalWarn;
 
 	//Hold the NEXT commit until release() is called; later commits run normally.
 	const holdNextCommit = () => {
@@ -77,6 +79,9 @@ describe('editor sessions around a parked save (real thunks)', function() {
 		localStorage.removeItem(MULTI_EDIT_KEY);
 		originalUser = store.getState().user.user;
 		originalCommit = MultiBatch.prototype.commit;
+		warnings = [];
+		originalWarn = console.warn;
+		console.warn = (...args) => { warnings.push(args.join(' ')); };
 		store.dispatch({type: 'UPDATE_USER_PERMISSIONS', permissions: {admin: true}});
 		store.dispatch({type: 'UPDATE_CORPUS_STATUS', status: 'live', message: ''});
 		if (selectIsEditing(store.getState())) store.dispatch(editingFinish());
@@ -89,6 +94,7 @@ describe('editor sessions around a parked save (real thunks)', function() {
 			await settle(500);
 		}
 		MultiBatch.prototype.commit = originalCommit;
+		console.warn = originalWarn;
 		store.dispatch({type: 'SIGNIN_SUCCESS', user: originalUser});
 		if (selectIsEditing(store.getState())) store.dispatch(editingFinish());
 		localStorage.removeItem(MULTI_EDIT_KEY);
@@ -139,10 +145,82 @@ describe('editor sessions around a parked save (real thunks)', function() {
 		store.dispatch({type: 'SHOW_CARD', requestedCard: a.id, card: a.id});
 		await store.dispatch(editingStart());
 		assert.strictEqual(selectIsEditing(store.getState()), false, 'reopening the parked card is refused');
+		assert.ok(warnings.some(w => w.includes('save is still finishing')), 'refused for the pending reason, not some other guard: ' + JSON.stringify(warnings));
+		//The last dispatch of the run must already see the card as not
+		//pending: card-view computes its Edit affordance in stateChanged, and
+		//nothing dispatches after a settle to recompute it.
+		let pendingAtLastDispatch = null;
+		const unsubscribe = store.subscribe(() => { pendingAtLastDispatch = durableCardMutationPendingForCard(a.id); });
 		release();
 		await Promise.all([xSave, aSave]);
+		unsubscribe();
 		assert.strictEqual(durableCardMutationPendingForCard(a.id), false, 'pending clears once the save settles');
+		assert.strictEqual(pendingAtLastDispatch, false, 'the settle dispatch itself already reads not pending');
 		assert.strictEqual((await serverCard(a.id)).title, 'A2');
+		//And the editor reopens now that the save is done.
+		await store.dispatch(editingStart());
+		assert.strictEqual(selectEditingCard(store.getState())?.id, a.id, 'the editor reopens on the card after settle');
+		store.dispatch(editingFinish());
+	});
+
+	it('a parked save refused after the park keeps its stamped draft, clears only its face, and tells the recovery banner', async () => {
+		//The park released the editor and stamped the draft, so after a
+		//refusal that draft is the only copy of the edit. The card must stop
+		//reading as pending (nothing will ever settle it) and the banner must
+		//be told to re-read the slots, as after a stopped save.
+		const {a, release, xSave, aSave} = await parkASaveBehindX();
+		let draftEvents = 0;
+		const onDraft = () => { draftEvents++; };
+		window.addEventListener(EDIT_DRAFT_CHANGED_EVENT, onDraft);
+		//The account changes while A waits.
+		store.dispatch({type: 'SIGNIN_SUCCESS', user: {...originalUser, uid: 'someone-else'}});
+		release();
+		await xSave;
+		await aSave;
+		window.removeEventListener(EDIT_DRAFT_CHANGED_EVENT, onDraft);
+		assert.strictEqual(durableCardMutationPendingForCard(a.id), false, 'a refused parked save leaves nothing pending');
+		assert.strictEqual(faces()[a.id], undefined, 'the face is cleared');
+		assert.strictEqual(draftFor(a.id)?.diff?.title, 'A2', 'the stamped draft survives the refusal');
+		assert.ok(draftEvents >= 1, 'the recovery banner was told to re-read the drafts');
+		assert.strictEqual((await serverCard(a.id)).title, 'A', 'the refused edit was not written');
+	});
+
+	it('a parked save whose predecessor paused is refused before the run, so its error does not land in the paused record', async () => {
+		//X's commit fails and leaves X's durable record behind. A must not
+		//fall into the run: the run's catch would write A's error into X's
+		//record and clear faces for X's ids, leaving A's face up forever.
+		const x = await seed('X');
+		const a = await seed('A');
+		let fail;
+		const failed = new Promise(resolve => { fail = resolve; });
+		let held = false;
+		MultiBatch.prototype.commit = async function(...args) {
+			if (!held) {
+				held = true;
+				await failed;
+				throw new Error('boom');
+			}
+			return originalCommit.apply(this, args);
+		};
+		pendingRelease = () => { fail(); pendingRelease = null; };
+		const xSave = store.dispatch(modifyCard(x, {title: 'X2'}));
+		await settle(50);
+		store.dispatch({type: EDITING_START, card: a});
+		store.dispatch(textFieldUpdated('title', 'A2'));
+		await settle(300);
+		const aSave = store.dispatch(modifyCard(a, {title: 'A2'}));
+		await settle(50);
+		assert.strictEqual(durableCardMutationPendingForCard(a.id), true, 'parked reads as pending');
+		pendingRelease();
+		await xSave;
+		await aSave;
+		const record = JSON.parse(localStorage.getItem(MULTI_EDIT_KEY) || 'null');
+		assert.strictEqual(record?.targetIDs?.[0], x.id, 'X\'s paused record is left behind');
+		assert.ok(record.lastError.includes('boom'), 'X\'s record keeps X\'s error: ' + record.lastError);
+		assert.strictEqual(faces()[a.id], undefined, 'A\'s face is cleared');
+		assert.strictEqual(durableCardMutationPendingForCard(a.id), false, 'A is not pending');
+		assert.strictEqual(draftFor(a.id)?.diff?.title, 'A2', 'A\'s stamped draft survives');
+		localStorage.removeItem(MULTI_EDIT_KEY);
 	});
 
 	it('a parked save that resumes does not close an editor opened on another card meanwhile', async () => {

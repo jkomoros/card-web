@@ -12,7 +12,7 @@ import {
 } from './selectors.js';
 import {store} from './store.js';
 import type {CardDiff, CardID, State, Uid} from './types.js';
-import {draftMatchesConfirmedSave, SingleSaveIdentity} from './edit-draft-confirmation.js';
+import {draftMatchesConfirmedSave, EDIT_DRAFT_CHANGED_EVENT, SingleSaveIdentity} from './edit-draft-confirmation.js';
 
 //The v1 single slot. Still recognized (and migrated) on read: a draft
 //written before the per-card upgrade must survive it.
@@ -27,7 +27,7 @@ export const EDIT_DRAFT_STORAGE_PREFIX = 'card-web-edit-draft-v2-';
 //localStorage; keep the newest few. Enforced on every persist that creates a
 //new slot (rewrites to an existing slot cannot change the count).
 export const MAX_EDIT_DRAFT_SLOTS = 8;
-export const EDIT_DRAFT_CHANGED_EVENT = 'card-web-edit-draft-changed';
+export {EDIT_DRAFT_CHANGED_EVENT};
 
 const draftKey = (cardID : CardID) => EDIT_DRAFT_STORAGE_PREFIX + cardID;
 
