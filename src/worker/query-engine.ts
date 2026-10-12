@@ -95,6 +95,7 @@ import {
 } from './worker-protocol.js';
 
 import {deepEqual} from '../util.js';
+import {perfCount} from '../perf.js';
 
 export type RunCollectionOptions = {
 	keyCardID? : CardID,
@@ -125,6 +126,13 @@ export type RunCollectionResult = {
 	isFallback : boolean,
 	preview : boolean,
 	partialMatches : CardBooleanMap
+};
+
+const sameCardList = (a : CardID[], b : CardID[]) : boolean => {
+	if (a === b) return true;
+	if (a.length !== b.length) return false;
+	for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+	return true;
 };
 
 export class QueryEngine {
@@ -239,7 +247,10 @@ export class QueryEngine {
 			this._sections = {...this._sections, ...action.sections};
 		}
 		if (action.type === UPDATE_TAGS) {
-			this._tags = {...this._tags, ...action.tags};
+			//Mirror the main reducer: a complete delivery REPLACES, so a tag
+			//deleted upstream leaves the engine too. Merging it kept dead tags
+			//(and their fingerprints) in the worker forever.
+			this._tags = action.complete ? {...action.tags} : {...this._tags, ...action.tags};
 		}
 		if (action.type === UPDATE_READING_LIST) {
 			this._readingList = action.list;
@@ -270,11 +281,13 @@ export class QueryEngine {
 			if (previous?.card_type === 'concept' || card.card_type === 'concept') conceptsChanged = true;
 			if (!previous || previous.sort_order !== card.sort_order || previous.section !== card.section) setsChanged = true;
 			this._cards[id] = card;
+			this._markTagsDirtyForCard(id);
 			changed = true;
 		}
 		for (const id of removedIDs) {
 			if (!(id in this._cards)) continue;
 			if (this._cards[id].card_type === 'concept') conceptsChanged = true;
+			this._markTagsDirtyForCard(id);
 			delete this._cards[id];
 			changed = true;
 			setsChanged = true;
@@ -487,6 +500,54 @@ export class QueryEngine {
 	_tagFingerprintsForTags : Tags | null = null;
 	_tagFingerprintsForCards = -1;
 	_tagFingerprints : {[tagID : string] : Fingerprint} | null = null;
+	//Per-tag combined fingerprints survive card changes that cannot affect
+	//them. A tag's fingerprint sorts the union vocabulary of every member
+	//card, so rebuilding EVERY tag after ANY card change (the previous
+	//_cardsVersion guard) was the dominant per-edit cost at corpus scale:
+	//7–8s of worker CPU per save at 30k cards, measured in a signed-in
+	//profile, with the first edit after boot stalling the worker for over a
+	//minute. A card change can only alter the fingerprints of tags that list
+	//the card, so only those are recomputed. The worker's tags listener
+	//delivers the COMPLETE map with fresh objects on every tag snapshot
+	//(corpus-worker.ts attach(): "Every doc, not just the changed ones"), so
+	//object identity never survives a tag write; the cache is keyed on the
+	//contents of tag.cards, the only tag input a fingerprint depends on.
+	_tagFingerprintCache : Map<string, {cards : CardID[], fingerprint : Fingerprint}> = new Map();
+	_dirtyTagIDs : Set<string> = new Set();
+	//Reverse index card → tags, derived from the SAME tag.cards lists the
+	//fingerprints are built over (not card.tags, which can lag or disagree).
+	_cardTagIndex : Map<CardID, string[]> | null = null;
+	_cardTagIndexForTags : Tags | null = null;
+	//The generator inputs the cache was built against; a new IDF epoch or a
+	//concept/synonym change invalidates every tag.
+	_tagFingerprintsGenerator : FingerprintGenerator | null = null;
+	_tagFingerprintsIDFMap : IDFMap | null = null;
+	_tagFingerprintsConcepts : StringCardMap | null = null;
+	_tagFingerprintsSynonyms : SynonymMap | null = null;
+
+	_ensureCardTagIndex() : Map<CardID, string[]> {
+		if (this._cardTagIndex && this._cardTagIndexForTags === this._tags) return this._cardTagIndex;
+		const index = new Map<CardID, string[]>();
+		for (const [tagID, tag] of Object.entries(this._tags)) {
+			for (const cardID of tag.cards || []) {
+				const existing = index.get(cardID);
+				if (existing) existing.push(tagID);
+				else index.set(cardID, [tagID]);
+			}
+		}
+		this._cardTagIndex = index;
+		this._cardTagIndexForTags = this._tags;
+		return index;
+	}
+
+	_markTagsDirtyForCard(cardID : CardID) : void {
+		//Nothing cached yet means nothing to invalidate; the first build
+		//computes every tag anyway.
+		if (this._tagFingerprintCache.size === 0) return;
+		const tagIDs = this._ensureCardTagIndex().get(cardID);
+		if (!tagIDs) return;
+		for (const tagID of tagIDs) this._dirtyTagIDs.add(tagID);
+	}
 
 	_ensureSuggestGenerator() : FingerprintGenerator {
 		const idfMap = this._effectiveIDFMap();
@@ -504,17 +565,46 @@ export class QueryEngine {
 		this._suggestGenerator = new FingerprintGenerator(processed, undefined, undefined, idfMap, this._suggestConcepts, this._suggestSynonyms);
 		this._suggestGeneratorForCards = this._cardsVersion;
 		this._suggestGeneratorIDFMap = idfMap;
-		this._tagFingerprints = null;
 		return this._suggestGenerator;
 	}
 
 	_ensureTagFingerprints() : {[tagID : string] : Fingerprint} {
 		const generator = this._ensureSuggestGenerator();
-		if (this._tagFingerprints && this._tagFingerprintsForTags === this._tags && this._tagFingerprintsForCards === this._cardsVersion) return this._tagFingerprints;
-		const result : {[tagID : string] : Fingerprint} = {};
-		for (const [tagID, tag] of Object.entries(this._tags)) {
-			result[tagID] = generator.fingerprintForCardIDList(tag.cards || []);
+		//The generator is rebuilt on a new IDF epoch (setIDFMap) without any
+		//card or tag change, so the memo must key on it too.
+		if (this._tagFingerprints && this._tagFingerprintsGenerator === generator && this._tagFingerprintsForTags === this._tags && this._tagFingerprintsForCards === this._cardsVersion) return this._tagFingerprints;
+		this._tagFingerprintsGenerator = generator;
+		const inputsChanged = this._tagFingerprintsIDFMap !== generator._idfMap ||
+			this._tagFingerprintsConcepts !== generator._concepts ||
+			this._tagFingerprintsSynonyms !== generator._synonyms;
+		if (inputsChanged) {
+			this._tagFingerprintCache.clear();
+			this._dirtyTagIDs.clear();
+			this._tagFingerprintsIDFMap = generator._idfMap;
+			this._tagFingerprintsConcepts = generator._concepts;
+			this._tagFingerprintsSynonyms = generator._synonyms;
 		}
+		const result : {[tagID : string] : Fingerprint} = {};
+		const live = new Set<string>();
+		for (const [tagID, tag] of Object.entries(this._tags)) {
+			live.add(tagID);
+			const cards = tag.cards || [];
+			const cached = this._tagFingerprintCache.get(tagID);
+			if (cached && !this._dirtyTagIDs.has(tagID) && sameCardList(cached.cards, cards)) {
+				//Adopt the newest array so the next comparison is by identity.
+				cached.cards = cards;
+				result[tagID] = cached.fingerprint;
+				continue;
+			}
+			perfCount('tagFingerprints:recompute');
+			const fingerprint = generator.fingerprintForCardIDList(cards);
+			this._tagFingerprintCache.set(tagID, {cards, fingerprint});
+			result[tagID] = fingerprint;
+		}
+		for (const tagID of this._tagFingerprintCache.keys()) {
+			if (!live.has(tagID)) this._tagFingerprintCache.delete(tagID);
+		}
+		this._dirtyTagIDs.clear();
 		this._tagFingerprints = result;
 		this._tagFingerprintsForTags = this._tags;
 		this._tagFingerprintsForCards = this._cardsVersion;

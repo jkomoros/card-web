@@ -14,6 +14,7 @@ let UPDATE_STARS;
 let UPDATE_READS;
 let UPDATE_SECTIONS;
 let UPDATE_READING_LIST;
+let UPDATE_TAGS;
 let SELECT_CARDS;
 
 const card = (id, extras) => ({
@@ -47,6 +48,7 @@ describe('QueryEngine', () => {
 			UPDATE_READS,
 			UPDATE_SECTIONS,
 			UPDATE_READING_LIST,
+			UPDATE_TAGS,
 			SELECT_CARDS,
 		} = await import('../../lib/src/actions.js'));
 	});
@@ -318,6 +320,119 @@ describe('QueryEngine', () => {
 			engine._ensureSuggestGenerator();
 			engine.updateCards({a: {...a, card_type: 'concept'}}, []);
 			assert.strictEqual(engine._ensureSuggestGenerator()._concepts.Zebra, 'b');
+		});
+
+		//A tag's fingerprint sorts the union vocabulary of every member card.
+		//Recomputing every tag after any card change was the dominant per-edit
+		//worker cost at corpus scale (7–8s per save at 30k, profiled). Only the
+		//tags that list the changed card may change.
+		const tagged = () => {
+			const engine = new QueryEngine();
+			engine.updateCards({
+				z1: card('z1', {title: 'Zebra migration patterns', tags: ['animals']}),
+				z2: card('z2', {title: 'Zebra crossing safety', tags: ['animals']}),
+				m1: card('m1', {title: 'Municipal budget planning', tags: ['civics']}),
+				m2: card('m2', {title: 'Municipal election law', tags: ['civics']}),
+				w1: card('w1', {title: 'Watercolor technique', tags: ['art']}),
+			}, []);
+			const tags = {
+				animals: {id: 'animals', title: 'Animals', cards: ['z1', 'z2']},
+				civics: {id: 'civics', title: 'Civics', cards: ['m1', 'm2']},
+				art: {id: 'art', title: 'Art', cards: ['w1']},
+			};
+			engine.hydrateCollectionState({sections: {}, tags, starredCardIDs: [], readCardIDs: [], readingList: [], selectedCardIDs: []});
+			return {engine, tags};
+		};
+
+		it('recomputes only the tags that list a changed card', () => {
+			const {engine} = tagged();
+			const before = engine._ensureTagFingerprints();
+			const generator = engine._ensureSuggestGenerator();
+			const calls = [];
+			const original = generator.constructor.prototype.fingerprintForCardIDList;
+			generator.constructor.prototype.fingerprintForCardIDList = function (ids) {
+				calls.push([...ids]);
+				return original.call(this, ids);
+			};
+			try {
+				engine.updateCards({m1: card('m1', {title: 'Municipal zoning reform', tags: ['civics']})}, []);
+				const after = engine._ensureTagFingerprints();
+				assert.deepStrictEqual(calls, [['m1', 'm2']], 'only the civics tag lists m1');
+				assert.strictEqual(after.animals, before.animals, 'an untouched tag keeps its fingerprint object');
+				assert.strictEqual(after.art, before.art);
+				assert.notStrictEqual(after.civics, before.civics);
+				//Equivalent to a cold build over the same corpus.
+				const fresh = new QueryEngine();
+				fresh.updateCards({...engine.rawCards}, []);
+				fresh.hydrateCollectionState({sections: {}, tags: engine._tags, starredCardIDs: [], readCardIDs: [], readingList: [], selectedCardIDs: []});
+				const expected = fresh._ensureTagFingerprints();
+				for (const tagID of Object.keys(expected)) {
+					assert.deepStrictEqual([...after[tagID].entries()], [...expected[tagID].entries()], tagID);
+				}
+			} finally {
+				generator.constructor.prototype.fingerprintForCardIDList = original;
+			}
+		});
+
+		it('recomputes a tag whose membership changed', () => {
+			const {engine, tags} = tagged();
+			const before = engine._ensureTagFingerprints();
+			engine.applyAction({type: UPDATE_TAGS, tags: {art: {...tags.art, cards: ['w1', 'z1']}}});
+			const after = engine._ensureTagFingerprints();
+			assert.notStrictEqual(after.art, before.art, 'a new tag object with new membership is rebuilt');
+			assert.strictEqual(after.animals, before.animals);
+			assert.strictEqual(after.civics, before.civics);
+		});
+
+		it('keeps fingerprints across the full-map tag delivery the worker actually receives', () => {
+			//corpus-worker's tags listener sends EVERY tag as a fresh object on
+			//every snapshot, so an identity-keyed cache would recompute all of
+			//them after any tag write — master's cost in a different coat.
+			const {engine, tags} = tagged();
+			const before = engine._ensureTagFingerprints();
+			const delivered = structuredClone(tags);
+			delivered.art.cards = ['w1', 'z1'];
+			engine.applyAction({type: UPDATE_TAGS, tags: delivered, complete: true});
+			const after = engine._ensureTagFingerprints();
+			assert.strictEqual(after.animals, before.animals, 'same membership, new object: reused');
+			assert.strictEqual(after.civics, before.civics);
+			assert.notStrictEqual(after.art, before.art, 'changed membership: rebuilt');
+		});
+
+		it('drops a tag that a complete delivery no longer contains', () => {
+			const {engine, tags} = tagged();
+			engine._ensureTagFingerprints();
+			engine.applyAction({type: UPDATE_TAGS, tags: {animals: tags.animals, civics: tags.civics}, complete: true});
+			assert.deepStrictEqual(Object.keys(engine._ensureTagFingerprints()).sort(), ['animals', 'civics']);
+			assert.ok(!engine._tagFingerprintCache.has('art'));
+			//A partial delivery still merges.
+			engine.applyAction({type: UPDATE_TAGS, tags: {art: tags.art}});
+			assert.deepStrictEqual(Object.keys(engine._ensureTagFingerprints()).sort(), ['animals', 'art', 'civics']);
+		});
+
+		it('rebuilds every tag when a new IDF epoch is installed', () => {
+			const {engine} = tagged();
+			const before = engine._ensureTagFingerprints();
+			engine.setIDFMap({idf: {zebra: 2.5}, maxIDF: 2.5});
+			const after = engine._ensureTagFingerprints();
+			for (const tagID of Object.keys(before)) assert.notStrictEqual(after[tagID], before[tagID], tagID);
+		});
+
+		it('recomputes a tag whose member card was removed', () => {
+			const {engine} = tagged();
+			const before = engine._ensureTagFingerprints();
+			engine.updateCards({}, ['z2']);
+			const after = engine._ensureTagFingerprints();
+			assert.notStrictEqual(after.animals, before.animals);
+			assert.strictEqual(after.civics, before.civics);
+		});
+
+		it('rebuilds every tag when the IDF epoch or concepts change', () => {
+			const {engine} = tagged();
+			const before = engine._ensureTagFingerprints();
+			engine.updateCards({concept: card('concept', {card_type: 'concept', title: 'Zebra', title_alternates: 'Equid'})}, []);
+			const after = engine._ensureTagFingerprints();
+			for (const tagID of Object.keys(before)) assert.notStrictEqual(after[tagID], before[tagID], tagID);
 		});
 
 		it('ranks tags by fingerprint overlap with the mirrored editing card, excluding existing tags', async () => {
