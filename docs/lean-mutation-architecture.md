@@ -61,10 +61,20 @@ same fixture, plus "no regression" on anything the journey measures.
 > (`closestOverlappingItems`, ~4 s per cycle). Third: a 60 s+ worker stall on
 > the first edit after boot, which is the per-card fingerprints being cold.
 > Slice P1 (commit `933ba32c`) fixes the first: per-edit 1.8–3.0 s → 0.1–0.3 s
-> at 47k. Emulator *latency* numbers at scale are artifacts (the emulator
-> re-sends corpus-sized payloads per write); CPU call stacks are not. The
-> 47k synthetic corpus also OOMs the renderer 3/3 times, and the owner
-> confirms production OOMs at 47k; that investigation is separate.
+> at 47k **synthetic**. Emulator *latency* numbers at scale are artifacts
+> (the emulator re-sends corpus-sized payloads per write); CPU call stacks
+> are not. The 47k synthetic corpus also OOMs the renderer 3/3 times, and
+> the owner confirms production OOMs at 47k; that investigation is separate.
+>
+> **Correction, same day, on the real DEV corpus** (40,229 cards, 285
+> concepts, 354-char average body, 0.37 tags/card, 52 tags — versus the
+> synthetic 2,809 concepts, 2 KB bodies, 3.8 tags/card): the tag-fingerprint
+> path costs ~0.25 s per edit on master, not 7–8 s. The synthetic corpus
+> exaggerates NLP and tag costs ~30×. P1/P2 remain correct and worthwhile
+> (untagged edits → 0 ms; cold fingerprint build 11.3 s → 4.7 s) but do not
+> explain the owner's 5–20 s per card. **Hotspot ranking must come from a
+> profile on the DEV export**, which is in progress. Do not benchmark
+> against `gen-corpus.js` for ranking.
 
 Verified by reading or by synthetic measurement at 47k cards, unless marked.
 

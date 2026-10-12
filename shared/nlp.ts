@@ -425,6 +425,62 @@ export const ngramWithinOther =(ngram : string, container : string) : boolean =>
 	return paddedContainer.includes(paddedNgram);
 };
 
+//Per important-ngram map: the longest key in words, and each key's position
+//in Object.keys order. Keyed on the map object: the enrichment step hands
+//every card the same normalized concept map, so this is computed once per
+//concept epoch, not once per card.
+type ImportantNgramShape = {maxWords : number, order : Map<string, number>};
+const _importantNgramShapes = new WeakMap<object, ImportantNgramShape>();
+const importantNgramShape = (importantNgrams : {[ngram : string] : unknown}) : ImportantNgramShape => {
+	let shape = _importantNgramShapes.get(importantNgrams);
+	if (shape) return shape;
+	shape = {maxWords: 0, order: new Map()};
+	for (const ngram of Object.keys(importantNgrams)) {
+		shape.order.set(ngram, shape.order.size);
+		const words = ngram.split(' ').length;
+		if (words > shape.maxWords) shape.maxWords = words;
+	}
+	_importantNgramShapes.set(importantNgrams, shape);
+	return shape;
+};
+
+//The distinct keys of importantNgrams that occur in `words` at word
+//boundaries — exactly the keys for which ngramWithinOther(key, words) holds.
+//Testing every key against every run was O(concepts) per run, and with
+//thousands of concept cards that single loop dominated a cold fingerprint
+//build (35s of ngramWithinOther self time in a 30k-card worker profile).
+//Generating the run's own ngrams up to the longest key and looking them up
+//is O(words × longest key) per run and corpus-size independent.
+//
+//Equivalence: the padded-includes test in ngramWithinOther matches iff the
+//key equals a contiguous slice of words.split(' ') joined by ' ' — including
+//empty tokens, which the split preserves — so enumerating those slices finds
+//the same keys. Own-key lookup mirrors Object.keys: a candidate like
+//'constructor' must not match through the prototype. The result is in the
+//map's key order, as the old loop produced it: callers insert matches into
+//a count map whose insertion order breaks ties in the later fingerprint
+//sort, so run order instead of key order reordered equal-weight terms (and
+//with them generated titles and the top-N cutoff) on ~23% of a real corpus.
+export const importantNgramsWithinRun = (importantNgrams : {[ngram : string] : unknown}, words : string) : string[] => {
+	const {maxWords, order} = importantNgramShape(importantNgrams);
+	if (!maxWords) return [];
+	const tokens = words.split(' ');
+	const found : string[] = [];
+	const seen = new Set<string>();
+	for (let i = 0; i < tokens.length; i++) {
+		let candidate = '';
+		for (let len = 1; len <= maxWords && i + len <= tokens.length; len++) {
+			candidate = len === 1 ? tokens[i] : candidate + ' ' + tokens[i + len - 1];
+			if (seen.has(candidate)) continue;
+			if (!order.has(candidate)) continue;
+			seen.add(candidate);
+			found.push(candidate);
+		}
+	}
+	if (found.length > 1) found.sort((a, b) => (order.get(a) as number) - (order.get(b) as number));
+	return found;
+};
+
 //strsMap is card.nlp.withoutStopWords. See cardWithNormalizedTextProperties documentation for more.
 //Simplified version: no memoization, no synonym processing
 const wordCountsForSemantics = (cardObj : ProcessedCard, maxFingerprintSize : number = MAX_N_GRAM_FOR_FINGERPRINT, optFieldList? : CardFieldType[]) => {
@@ -479,19 +535,16 @@ const wordCountsForSemantics = (cardObj : ProcessedCard, maxFingerprintSize : nu
 			//Count any of the importantNgrams that are present, and count
 			//them without discounting for length. We skipped counting them in
 			//any of the 'typical' times above.
-			for (const ngram of Object.keys(importantNgrams)) {
-				//Only match on word boundaries, not within an ngram
-				if (ngramWithinOther(ngram, words)) {
-					//This is an ngram we wouldn't necessarily have indexed by
-					//default (it might have been too long to be automatically
-					//extracted, for example), but we've been told it's
-					//important when we see it, so take note of it, at a boost
-					//above how important it would normally be to make it more
-					//likely it shows up
-					const splitNgram = ngram.split(' ');
-					const baseAmount = 1 / (splitNgram.length + 1);
-					cardMap[ngram] = (cardMap[ngram] || 0) + (baseAmount * totalIndexingCount * IMPORTANT_NGRAM_BOOST_FACTOR);
-				}
+			for (const ngram of importantNgramsWithinRun(importantNgrams, words)) {
+				//This is an ngram we wouldn't necessarily have indexed by
+				//default (it might have been too long to be automatically
+				//extracted, for example), but we've been told it's
+				//important when we see it, so take note of it, at a boost
+				//above how important it would normally be to make it more
+				//likely it shows up
+				const splitNgram = ngram.split(' ');
+				const baseAmount = 1 / (splitNgram.length + 1);
+				cardMap[ngram] = (cardMap[ngram] || 0) + (baseAmount * totalIndexingCount * IMPORTANT_NGRAM_BOOST_FACTOR);
 			}
 		}
 	}

@@ -72,6 +72,7 @@ import {
 	withoutStopWords,
 	ngrams,
 	ngramWithinOther,
+	importantNgramsWithinRun,
 	MAX_N_GRAM_FOR_FINGERPRINT,
 	lowercaseSplitWords,
 	wordIsUrl,
@@ -813,20 +814,18 @@ const wordCountsForSemantics = memoizeFirstArg((cardObj : ProcessedCard, maxFing
 
 			//Count any of the importantNgrams that are present, and count
 			//them without discounting for length. We skipped counting them in
-			//any of the 'typical' times above.
-			for (const ngram of Object.keys(importantNgrams)) {
-				//Only match on word boundaries, not within an ngram
-				if (ngramWithinOther(ngram, words)) {
-					//This is an ngram we wouldn't necessarily have indexed by
-					//default (it might have been too long to be automatically
-					//extracted, for example), but we've been told it's
-					//important when we see it, so take note of it, at a boost
-					//above how important it would normally be to make it more
-					//likely it shows up
-					const splitNgram = ngram.split(' ');
-					const baseAmount = 1 / (splitNgram.length + 1);
-					cardMap[ngram] = (cardMap[ngram] || 0) + (baseAmount * totalIndexingCount * IMPORTANT_NGRAM_BOOST_FACTOR);
-				}
+			//any of the 'typical' times above. See importantNgramsWithinRun
+			//for why this is not a loop over every important ngram.
+			for (const ngram of importantNgramsWithinRun(importantNgrams, words)) {
+				//This is an ngram we wouldn't necessarily have indexed by
+				//default (it might have been too long to be automatically
+				//extracted, for example), but we've been told it's
+				//important when we see it, so take note of it, at a boost
+				//above how important it would normally be to make it more
+				//likely it shows up
+				const splitNgram = ngram.split(' ');
+				const baseAmount = 1 / (splitNgram.length + 1);
+				cardMap[ngram] = (cardMap[ngram] || 0) + (baseAmount * totalIndexingCount * IMPORTANT_NGRAM_BOOST_FACTOR);
 			}
 		}
 	}

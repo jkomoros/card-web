@@ -13,6 +13,8 @@ import {
 	calcIDFMapForCards,
 	cardWithNormalizedTextPropertiesSimple,
 	nlpSourceFingerprintForCard,
+	ngramWithinOther,
+	importantNgramsWithinRun,
 } from '../../shared/dist/nlp.js';
 
 import assert from 'assert';
@@ -178,6 +180,59 @@ describe('calcIDFMapForCards', () => {
 		);
 		const idfMap = calcIDFMapForCards({ 'card-1': card }, 2);
 		assert.ok(typeof idfMap.maxIDF === 'number');
+	});
+});
+
+describe('importantNgramsWithinRun', () => {
+	//The reference is the loop it replaced: every key tested with
+	//ngramWithinOther, in key order. The optimized version must return
+	//exactly the same keys in the same order — order matters because it
+	//becomes the count map's insertion order, which breaks ties in the
+	//fingerprint sort — for any map and any run, including the odd shapes
+	//below.
+	const reference = (map, words) => Object.keys(map).filter(ngram => ngramWithinOther(ngram, words));
+	const same = (map, words) => {
+		assert.deepStrictEqual(importantNgramsWithinRun(map, words), reference(map, words), `${JSON.stringify(words)} over ${JSON.stringify(Object.keys(map))}`);
+	};
+
+	it('matches whole words only, at any position, for keys longer than the fingerprint ngram size', () => {
+		const map = {zebra: 'c1', 'zebra crossing': 'c2', 'long concept name here': 'c3', bra: 'c4', 'crossing safety': 'c5'};
+		same(map, 'zebra crossing safety');
+		same(map, 'the zebra');
+		same(map, 'zebrafish');
+		same(map, 'a long concept name here today');
+		same(map, 'long concept name');
+		same(map, '');
+	});
+
+	it('preserves the exact boundary semantics of ngramWithinOther with empty and repeated tokens', () => {
+		const map = {'': 'c0', 'a': 'c1', 'a a': 'c2', 'a  b': 'c3', ' a': 'c4'};
+		for (const words of ['', ' ', 'a', 'a a', 'a a a', 'a  b', ' a', 'b a', 'a ']) same(map, words);
+	});
+
+	it('does not match through the prototype and reports each key once', () => {
+		const map = {toString: 'c1', repeat: 'c2'};
+		same(map, 'constructor hasOwnProperty toString');
+		same(map, 'repeat repeat repeat');
+		assert.deepStrictEqual(importantNgramsWithinRun(map, 'repeat repeat'), ['repeat']);
+		assert.deepStrictEqual(importantNgramsWithinRun({}, 'anything at all'), []);
+	});
+
+	it('agrees with the reference on random runs and maps', () => {
+		//Use the LCG's high bits: its low bits cycle with a tiny period, which
+		//left an earlier version of this loop producing three distinct keys.
+		let seed = 7;
+		const rand = (n) => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return (seed >>> 16) % n; };
+		const vocab = ['a', 'b', 'c', 'ab', 'abc', '', 'zebra', 'x', 'a  b', ' a', 'b '];
+		for (let i = 0; i < 2000; i++) {
+			const map = {};
+			for (let k = 0; k < 1 + rand(6); k++) {
+				const len = 1 + rand(4);
+				map[Array.from({length: len}, () => vocab[rand(vocab.length)]).join(' ')] = 'c';
+			}
+			const words = Array.from({length: rand(9)}, () => vocab[rand(vocab.length)]).join(' ');
+			same(map, words);
+		}
 	});
 });
 
