@@ -79,24 +79,41 @@ describe('SubscriptionManager', () => {
 	};
 
 	it('recomputes only editing-card-dependent subscriptions on editing dirt', () => {
-		const {engine, manager, runs} = countingSetup();
+		const {engine, manager, pushes, runs} = countingSetup();
+		//Serialized descriptions end in '/'; without it the last piece parses
+		//as a selected card and the configurable filter silently vanishes.
+		const CHILDREN = 'everything/children/a/';
+		const SIMILAR = 'everything/similar/a/';
 		manager.subscribe(1, params('everything/'));
-		manager.subscribe(2, params('similar/a'));
-		manager.subscribe(3, params('everything/children/a'));
-		manager.subscribe(4, params('everything/unread'));
+		manager.subscribe(2, params(SIMILAR));
+		manager.subscribe(3, params(CHILDREN));
+		manager.subscribe(4, params('everything/unread/'));
 		manager.flush();
+		const childrenBefore = pushes.find(push => push.subscriptionID === 3).ids;
+		assert.deepStrictEqual(childrenBefore, [], 'a has no links yet');
 		runs.length = 0;
-		engine.setEditingCard({...engine._ensureProcessedCards().a, title: 'Edited'}, null);
+		//The draft adds a link a→c: the children collection must change,
+		//and only the dependent subscriptions may run.
+		const draft = {...engine._ensureProcessedCards().a, references: {c: true}, references_info: {c: {link: ''}}};
+		engine.setEditingCard(draft, null);
 		manager.markDirty('editing');
 		manager.flush();
-		assert.deepStrictEqual(runs.sort(), ['everything/children/a', 'similar/a']);
+		assert.deepStrictEqual(runs.sort(), [CHILDREN, SIMILAR]);
+		assert.deepStrictEqual(pushes[pushes.length - 1].subscriptionID === 3 ? pushes[pushes.length - 1].ids : pushes.filter(push => push.subscriptionID === 3).pop().ids, ['c']);
+		//Clearing the draft reverts it, through the same scoped path.
+		runs.length = 0;
+		engine.setEditingCard(null, null);
+		manager.markDirty('editing');
+		manager.flush();
+		assert.deepStrictEqual(runs.sort(), [CHILDREN, SIMILAR]);
+		assert.deepStrictEqual(pushes.filter(push => push.subscriptionID === 3).pop().ids, []);
 		//A subscription that has never been pushed always computes, alongside
 		//the dependent ones; the independent pushed ones still skip.
-		manager.subscribe(5, params('everything/starred'));
+		manager.subscribe(5, params('everything/starred/'));
 		runs.length = 0;
 		manager.markDirty('editing');
 		manager.flush();
-		assert.deepStrictEqual(runs.sort(), ['everything/children/a', 'everything/starred', 'similar/a']);
+		assert.deepStrictEqual(runs.sort(), [CHILDREN, SIMILAR, 'everything/starred/']);
 		//Mixed dirt widens to everything.
 		runs.length = 0;
 		manager.markDirty('editing');
@@ -108,9 +125,11 @@ describe('SubscriptionManager', () => {
 	it('pins EDITING_CARD_FILTER_NAMES to the registry factories that read the editing card', async () => {
 		const {CONFIGURABLE_FILTER_INFO} = await import('../../lib/src/filters.js');
 		const {EDITING_CARD_FILTER_NAMES, descriptionMayReadEditingCard} = await import('../../lib/src/filter-constants.js');
-		//filters.ts reads extras.editingCard in exactly these factories. If a
-		//new factory starts reading it, add its names to the constant (or this
-		//assertion tells you so); if a listed name's factory stops, drop it.
+		//filters.ts reads extras.editingCard in exactly these factories. This
+		//catches a new filter NAME registered on one of them, and a rename of
+		//one of them (loudly). It cannot catch a DIFFERENT factory starting
+		//to read extras.editingCard: that is a reviewer's job — grep
+		//`extras.editingCard` in filters.ts when touching a factory.
 		const readers = new Set(['makeCardLinksConfigurableFilter', 'makeSimilarConfigurableFilter', 'makeExpandConfigurableFilter']);
 		const expected = Object.entries(CONFIGURABLE_FILTER_INFO).filter(([, info]) => readers.has(info.factory.name)).map(([name]) => name).sort();
 		assert.deepStrictEqual([...EDITING_CARD_FILTER_NAMES].sort(), expected);
