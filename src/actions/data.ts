@@ -1079,6 +1079,9 @@ const durableMultiEditProgress = (operation : DurableMultiEdit) : SomeAction => 
 
 export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDiff, substantive = false, kind : 'single' | 'multi' = 'multi', resumeTargetIDs? : CardID[]) : ThunkSomeAction => async (dispatch, getState) => {
 	const requestedUid = selectUid(getState());
+	//Set when a parked single save released its editor before waiting; the
+	//operation then carries this id so the preserved draft matches it.
+	let parkedOperationID : string | null = null;
 	if (!durableSaveEligible(getState())) {
 		dispatch(modifyCardFailure(new Error(blockedError(selectCorpusStatus(getState()), SAVE_VERB))));
 		return;
@@ -1096,8 +1099,9 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 		//distinct save, a bulk-tag run with no settle promise) keeps the
 		//old refusal.
 		const parkedKey = requestedUid + '|' + kind + '|' + substantive + '|' + cards.map(card => card.id).join(',') + '|' + JSON.stringify(update);
+		//These refusals never had a face: clear none.
 		if (kind !== 'single' || !durableMultiEditRunSettled) {
-			dispatch(modifyCardFailure(new Error('Another saved card operation is already running. Wait for it to finish or stop it before starting another.')));
+			dispatch(modifyCardFailure(new Error('Another saved card operation is already running. Wait for it to finish or stop it before starting another.'), undefined, []));
 			return;
 		}
 		if (durableMultiEditParkedKey !== null) {
@@ -1105,8 +1109,23 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 				console.warn('This save is already queued behind the running operation.');
 				return;
 			}
-			dispatch(modifyCardFailure(new Error('Another saved card operation is already running. Wait for it to finish or stop it before starting another.')));
+			dispatch(modifyCardFailure(new Error('Another saved card operation is already running. Wait for it to finish or stop it before starting another.'), undefined, []));
 			return;
+		}
+		//Release the editor BEFORE waiting, not after. Parking with the
+		//editor open (and no scrim: the durable intent does not exist yet)
+		//left the user typing into a draft the save would not carry: the
+		//diff was computed at commit time, and the draft with the extra
+		//keystrokes was deleted when that save confirmed. The operation id is
+		//chosen now so the preserved draft is stamped with the id the save
+		//will carry, and the face shows the committed draft from this
+		//instant, as it does for an unparked save.
+		if (kind === 'single' && selectEditingCard(getState())?.id === cards[0].id) {
+			parkedOperationID = `${kind}-edit-${Date.now()}-${newID()}`;
+			window.dispatchEvent(new CustomEvent('card-web-preserve-edit-draft-for-save', {
+				detail: {cardID: cards[0].id, operationID: parkedOperationID},
+			}));
+			dispatch(editingFinish(true));
 		}
 		durableMultiEditParkedKey = parkedKey;
 		try {
@@ -1114,18 +1133,20 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 		} finally {
 			durableMultiEditParkedKey = null;
 		}
+		//A parked save that cannot proceed had a face: clear it, and only it.
+		const parkedIDs = cards.map(card => card.id);
 		if (selectUid(getState()) !== requestedUid) {
-			dispatch(modifyCardFailure(new Error('Your account changed while this save was waiting. The queued edit was not sent.')));
+			dispatch(modifyCardFailure(new Error('Your account changed while this save was waiting. The queued edit was not sent.'), undefined, parkedIDs));
 			return;
 		}
 		if (durableMultiEditRunning || bulkTagOperationRunning) {
 			//Another run started in the turn the previous one settled.
-			dispatch(modifyCardFailure(new Error('Another saved card operation is already running. Wait for it to finish or stop it before starting another.')));
+			dispatch(modifyCardFailure(new Error('Another saved card operation is already running. Wait for it to finish or stop it before starting another.'), undefined, parkedIDs));
 			return;
 		}
 		//Conditions may have drifted during the wait.
 		if (!durableSaveEligible(getState())) {
-			dispatch(modifyCardFailure(new Error(blockedError(selectCorpusStatus(getState()), SAVE_VERB))));
+			dispatch(modifyCardFailure(new Error(blockedError(selectCorpusStatus(getState()), SAVE_VERB)), undefined, parkedIDs));
 			return;
 		}
 		//Fall through: if the settled run left its durable record behind (it
@@ -1159,12 +1180,15 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 					baseFields[id] = Object.fromEntries(replacedFields.map(field => [field, card[field]]));
 				}
 			}
-			operation = {version: 1, id: `${kind}-edit-${Date.now()}-${newID()}`, uid, targetIDs, nextIndex: 0, modifiedCount: 0, update, substantive, kind, baseFields};
+			operation = {version: 1, id: parkedOperationID || `${kind}-edit-${Date.now()}-${newID()}`, uid, targetIDs, nextIndex: 0, modifiedCount: 0, update, substantive, kind, baseFields};
 			persistDurableMultiEdit(operation, true);
 			//The write-ahead intent is durable now. Release the blocking editor
 			//immediately, retain its draft until server confirmation, and report
-			//truthfully as Saving rather than Saved.
-			if (kind === 'single' && selectIsEditing(getState())) {
+			//truthfully as Saving rather than Saved. Only THIS card's editor: a
+			//parked save resumes after the user may have opened another card,
+			//and closing whatever editor was open then took B's editor down
+			//for A's save.
+			if (kind === 'single' && selectEditingCard(getState())?.id === operation.targetIDs[0]) {
 				window.dispatchEvent(new CustomEvent('card-web-preserve-edit-draft-for-save', {
 					detail: {cardID: operation.targetIDs[0], operationID: operation.id},
 				}));
@@ -1408,7 +1432,7 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 		const singleSaveWroteNothing = operation.kind === 'single' &&
 			operation.modifiedCount === 0 && (operation.skippedCount || 0) > 0;
 		if (singleSaveWroteNothing) {
-			dispatch(modifyCardFailure(new Error('That card no longer exists on the server, so your edit was not saved. Your draft has been kept — copy anything you need before discarding it.')));
+			dispatch(modifyCardFailure(new Error('That card no longer exists on the server, so your edit was not saved. Your draft has been kept — copy anything you need before discarding it.'), undefined, operation.targetIDs));
 			return;
 		}
 		if (operation.kind === 'single') {
@@ -1421,7 +1445,7 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 			const matched = operation.targetIDs.length - operation.modifiedCount - skipped;
 			dispatch(showSnackbar(`${operation.modifiedCount} cards modified.${matched ? ` ${matched} already matched.` : ''}${skipped ? ` ${skipped} no longer existed and were skipped.` : ''}`, {kind: 'committed'}));
 		}
-		dispatch(modifyCardSuccess(operation.modifiedCount));
+		dispatch(modifyCardSuccess(operation.modifiedCount, operation.targetIDs));
 	} catch (err) {
 		const error = err instanceof Error ? err : new Error(String(err));
 		if (operation) {
@@ -1444,7 +1468,7 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 		//failing on quota) leaves `operation` null and _saveStatus 'idle' — the
 		//user hits Save and nothing happens anywhere. The adjacent bulk-tag
 		//path does not pass skipAlert at all; that asymmetry was the bug.
-		dispatch(modifyCardFailure(new Error(message), Boolean(operation)));
+		dispatch(modifyCardFailure(new Error(message), Boolean(operation), operation ? operation.targetIDs : cards.map(card => card.id)));
 		const enqueued = selectEnqueuedCards(getState());
 		if (Object.values(enqueued).some(group => Object.keys(group).length)) dispatch(updateEnqueuedCards());
 		if (operation) dispatch(durableMultiEditProgress(operation));
@@ -3664,7 +3688,7 @@ const modifyCardAction = (modificationCount : number, cardIDs : CardID[]) : Some
 	};
 };
 
-const modifyCardSuccess = (modificationCount : number) : ThunkSomeAction => (dispatch, getState) => {
+const modifyCardSuccess = (modificationCount : number, cardIDs? : CardID[]) : ThunkSomeAction => (dispatch, getState) => {
 	//Durable single-card saves release their own editor immediately after the
 	//write-ahead intent is persisted. Do not close whatever editor happens to
 	//be open when a later server acknowledgement arrives: it may be a distinct
@@ -3676,6 +3700,7 @@ const modifyCardSuccess = (modificationCount : number) : ThunkSomeAction => (dis
 	dispatch({
 		type:MODIFY_CARD_SUCCESS,
 		modificationCount,
+		cardIDs,
 	});
 	//Echoes for the committed writes may have arrived (and been enqueued)
 	//before the commit resolved. The commit has settled and the reducer just
@@ -3697,10 +3722,15 @@ const modifyCardSuccess = (modificationCount : number) : ThunkSomeAction => (dis
 //
 //`skipReport` (formerly `skipAlert`) is for callers that already show the
 //failure themselves — the editor's disabled Save carries its own reason.
-export const modifyCardFailure = (err : Error, skipReport? : boolean) : ThunkSomeAction => (dispatch) => {
+//cardIDs: the cards whose pending faces this failure clears. Pass the
+//operation's targets when a save that had a face did not land; pass [] for
+//a refusal that never had one (so it leaves other cards' faces alone);
+//omit for legacy callers, which clears every face as before.
+export const modifyCardFailure = (err : Error, skipReport? : boolean, cardIDs? : CardID[]) : ThunkSomeAction => (dispatch) => {
 	dispatch({
 		type: MODIFY_CARD_FAILURE,
 		error: err,
+		cardIDs,
 	});
 	if (skipReport) {
 		console.warn(err);

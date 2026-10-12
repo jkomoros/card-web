@@ -704,12 +704,19 @@ type ActionModifyCardSuccess = {
 	//modificationCount (some updates turn out to be no-ops); the reducer
 	//corrects the pending count so echo-gating doesn't wait for echoes that
 	//are never coming.
-	modificationCount: number
+	modificationCount: number,
+	//The cards whose pending faces this settle clears; see
+	//ActionModifyCardFailure.
+	cardIDs?: CardID[]
 };
 
 type ActionModifyCardFailure = {
 	type: typeof MODIFY_CARD_FAILURE,
-	error: Error
+	error: Error,
+	//The cards whose pending faces this settle clears. Absent (legacy
+	//shapes) clears every face; an empty list — a refusal that never had a
+	//face — clears none. See reducers/editor.ts.
+	cardIDs?: CardID[]
 };
 
 type ActionBulkTagOperationProgress = {

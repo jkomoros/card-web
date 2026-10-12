@@ -60,6 +60,17 @@ import {
 	cardImageMayAdvance
 } from '../../shared/card-revision.js';
 
+//The pending faces without `id`'s entry (or with it replaced by `face`),
+//preserving identity when nothing changes.
+const pendingSavesWithout = (faces : EditorState['pendingSaves'], id : string | undefined, face : EditorState['pendingSaves'][string] | null) : EditorState['pendingSaves'] => {
+	if (!id) return faces;
+	if (face) return {...faces, [id]: face};
+	if (!faces[id]) return faces;
+	const result = {...faces};
+	delete result[id];
+	return result;
+};
+
 import {
 	references
 } from '../references.js';
@@ -110,7 +121,7 @@ const INITIAL_STATE : EditorState = {
 	imageBrowserDialogIndex: undefined,
 	editingCardSimilarity: undefined,
 	similarityPendingVersion: 0,
-	pendingSaveCard: null
+	pendingSaves: {}
 };
 
 const app = (state : EditorState = INITIAL_STATE, action : SomeAction) : EditorState => {
@@ -144,7 +155,7 @@ const app = (state : EditorState = INITIAL_STATE, action : SomeAction) : EditorS
 			//pre-save content — the exact "save reverted" symptom
 			//pendingSaveCard exists to prevent. It clears on settle either
 			//way (MODIFY_CARD_SUCCESS/FAILURE).
-			pendingSaveCard: state.pendingSaveCard && state.pendingSaveCard.id === action.card.id ? null : state.pendingSaveCard
+			pendingSaves: pendingSavesWithout(state.pendingSaves, action.card.id, null)
 		};
 	case EDITING_RESTORE_DRAFT:
 		if (!state.editing || !state.underlyingCardSnapshot ||
@@ -174,21 +185,32 @@ const app = (state : EditorState = INITIAL_STATE, action : SomeAction) : EditorS
 			//therefore no renderable frame — where the card face has neither
 			//the editing card nor the optimistic pending-save card and would
 			//fall back to the stale state.data.cards copy. Any other teardown
-			//(cancel, delete, ownership loss) clears it.
-			pendingSaveCard: action.pendingSave ? state.card : null
+			//(cancel, delete) clears only THIS card's face: the faces are per
+			//card, because with per-card editor sessions a save on A is
+			//routinely still round-tripping when B is opened and cancelled,
+			//and one slot made B's cancel revert A on screen. A teardown with
+			//no editor open (ownership purge, account change) clears them all.
+			pendingSaves: state.card
+				? pendingSavesWithout(state.pendingSaves, state.card.id, action.pendingSave ? state.card : null)
+				: {}
 		};
 	//The durable single-save executor settles with exactly one of these. On
 	//success the confirmed card has already been applied to state.data.cards
 	//(the executor echoes post-commit, before MODIFY_CARD_SUCCESS), so
 	//dropping the optimistic face swaps between identical values. On failure
 	//the save did NOT land: the face must honestly revert to server truth
-	//while the save indicator's Retry/Stop and the alert take over.
+	//while the save indicator's Retry/Stop and the alert take over. A settle
+	//that names its cards clears only their faces (an empty list, a refusal
+	//that never had a face, clears none); one that does not — the legacy
+	//shapes — clears every face, as before.
 	case MODIFY_CARD_SUCCESS:
 	case MODIFY_CARD_FAILURE:
-		if (!state.pendingSaveCard) return state;
+		if (!Object.keys(state.pendingSaves).length) return state;
+		if (!Array.isArray(action.cardIDs)) return {...state, pendingSaves: {}};
+		if (!action.cardIDs.some(id => state.pendingSaves[id])) return state;
 		return {
 			...state,
-			pendingSaveCard: null
+			pendingSaves: Object.fromEntries(Object.entries(state.pendingSaves).filter(([id]) => !action.cardIDs?.includes(id)))
 		};
 	case EDITING_EDITOR_MINIMIZED:
 		return {

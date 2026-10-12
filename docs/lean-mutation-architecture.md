@@ -128,6 +128,15 @@ same fixture, plus "no regression" on anything the journey measures.
 > `+1`, MultiBatch injection once per card per batch, admission at the
 > worker, store, enqueued buckets and editor; the blank-card race
 > reproduced with real reducers and real server revisions and closed).
+> **Slice 2 (minimal form)** landed: a parked single save releases its
+> editor and installs its pending face BEFORE waiting (the park window where
+> keystrokes were silently lost is gone), the post-park release closes only
+> the saved card's own editor, pending faces are per card, and a settle
+> clears only the faces of the cards it names (refusals that never had a
+> face clear none). Four behavioural tests with real thunks and held
+> commits. Not done, by decision: reopening a card while its save is
+> pending, the editor session token, and the data reducer's pending-gating
+> reset on an unrelated refusal.
 > Known gap from the slice-1 review, to be filed: no suite drives the real
 > client `MultiBatch` shapes against the real Rules (the executor suites
 > run on permissive harness rules); the reviewer hand-verified the triple

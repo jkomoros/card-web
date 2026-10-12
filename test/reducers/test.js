@@ -1,4 +1,4 @@
-/*eslint-env node*/
+/*eslint-env node, es2022*/
 
 //Tests for identity-preservation behavior in the collection and data
 //reducers: single-card updates must only change the identity of filter maps
@@ -216,7 +216,7 @@ describe('reducer identity preservation', () => {
 			//closed" and "optimistic face installed" for a render to observe.
 			assert.strictEqual(state.editing, false);
 			assert.strictEqual(state.card, null);
-			assert.strictEqual(state.pendingSaveCard.title, 'New title');
+			assert.strictEqual(state.pendingSaves['save-card'].title, 'New title');
 		});
 
 		it('the optimistic face survives MODIFY_CARD and clears exactly on settle', () => {
@@ -224,32 +224,32 @@ describe('reducer identity preservation', () => {
 			//The executor dispatches MODIFY_CARD right after the teardown; the
 			//new value must still be renderable at that step.
 			state = editorReducer(state, {type: MODIFY_CARD, modificationCount: 1});
-			assert.strictEqual(state.pendingSaveCard.title, 'New title');
+			assert.strictEqual(state.pendingSaves['save-card'].title, 'New title');
 			//Success: the post-commit echo has already installed the confirmed
 			//card into data.cards, so dropping the face swaps identical values.
 			const confirmed = editorReducer(state, {type: MODIFY_CARD_SUCCESS, modificationCount: 1});
-			assert.strictEqual(confirmed.pendingSaveCard, null);
+			assert.deepStrictEqual(confirmed.pendingSaves, {});
 			//Failure: the save did NOT land — the face must revert to server
 			//truth while the save indicator's Retry/Stop takes over.
 			const failed = editorReducer(state, {type: MODIFY_CARD_FAILURE, error: new Error('nope')});
-			assert.strictEqual(failed.pendingSaveCard, null);
+			assert.deepStrictEqual(failed.pendingSaves, {});
 		});
 
 		it('a non-save teardown leaves no optimistic face', () => {
 			const cancelled = editorReducer(editedState(), {type: EDITING_FINISH});
-			assert.strictEqual(cancelled.pendingSaveCard, null);
+			assert.deepStrictEqual(cancelled.pendingSaves, {});
 			//And a teardown-without-flag (purge, ownership loss) clears one
 			//left by an earlier save.
 			let state = editorReducer(editedState(), {type: EDITING_FINISH, pendingSave: true});
 			state = editorReducer(state, {type: EDITING_FINISH});
-			assert.strictEqual(state.pendingSaveCard, null);
+			assert.deepStrictEqual(state.pendingSaves, {});
 		});
 
 		it('a new editing session on the SAME card supersedes a lingering optimistic face', () => {
 			let state = editorReducer(editedState(), {type: EDITING_FINISH, pendingSave: true});
-			const pendingID = state.pendingSaveCard.id;
+			const pendingID = Object.keys(state.pendingSaves)[0];
 			state = editorReducer(state, {type: EDITING_START, card: makeCard(pendingID)});
-			assert.strictEqual(state.pendingSaveCard, null);
+			assert.deepStrictEqual(state.pendingSaves, {});
 		});
 
 		it('a new editing session on a DIFFERENT card keeps the in-flight optimistic face (#763)', () => {
@@ -259,12 +259,12 @@ describe('reducer identity preservation', () => {
 			//symptom pendingSaveCard exists to prevent. It still clears on
 			//settle.
 			let state = editorReducer(editedState(), {type: EDITING_FINISH, pendingSave: true});
-			const pending = state.pendingSaveCard;
+			const pending = state.pendingSaves['save-card'];
 			assert.ok(pending);
 			state = editorReducer(state, {type: EDITING_START, card: makeCard('other-card')});
-			assert.strictEqual(state.pendingSaveCard, pending);
+			assert.strictEqual(state.pendingSaves['save-card'], pending);
 			state = editorReducer(state, {type: MODIFY_CARD_SUCCESS, modificationCount: 1});
-			assert.strictEqual(state.pendingSaveCard, null);
+			assert.deepStrictEqual(state.pendingSaves, {});
 		});
 
 		it('settle actions with no pending face preserve state identity', () => {

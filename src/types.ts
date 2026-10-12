@@ -1197,7 +1197,10 @@ export type EditorState = {
 	//optimistically instead of the stale state.data.cards copy, with a small
 	//unconfirmed indicator; on failure the existing save-indicator surfaces
 	//(Retry/Stop, alerts) take over and the face reverts to server truth.
-	pendingSaveCard: Card | null
+	//The committed-but-unconfirmed draft of each single-card save in flight,
+	//by card id: the optimistic face the card view shows until the save
+	//settles. Per card, not one slot (see reducers/editor.ts EDITING_FINISH).
+	pendingSaves: {[id : CardID] : Card}
 }
 
 export type FindState = {

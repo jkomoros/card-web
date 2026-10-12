@@ -374,10 +374,10 @@ export const selectRandomSalt = (state : State) => state.collection ? state.coll
 //Note that the editing card doesn't have nlp/normalized text properties set. If
 //you want the one with that, look at selectEditingNormalizedCard.
 export const selectEditingCard = (state : State) => state.editor ? state.editor.card : null;
-//The committed-but-unconfirmed draft of a single-card save (see
-//EditorState.pendingSaveCard). Raw; most callers want
+//The committed-but-unconfirmed drafts of single-card saves in flight, by
+//card id (see EditorState.pendingSaves). Raw; most callers want
 //selectPendingSaveCardForDisplay.
-export const selectPendingSaveCard = (state : State) => state.editor ? state.editor.pendingSaveCard : null;
+export const selectPendingSaveCard = (state : State) => state.editor ? state.editor.pendingSaves : null;
 export const selectEditingUnderlyingCardSnapshot = (state : State) => state.editor ? state.editor.underlyingCardSnapshot : null;
 const selectEditingOriginalUnderlyingCardSnapshot = (state : State) => state.editor ? state.editor.originalUnderlyingCardSnapshot : null;
 const selectEditingCardExtractionVersion = (state : State) => state.editor ? state.editor.cardExtractionVersion : 0;
@@ -1173,9 +1173,10 @@ export const selectEditingCardForDisplay = createSelector(
 export const selectPendingSaveCardForDisplay = createSelector(
 	selectPendingSaveCard,
 	selectActiveCardEnriched,
-	(pending, active) : ProcessedCard | null => {
+	(pendingSaves, active) : ProcessedCard | null => {
+		if (!pendingSaves || !active) return null;
+		const pending = pendingSaves[active.id];
 		if (!pending) return null;
-		if (!active || active.id !== pending.id) return null;
 		return {
 			...active,
 			...pending,
