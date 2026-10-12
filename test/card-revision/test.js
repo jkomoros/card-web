@@ -152,6 +152,22 @@ describe('card revision', () => {
 			assert.throws(() => batch.set(ref('cards/c-new'), {body: 'x', updated: SENTINEL}, {merge: true}), /with options is not supported/);
 		});
 
+		it('a create counts as the batch\'s bump: an update to the same new card injects no increment', async () => {
+			//The Rules judge the batch's final state: revision 1 from the set
+			//plus increment(1) would read as 2 and deny the create.
+			const {batch, writes} = makeBatch();
+			batch.beginAtomicGroup('create');
+			batch.set(ref('cards/c-new'), {body: 'new', updated: SENTINEL});
+			batch.update(ref('cards/c-new'), {title: 'titled', updated: SENTINEL});
+			batch.update(ref('cards/c-other'), {body: 'x', updated: SENTINEL});
+			batch.endAtomicGroup();
+			await batch.commit();
+			const byPath = Object.fromEntries(writes.map(write => [write.op + ' ' + write.path, write.data.revision]));
+			assert.strictEqual(byPath['set cards/c-new'], 1);
+			assert.strictEqual(byPath['update cards/c-new'], undefined);
+			assert.strictEqual(byPath['update cards/c-other'], INCREMENT);
+		});
+
 		it('refuses a caller-supplied revision and queues nothing', () => {
 			const {batch, writes} = makeBatch();
 			assert.throws(() => batch.update(ref('cards/c-1'), {body: 'x', updated: SENTINEL, revision: 9}), /sets `revision` itself/);

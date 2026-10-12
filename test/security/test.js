@@ -708,7 +708,9 @@ describe('Compendium Rules', () => {
 			return value;
 		};
 
-		for (const [who, auth] of [['an admin', () => adminAuth], ['an editor', () => jerryAuth]]) {
+		//Global edit (jerry), the card's author (bob) and a per-card editor
+		//(sally) all reach the content clause through different branches.
+		for (const [who, auth] of [['an admin', () => adminAuth], ['an editor', () => jerryAuth], ['the author', () => bobAuth], ['a per-card editor', () => sallyAuth]]) {
 			it(`allows ${who} a content write that advances revision by one, as a literal or an increment`, async () => {
 				await seedRevision(cardId, 5);
 				const card = authedApp(auth()).collection(CARDS_COLLECTION).doc(cardId);

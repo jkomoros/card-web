@@ -228,20 +228,33 @@ export class MultiBatchBase<TBatch, TRef> {
 		return {...data, revision: guard.revisionIncrement()};
 	}
 
+	//A card create starts the clock at 1 and counts as this batch's bump for
+	//the card, so an update to the same card later in the batch injects no
+	//increment (the Rules would read the pair as 2 and deny the create).
+	protected _withCreateRevision(batch: TBatch, ref: TRef, data: object): object {
+		const guard = this._config.cardWriteGuard;
+		if (!guard) return data;
+		const path = guard.refPath(ref);
+		if (!isTopLevelDocPath(path, guard.cardsCollection)) return data;
+		let bumped = this._revisionBumped.get(batch as object);
+		if (!bumped) this._revisionBumped.set(batch as object, bumped = new Set());
+		bumped.add(path);
+		return {...data, revision: 1};
+	}
+
 	set(ref: TRef, data: object, options?: object) {
 		this._assertCardWriteAllowed(ref, data, false);
 		const guard = this._config.cardWriteGuard;
-		if (guard && isTopLevelDocPath(guard.refPath(ref), guard.cardsCollection)) {
-			//A merge-set on a card would reset an existing revision to 1; no
-			//writer does this, and one that starts must say what it means.
-			if (options) throw new Error(`Card set to ${guard.refPath(ref)} with options is not supported; use update() for an existing card.`);
-			data = {...data, revision: 1};
+		//A merge-set on a card would reset an existing revision to 1; no
+		//writer does this, and one that starts must say what it means.
+		if (guard && options && isTopLevelDocPath(guard.refPath(ref), guard.cardsCollection)) {
+			throw new Error(`Card set to ${guard.refPath(ref)} with options is not supported; use update() for an existing card.`);
 		}
 		if (this._config.preprocessData) {
 			data = this._config.preprocessData(data);
 		}
 		const count = this._writeCountForUpdate(data);
-		this._queueOperation(count, batch => this._config.batchSet(batch, ref, data, options));
+		this._queueOperation(count, batch => this._config.batchSet(batch, ref, this._withCreateRevision(batch, ref, data), options));
 		return this;
 	}
 
