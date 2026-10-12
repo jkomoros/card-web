@@ -105,6 +105,10 @@ import {
 } from '../../shared/nlp.js';
 
 import {
+	admitCardImages
+} from '../../shared/card-revision.js';
+
+import {
 	processedRunsForCardField
 } from '../nlp.js';
 
@@ -935,8 +939,15 @@ const parseSnapshot = (snapshot : QuerySnapshot) : {cards : Cards, removedIDs : 
 //A correct fix has to filter the batch at the call sites (so the corpus and the
 //forward agree) and compare against a timestamp that is known to be
 //server-issued. Left as a tracked item rather than shipped half-right.
-const updateLocalState = (cards : Cards, removedIDs : CardID[], suppressMetaSend = false) => {
+//Returns the cards actually applied: those whose revision is at least the
+//corpus's (shared/card-revision.ts). Callers that forward to the main thread
+//MUST forward this return value, never their input, so the corpus and the
+//main thread agree — the KNOWN LATENT comment above was exactly a filter that
+//skipped that step. Removals are not judged and always apply.
+const updateLocalState = (incoming : Cards, removedIDs : CardID[], suppressMetaSend = false) : Cards => {
 	const indexStart = performance.now();
+	const {admitted: cards, refusedIDs} = admitCardImages(incoming, id => corpus.get(id));
+	if (refusedIDs.length) status(`refused ${refusedIDs.length} older card image(s): ${refusedIDs.slice(0, 5).join(',')}${refusedIDs.length > 5 ? '…' : ''}`);
 	//Bumped on every corpus mutation. The compact-snapshot serialization yields
 	//mid-walk, so it needs to know whether the thing it is copying changed
 	//underneath it (see saveCorpusSnapshot).
@@ -992,6 +1003,7 @@ const updateLocalState = (cards : Cards, removedIDs : CardID[], suppressMetaSend
 	indexBuildMs += indexElapsed;
 	recordWorkerPerf('indexBuild', indexElapsed);
 	scheduleCorpusSnapshotSave();
+	return cards;
 };
 
 //The compact metadata already pushed to the main thread; only genuinely
@@ -1094,16 +1106,6 @@ const ingestSnapshot = (snapshot : QuerySnapshot, fetchType : CardFetchType, fas
 	const removedIDs = fetchType === 'published'
 		? safePublishedRemovals(parsed.removedIDs, corpus)
 		: parsed.removedIDs;
-	//Server delivery: these entries are no longer client-clock contaminated —
-	//EXCEPT docs still overlaid by a pending local write, whose estimate
-	//timestamps remain client-clock even in server snapshots.
-	if (!snapshot.metadata.fromCache) {
-		for (const id of Object.keys(cards)) {
-			if (!parsed.pendingWriteIDs.has(id)) clientClockCardIDs.delete(id);
-		}
-		for (const id of removedIDs) clientClockCardIDs.delete(id);
-	}
-	contaminatePendingWriteIDs(parsed.pendingWriteIDs);
 	//Initial listeners following an exact prime overwhelmingly redeliver the
 	//same documents. `updated` is enforced on every persisted card mutation;
 	//matching server timestamps therefore prove the worker already has this
@@ -1112,9 +1114,22 @@ const ingestSnapshot = (snapshot : QuerySnapshot, fetchType : CardFetchType, fas
 	//normal listener-completion semantics remain intact.
 	if (snapshot.metadata.fromCache) dropCachedCardsNotNewerThanExisting(cards, corpus);
 	else if (fastDedupe) dropCardsAlreadyAtUpdatedVersion(cards, corpus);
-	updateLocalState(cards, removedIDs);
-	const count = Object.keys(cards).length;
-	forwardBatch(cards, removedIDs, fetchType, fastDedupe);
+	const admitted = updateLocalState(cards, removedIDs);
+	//Server delivery: these entries are no longer client-clock contaminated —
+	//EXCEPT docs still overlaid by a pending local write, whose estimate
+	//timestamps remain client-clock even in server snapshots. Judged AFTER
+	//admission over the admitted ids only: an older image the corpus refused
+	//must not clear a held echo's exemption, or deriveSessionWatermark would
+	//read the echo's client-clock stamp as server-issued.
+	if (!snapshot.metadata.fromCache) {
+		for (const id of Object.keys(admitted)) {
+			if (!parsed.pendingWriteIDs.has(id)) clientClockCardIDs.delete(id);
+		}
+		for (const id of removedIDs) clientClockCardIDs.delete(id);
+	}
+	contaminatePendingWriteIDs(parsed.pendingWriteIDs);
+	const count = Object.keys(admitted).length;
+	forwardBatch(admitted, removedIDs, fetchType, fastDedupe);
 	//For the privileged 'unpublished' load, completion is marked explicitly
 	//at the end of connectUnpublishedPrivileged (the prime, not the
 	//listeners, defines done); marking here is idempotent and covers the
@@ -1862,8 +1877,7 @@ const connectUnpublishedPrivileged = async () => {
 			const start = performance.now();
 			const {cards, pendingWriteIDs} = parseSnapshot(cachedSnapshot);
 			contaminatePendingWriteIDs(pendingWriteIDs);
-			updateLocalState(cards, []);
-			forwardBatch(cards, [], 'unpublished', false);
+			forwardBatch(updateLocalState(cards, []), [], 'unpublished', false);
 			status(`warm boot: ${cachedSnapshot.size} unpublished cards from the persistent cache in ${(performance.now() - start).toFixed(0)}ms; listeners reconcile via resume tokens`);
 			attachUnpublishedListeners(database, myConnectionGeneration);
 			return;
@@ -1887,13 +1901,13 @@ const connectUnpublishedPrivileged = async () => {
 		if (ids.length === 0) return;
 		const cards = {...pendingCards};
 		for (const id of ids) delete pendingCards[id];
-		updateLocalState(cards, []);
+		const admitted = updateLocalState(cards, []);
 		//fastDedupe: when the main thread primed Redux from its local cache,
 		//this flush overwhelmingly redelivers cards it already holds —
 		//matching updated timestamps prove equivalence without a 39k-card
 		//deep-compare sweep. On an unprimed (empty-Redux) boot the flag is
 		//moot: nothing to dedupe against.
-		forwardBatch(cards, [], 'unpublished', true);
+		forwardBatch(admitted, [], 'unpublished', true);
 		status(`flushed ${ids.length} coalesced unpublished cards; corpus=${corpus.size}`);
 	};
 
@@ -2167,8 +2181,7 @@ const repairPartitions = async (database : Firestore, myConnectionGeneration : n
 		for (const id of bucketsForRepair[index]) {
 			if (!serverIDs.has(id)) ghosts.push(id);
 		}
-		updateLocalState(cards, ghosts);
-		forwardBatch(cards, ghosts, 'unpublished', true);
+		forwardBatch(updateLocalState(cards, ghosts), ghosts, 'unpublished', true);
 		status(`partition ${partitionLabel(partition)} repaired: ${serverIDs.size} server docs, ${ghosts.length} ghosts removed`);
 	}
 	return true;
@@ -2331,8 +2344,7 @@ const processTombstones = (database : Firestore, tombstones : CorpusTombstone[])
 				if (snapshot.metadata.hasPendingWrites) clientClockCardIDs.add(card.id);
 				const updated = card.updated as Timestamp | undefined;
 				if (updated && compareTimestamps({seconds: updated.seconds, nanoseconds: updated.nanoseconds}, tombstone.deleted) > 0) {
-					updateLocalState({[card.id]: card}, []);
-					forwardBatch({[card.id]: card}, [], card.published ? 'published' : 'unpublished', false);
+					forwardBatch(updateLocalState({[card.id]: card}, []), [], card.published ? 'published' : 'unpublished', false);
 				}
 			}
 			if (syncMetaStore) void syncMetaStore.save(meta);
@@ -2406,8 +2418,7 @@ const retryPendingLaunders = (database : Firestore) => {
 				const card = {...snapshot.data({serverTimestamps: 'estimate'}), id: snapshot.id} as Card;
 				if (snapshot.metadata.hasPendingWrites) clientClockCardIDs.add(card.id);
 				if (!corpus.has(card.id)) {
-					updateLocalState({[card.id]: card}, []);
-					forwardBatch({[card.id]: card}, [], card.published ? 'published' : 'unpublished', false);
+					forwardBatch(updateLocalState({[card.id]: card}, []), [], card.published ? 'published' : 'unpublished', false);
 					status(`tombstoned card ${id} was recreated; suppression lifted and card re-ingested`);
 				} else {
 					status(`tombstoned card ${id} was recreated; suppression lifted`);
@@ -2505,13 +2516,15 @@ const attachDeltaListener = (database : Firestore) => {
 				.map(change => change.doc.id));
 			const count = Object.keys(cards).length;
 			if (count) {
-				for (const id of Object.keys(cards)) {
+				//Admission first: an older image the corpus refused must not
+				//touch the client-clock bookkeeping or the watermark below.
+				const admitted = updateLocalState(cards, []);
+				for (const id of Object.keys(admitted)) {
 					if (untrustedIDs.has(id)) clientClockCardIDs.add(id);
 					else clientClockCardIDs.delete(id);
 				}
-				updateLocalState(cards, []);
-				forwardBatch(cards, [], 'unpublished', false);
-				for (const [id, card] of Object.entries(cards)) {
+				forwardBatch(admitted, [], 'unpublished', false);
+				for (const [id, card] of Object.entries(admitted)) {
 					if (untrustedIDs.has(id)) continue;
 					const updated = card.updated as Timestamp | undefined;
 					if (updated && typeof updated.seconds === 'number') {
@@ -2608,8 +2621,7 @@ const coldSweep = async (database : Firestore, myConnectionGeneration : number) 
 		if (myConnectionGeneration !== connectionGeneration) return false;
 		const {cards, pendingWriteIDs} = parseSnapshot(prioritySnapshot);
 		contaminatePendingWriteIDs(pendingWriteIDs);
-		updateLocalState(cards, []);
-		forwardBatch(cards, [], 'unpublished', false);
+		forwardBatch(updateLocalState(cards, []), [], 'unpublished', false);
 		//startBound: max(updated) at sweep START, server-confirmed. The
 		//post-sweep watermark is clamped to it — the docID-ordered pages
 		//below can read a doc BEFORE a mid-sweep edit lands on it, so an
@@ -2693,8 +2705,7 @@ const coldSweep = async (database : Firestore, myConnectionGeneration : number) 
 			const {cards, pendingWriteIDs} = parseSnapshot(page);
 			contaminatePendingWriteIDs(pendingWriteIDs);
 			if (page.size) {
-				updateLocalState(cards, []);
-				forwardBatch(cards, [], 'unpublished', true);
+				forwardBatch(updateLocalState(cards, []), [], 'unpublished', true);
 				sweep.cursors[index] = page.docs[page.docs.length - 1].id;
 			}
 			if (page.size < COLD_SWEEP_PAGE_SIZE) sweep.done[index] = true;

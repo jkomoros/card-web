@@ -367,6 +367,11 @@ export const editingStart = () : ThunkSomeAction => async (dispatch, getState) =
 		doc(db, CARDS_COLLECTION, card.id),
 		snapshot => {
 			if (!snapshot.exists()) return;
+			//A pending-write image carries this client's own increment(1)
+			//materialized locally; if the server rejects the write, the SDK's
+			//revert has a LOWER revision and admission would refuse it. The
+			//editor base moves only on confirmed images.
+			if (snapshot.metadata.hasPendingWrites) return;
 
 			const liveCard: Card = stripEphemeralCardFields({...snapshot.data({serverTimestamps: 'estimate'}), id: snapshot.id} as Card);
 			dispatchUnderlyingCardUpdateIfChanged(dispatch, getState, liveCard);
@@ -381,6 +386,7 @@ export const editingStart = () : ThunkSomeAction => async (dispatch, getState) =
 	try {
 		const freshSnapshot = await getDoc(doc(db, CARDS_COLLECTION, card.id));
 		if (!freshSnapshot.exists()) return;
+		if (freshSnapshot.metadata.hasPendingWrites) return;
 		const freshCard: Card = stripEphemeralCardFields({...freshSnapshot.data({serverTimestamps: 'estimate'}), id: freshSnapshot.id} as Card);
 		dispatchUnderlyingCardUpdateIfChanged(dispatch, getState, freshCard);
 	} catch (error) {

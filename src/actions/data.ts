@@ -84,6 +84,10 @@ import {
 } from '../util.js';
 
 import {
+	admitCardImages
+} from '../../shared/card-revision.js';
+
+import {
 	corpusWorkerOwnsCardIngestion,
 	corpusWorkerServesCollections,
 } from '../corpus-mode.js';
@@ -3814,9 +3818,30 @@ const FAST_DEDUPE_VALIDATION_RATE = 0.01;
 //timestamps are then treated as proof of equivalence, replacing an O(full
 //card) deep compare per doc with a two-number compare. A small sample is
 //still deep-checked and logged (and applied) on mismatch.
-export const receiveCards = (cards: Cards, fetchType : CardFetchType, fastDedupe = false, ownsInput = false, cardFilters? : Filters, cardFilterCorpusIDs? : CardID[]) : ThunkSomeAction => (dispatch, getState) => {
+export const receiveCards = (incoming: Cards, fetchType : CardFetchType, fastDedupe = false, ownsInput = false, cardFilters? : Filters, cardFilterCorpusIDs? : CardID[]) : ThunkSomeAction => (dispatch, getState) => {
 	const startTime = performance.now();
 	const existingCards = selectRawCards(getState());
+	//Admission comes FIRST, against the newest copy held anywhere (an
+	//enqueued bucket outranks the store), and before the
+	//awaitingServerTimestampIDs check below: a refused older image must not
+	//consume that mark, or the real timestamp-only refresh that follows would
+	//be deduped away and the client-clock `updated` would stick.
+	const enqueued = selectEnqueuedCards(getState());
+	const newestHeld = (id : CardID) : Card | undefined => {
+		for (const bucket of Object.values(enqueued)) {
+			if (bucket && bucket[id]) return bucket[id];
+		}
+		return existingCards[id];
+	};
+	const {admitted, refusedIDs} = admitCardImages(incoming, newestHeld);
+	if (refusedIDs.length && perfEnabled()) console.log(`[PERF] receiveCards(${fetchType}): refused ${refusedIDs.length} older image(s)`);
+	let cards = admitted;
+	if (ownsInput && refusedIDs.length) {
+		//ownsInput mutates the input map in place below; drop the refused
+		//ids from it rather than from a copy.
+		cards = incoming;
+		for (const id of refusedIDs) delete cards[id];
+	}
 	//A full replacement is safe only when the worker snapshot and the atomic
 	//post-action Redux corpus have the exact same ID domain. Otherwise a stale
 	//Redux ghost (or a partial prime) would silently disappear from filters

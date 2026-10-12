@@ -397,6 +397,17 @@ const parseCardSnapshot = (snapshot : QuerySnapshot) : {cards : Cards, cardIDsTo
 		//editing for example. See
 		//https://medium.com/firebase-developers/the-secrets-of-firestore-fieldvalue-servertimestamp-revealed-29dd7a38a82b
 		const card : Card = {...doc.data({serverTimestamps: 'estimate'}), id} as Card;
+		//Off-mode latency compensation: a doc overlaid by this client's own
+		//pending write carries increment(1) materialized locally. Keep the
+		//image (the user is waiting to see their edit) but pin its revision
+		//to the one already held, so the floor does not rise on an
+		//unconfirmed write: the server's echo (+1) is then admitted as newer,
+		//and the SDK's revert after a rejection (the old revision) as equal,
+		//instead of being refused and leaving rejected content on screen.
+		if (doc.metadata.hasPendingWrites) {
+			const held = (store.getState() as State).data.cards[id];
+			if (held) card.revision = held.revision;
+		}
 		cards[id] = stripEphemeralCardFields(card);
 	});
 
@@ -609,31 +620,31 @@ export const connectLiveUnpublishedCards = async () => {
 						where('published', '==', false),
 						where(documentId(), '<', partition.lt));
 
-					if (perfEnabled()) console.time(`[PERF] unpublished-getDocs-partition-${i}`);
-					const snapshot = await getDocs(partitionQuery);
-					if (perfEnabled()) console.timeEnd(`[PERF] unpublished-getDocs-partition-${i}`);
+				if (perfEnabled()) console.time(`[PERF] unpublished-getDocs-partition-${i}`);
+				const snapshot = await getDocs(partitionQuery);
+				if (perfEnabled()) console.timeEnd(`[PERF] unpublished-getDocs-partition-${i}`);
 
-					if (connectionGeneration !== unpublishedConnectionGeneration) {
-						if (perfEnabled()) console.log(`[PERF] getDocs partition ${i}: ignored stale result`);
-						return 0;
-					}
-					if (snapshot.size > 0) {
-						enqueueBootSnapshot(snapshot);
-						if (perfEnabled()) console.log(`[PERF] getDocs partition ${i}: ${snapshot.size} cards`);
-					}
-					return snapshot.size;
-				});
-
-				const sizes = await Promise.all(partitionPromises);
 				if (connectionGeneration !== unpublishedConnectionGeneration) {
-					if (perfEnabled()) console.timeEnd('[PERF] unpublished-getDocs-total');
-					if (perfEnabled()) console.log('[PERF] unpublished getDocs complete: ignored stale connection');
-					return;
+					if (perfEnabled()) console.log(`[PERF] getDocs partition ${i}: ignored stale result`);
+					return 0;
 				}
-				flushBootCards();
-				const totalLoaded = sizes.reduce((a, b) => a + b, 0);
+				if (snapshot.size > 0) {
+					enqueueBootSnapshot(snapshot);
+					if (perfEnabled()) console.log(`[PERF] getDocs partition ${i}: ${snapshot.size} cards`);
+				}
+				return snapshot.size;
+			});
+
+			const sizes = await Promise.all(partitionPromises);
+			if (connectionGeneration !== unpublishedConnectionGeneration) {
 				if (perfEnabled()) console.timeEnd('[PERF] unpublished-getDocs-total');
-				if (perfEnabled()) console.log(`[PERF] getDocs complete: ${totalLoaded} unpublished cards across ${PARTITIONS.length} parallel partitions`);
+				if (perfEnabled()) console.log('[PERF] unpublished getDocs complete: ignored stale connection');
+				return;
+			}
+			flushBootCards();
+			const totalLoaded = sizes.reduce((a, b) => a + b, 0);
+			if (perfEnabled()) console.timeEnd('[PERF] unpublished-getDocs-total');
+			if (perfEnabled()) console.log(`[PERF] getDocs complete: ${totalLoaded} unpublished cards across ${PARTITIONS.length} parallel partitions`);
 		} catch (e) {
 			//Flush whatever did arrive before the failure.
 			flushBootCards();
@@ -641,13 +652,13 @@ export const connectLiveUnpublishedCards = async () => {
 			console.warn('[PERF] getDocs partitioned fetch failed:', e);
 		}
 
-			// Phase 2: Real-time listener for ongoing changes. The initial
-			// delivery redelivers everything getDocs just primed, so it uses
-			// the fast timestamp-based dedupe; subsequent deltas use the full
-			// deep compare.
-			if (connectionGeneration !== unpublishedConnectionGeneration) return;
-			let firstListenerDelivery = true;
-			liveUnpublishedCardsUnsubcribe = onSnapshot(
+		// Phase 2: Real-time listener for ongoing changes. The initial
+		// delivery redelivers everything getDocs just primed, so it uses
+		// the fast timestamp-based dedupe; subsequent deltas use the full
+		// deep compare.
+		if (connectionGeneration !== unpublishedConnectionGeneration) return;
+		let firstListenerDelivery = true;
+		liveUnpublishedCardsUnsubcribe = onSnapshot(
 			unpublishedQuery,
 			(snapshot : QuerySnapshot) => {
 				const fastDedupe = firstListenerDelivery;

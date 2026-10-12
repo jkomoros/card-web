@@ -1,4 +1,8 @@
 import {
+	admitCardImages
+} from '../../shared/card-revision.js';
+
+import {
 	UPDATE_CARDS,
 	ENQUEUE_CARD_UPDATES,
 	UPDATE_SECTIONS,
@@ -208,14 +212,19 @@ const app = (state: DataState = INITIAL_STATE, action : SomeAction) : DataState 
 			pendingModificationCount: 0
 		};
 	case UPDATE_CARDS:
+		//Backstop admission: receiveCards admits against the newest held copy,
+		//but updateEnqueuedCards flushes per fetch type and two buckets can
+		//hold different revisions of one card, so judge here against the
+		//store too. Never apply an image older than the one held.
+		const admittedCards = admitCardImages(action.cards, id => state.cards[id]).admitted;
 		const result = {
 			...state,
 			//Only actually change cards identity (which kicks of many
 			//downstream recalculations) if the update actually has items. If it
 			//doesn't, it's primarily about setting the flag down for loading of
 			//a certain type.
-			cards: Object.keys(action.cards).length ? {...state.cards, ...action.cards} : state.cards,
-			slugIndex: {...state.slugIndex, ...extractSlugIndex(action.cards)},
+			cards: Object.keys(admittedCards).length ? {...state.cards, ...admittedCards} : state.cards,
+			slugIndex: {...state.slugIndex, ...extractSlugIndex(admittedCards)},
 		};
 		result.loadingCardFetchTypes = {...state.loadingCardFetchTypes};
 		if (result.loadingCardFetchTypes[action.fetchType]) delete result.loadingCardFetchTypes[action.fetchType];

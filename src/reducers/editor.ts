@@ -57,6 +57,10 @@ import {
 } from '../util.js';
 
 import {
+	cardImageMayAdvance
+} from '../../shared/card-revision.js';
+
+import {
 	references
 } from '../references.js';
 
@@ -455,6 +459,9 @@ const app = (state : EditorState = INITIAL_STATE, action : SomeAction) : EditorS
 		};
 	case EDITING_UPDATE_UNDERLYING_CARD:
 		const updatedSnapshotCard = action.updatedUnderlyingCard;
+		//The base moves forward only: a late, older image of the card being
+		//edited must not rebase the draft onto stale content.
+		if (!cardImageMayAdvance(state.underlyingCardSnapshot, updatedSnapshotCard)) return state;
 		//First, figure out what edits our user has made. Note that when #503 is
 		//fixed, it is no longer a safe assumption to just skip normalizing HTML
 		//here (by not passing true), because we'd need to do an
