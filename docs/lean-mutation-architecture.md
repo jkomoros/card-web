@@ -155,6 +155,31 @@ same fixture, plus "no regression" on anything the journey measures.
 > run on permissive harness rules); the reviewer hand-verified the triple
 > update, the transaction replay and the create fanout on the emulator.
 
+> **Slice 3, steps 1–4** landed (see `docs/lean-architecture/03-worker-update-path.md`
+> §1 for the plan): weak pair-keyed shared card-map deltas with the reducer
+> publishing exact single-change deltas (one-card UPDATE_CARDS through
+> reducer + every diff selector at 40k: 102ms → 11ms; empty UPDATE 11.3ms →
+> 0.001ms); own-key star/read semantics down to the selectors the actions
+> consult; `shared/filter_membership.ts` bitset memberships over a shared
+> **lineage-tip `Map` index** (§1.5 / Q3, adopted: faster than the branch's
+> AVL tree on every per-op metric — add-new-id 82–98µs vs 647–676µs, no-op
+> 78-member group 33–37µs vs ~600µs, `membershipHas`×47k 2.8ms vs 8.1ms;
+> an old snapshot retains ~115B per later-churned id until reclamation);
+> every reader through the helpers with the type-aware guard in `test:ci`;
+> reducer storage switched with a position-keyed prime builder
+> (`cardDerivedMembershipsFromPrime`) and a duplicate-id fallback. Measured
+> against the §1.6 gate at 12k, medians of 20: prime 0.85× (gate ≤1.1×),
+> new-card UPDATE_CARDS 0.004× (gate ≤0.1×), single edit 2.9 → 0.22ms,
+> single REMOVE 102 → 0.21ms; 50 held edited states retain 20.3MB before,
+> no measurable growth after. Observable change: a card whose id is an
+> `Object.prototype` property name now appears in the filters it matches.
+> Remaining in slice 3: step 6, the bitset prime handoff on the wire (§1.4.2,
+> **Q1 — owner confirmation pending**), and the Node ratio-gate test in
+> `test/perf-harness/`. The §1.5 fork cost (copying a 47k index when a
+> non-tip snapshot is extended, 3.25ms) is never paid by the product: the
+> reducer only extends the live filters, and `filtersSnapshot` is copied,
+> never edited.
+
 Verified by reading or by synthetic measurement at 47k cards, unless marked.
 
 | Symptom | Mechanism on master | Evidence | Status |
