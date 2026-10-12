@@ -1,3 +1,4 @@
+import {mergeCardsWithKnownDelta, removeCardsWithKnownDelta} from '../incremental-selectors.js';
 import {
 	UPDATE_CARDS,
 	ENQUEUE_CARD_UPDATES,
@@ -217,8 +218,8 @@ const app = (state: DataState = INITIAL_STATE, action : SomeAction) : DataState 
 			//downstream recalculations) if the update actually has items. If it
 			//doesn't, it's primarily about setting the flag down for loading of
 			//a certain type.
-			cards: Object.keys(action.cards).length ? {...state.cards, ...action.cards} : state.cards,
-			slugIndex: {...state.slugIndex, ...extractSlugIndex(action.cards)},
+			cards: mergeCardsWithKnownDelta(state.cards, action.cards),
+			slugIndex: mergeSlugIndex(state.slugIndex, action.cards),
 		};
 		result.loadingCardFetchTypes = {...state.loadingCardFetchTypes};
 		if (result.loadingCardFetchTypes[action.fetchType]) delete result.loadingCardFetchTypes[action.fetchType];
@@ -420,8 +421,8 @@ const app = (state: DataState = INITIAL_STATE, action : SomeAction) : DataState 
 //modifications need to be made, it simply return subState, otherwise it will
 //return a copy. cardIDs is an array of cardIDs to remove
 const removeCardIDs = (cardIDs : CardID[], subState : DataState) : DataState => {
-	const newCards = {...subState.cards};
-	const newCardsSnapshot = {...subState.cardsSnapshot};
+	const newCards = removeCardsWithKnownDelta(subState.cards, cardIDs);
+	const newCardsSnapshot = removeCardsWithKnownDelta(subState.cardsSnapshot, cardIDs);
 	const newSlugIndex = {...subState.slugIndex};
 	const newExpectedDeletions = {...subState.pendingDeletions};
 	const newCardMeta = {...subState.cardMeta};
@@ -430,13 +431,12 @@ const removeCardIDs = (cardIDs : CardID[], subState : DataState) : DataState => 
 	) as DataState['enqueuedCards'];
 	let changesMade = false;
 	for (const id of cardIDs) {
-		const cardToDelete = newCards[id];
+		const cardToDelete = subState.cards[id];
 		if (cardToDelete) {
-			delete newCards[id];
 			for (const slug of cardToDelete.slugs || []) delete newSlugIndex[slug];
 			changesMade = true;
 		}
-		if (newCardsSnapshot[id]) { delete newCardsSnapshot[id]; changesMade = true; }
+		if (subState.cardsSnapshot[id]) changesMade = true;
 		if (newExpectedDeletions[id]) { delete newExpectedDeletions[id]; changesMade = true; }
 		if (newCardMeta[id]) { delete newCardMeta[id]; changesMade = true; }
 		for (const cards of Object.values(newEnqueuedCards)) {
@@ -479,6 +479,18 @@ const extractSlugIndex = (cards : Cards) : {[slug : Slug]: CardID} => {
 	}
 
 	return result;
+};
+
+//Slug ownership is additive on UPDATE_CARDS: removing a slug from an incoming
+//card has never removed its existing index entry (identity release has its own
+//REMOVE_CARDS path). Preserve that exact overlay law while avoiding an O(all
+//slugs) copy when the delivery has no slugs or merely repeats known ownership.
+const mergeSlugIndex = (previous : {[slug : Slug]: CardID}, cards : Cards) : {[slug : Slug]: CardID} => {
+	const incoming = extractSlugIndex(cards);
+	for (const [slug, cardID] of TypedObject.entries(incoming)) {
+		if (previous[slug] !== cardID) return {...previous, ...incoming};
+	}
+	return previous;
 };
 
 export const sectionTitle = (state : State, sectionId : SectionID) : string => {

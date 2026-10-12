@@ -533,6 +533,50 @@ describe('reducer identity preservation', () => {
 		assert.strictEqual(unrelated.cardSimilarity, primed.cardSimilarity);
 	});
 
+	it('UPDATE_CARDS copies the slug index only when incoming ownership changes', () => {
+		const initial = dataReducer(undefined, {type: '@@INIT'});
+		const largeSlugIndex = Object.fromEntries(Array.from({length: 50000}, (_, index) =>
+			[`slug-${index}`, `card-${index}`]));
+		const state = {...initial, slugIndex: largeSlugIndex};
+
+		//Empty deliveries, cards without slugs, and a repeated mapping do not
+		//copy the whole corpus-sized index.
+		for (const cards of [
+			{},
+			{'card-1': makeCard('card-1')},
+			{'card-1': makeCard('card-1', {slugs: ['slug-1']})},
+		]) {
+			const next = dataReducer(state, {type: UPDATE_CARDS, cards, fetchType: 'published'});
+			assert.strictEqual(next.slugIndex, largeSlugIndex);
+		}
+
+		//The overlay remains byte-for-byte equivalent to the old expression:
+		//new mappings are added, a colliding slug takes the last incoming owner,
+		//and omitting a formerly owned slug does not release it.
+		const cards = {
+			'card-new': makeCard('card-new', {slugs: ['new-slug', 'slug-2']}),
+			'card-last': makeCard('card-last', {slugs: ['slug-2']}),
+		};
+		const next = dataReducer(state, {type: UPDATE_CARDS, cards, fetchType: 'published'});
+		const oldOverlay = {...largeSlugIndex, 'new-slug': 'card-new', 'slug-2': 'card-last'};
+		assert.notStrictEqual(next.slugIndex, largeSlugIndex);
+		assert.deepStrictEqual(next.slugIndex, oldOverlay);
+		assert.strictEqual(next.slugIndex['slug-1'], 'card-1');
+
+		//Match the old plain-object extraction/spread behavior for prototype-
+		//named legacy values: enumerable own names survive, while __proto__ is
+		//not materialized as an own mapping by assignment into a plain object.
+		const special = dataReducer(state, {
+			type: UPDATE_CARDS,
+			cards: {'special-card': makeCard('special-card', {slugs: ['constructor', 'toString', '__proto__']})},
+			fetchType: 'published',
+		});
+		assert.strictEqual(special.slugIndex.constructor, 'special-card');
+		assert.strictEqual(special.slugIndex.toString, 'special-card');
+		assert.strictEqual(Object.prototype.hasOwnProperty.call(special.slugIndex, '__proto__'), false);
+		assert.strictEqual(Object.getPrototypeOf(special.slugIndex), Object.prototype);
+	});
+
 	it('REMOVE_CARDS purges every cached and queued representation', () => {
 		const card = makeCard('secret-card', {published: false, slugs: ['secret-slug']});
 		let state = dataReducer(undefined, {type: '@@INIT'});

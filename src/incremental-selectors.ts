@@ -41,22 +41,66 @@ export const diffCards = (prev : Cards, next : Cards) : CardsDelta => {
 	return {changed, added, removed};
 };
 
-//Every diff selector instance walks the SAME two maps in the same dispatch —
-//seven of them are reachable from the every-action path — so each cards-map
-//identity change paid ~7 x 19.5ms of pure "did anything change" walking at 40k
-//cards before any recompute. Memoize on the identity PAIR: instances that share
-//a previous map (the common case, since each updates lastCards every call) all
-//hit this. The returned delta is read-only to consumers.
-let memoPrev : Cards | null = null;
-let memoNext : Cards | null = null;
-let memoDelta : CardsDelta | null = null;
+// All selectors comparing the same immutable maps share the delta, including
+// the hand-written multi-input set selectors. Key both sides weakly: neither
+// an old account corpus nor a historical snapshot is retained by this cache.
+// Separate pairs may interleave when live and snapshot selectors are read.
+const sharedCardDeltas = new WeakMap<Cards, WeakMap<Cards, CardsDelta>>();
 
-const sharedDiffCards = (prev : Cards, next : Cards) : CardsDelta => {
-	if (memoPrev === prev && memoNext === next && memoDelta) return memoDelta;
+//Only the helpers below publish known deltas: each constructs the immutable
+//child itself. There is no public registrar that can bless arbitrary maps.
+//Both map identities are weak keys; the value never links a child to a parent.
+const rememberDirectCardsDelta = (previous: Cards, next: Cards, touchedIDs: readonly string[]): void => {
+	const delta: CardsDelta = {changed: [], added: [], removed: []};
+	for (const id of touchedIDs) {
+		if (Object.prototype.hasOwnProperty.call(next, id)) {
+			const card = next[id], prior = previous[id];
+			//A touched malformed value must use the original diff. Inputs otherwise
+			//follow Cards: plain immutable maps containing Card objects.
+			if (!card || typeof card !== 'object') return;
+			if (!prior) delta.added.push(card);
+			else if (prior !== card) delta.changed.push([prior, card]);
+		}
+		//Match diffCards's truthy lookup, including its inherited-name cases.
+		if (Object.prototype.hasOwnProperty.call(previous, id) && !next[id]) delta.removed.push(previous[id]);
+		if (delta.changed.length > 1 || delta.removed.length > 1) return;
+	}
+	//Existing keys retain their old insertion order, which an update or removal
+	//batch need not follow. Do not add a rank index or guess that ordering.
+	let byNext = sharedCardDeltas.get(previous);
+	if (!byNext) {byNext = new WeakMap();sharedCardDeltas.set(previous, byNext);}
+	byNext.set(next, delta);
+};
+
+/** The reducer's ordinary immutable merge, with exact direct-pair knowledge.
+ * New keys follow Object.keys(updates), also matching integer-key ordering. */
+export const mergeCardsWithKnownDelta = (previous: Cards, updates: Cards): Cards => {
+	const ids = Object.keys(updates);
+	if (!ids.length) return previous;
+	const next = {...previous, ...updates};
+	rememberDirectCardsDelta(previous, next, ids);
+	return next;
+};
+
+/** Keeps plain independent snapshots. Multiple actual removals use full diff. */
+export const removeCardsWithKnownDelta = (previous: Cards, ids: readonly string[]): Cards => {
+	const next = {...previous};
+	const uniqueIDs = [...new Set(ids)];
+	for (const id of uniqueIDs) if (next[id]) delete next[id];
+	rememberDirectCardsDelta(previous, next, uniqueIDs);
+	return next;
+};
+
+export const sharedDiffCards = (prev : Cards, next : Cards) : CardsDelta => {
+	let byNext = sharedCardDeltas.get(prev);
+	const cached = byNext?.get(next);
+	if (cached) return cached;
 	const delta = diffCards(prev, next);
-	memoPrev = prev;
-	memoNext = next;
-	memoDelta = delta;
+	if (!byNext) {
+		byNext = new WeakMap();
+		sharedCardDeltas.set(prev, byNext);
+	}
+	byNext.set(next, delta);
 	return delta;
 };
 

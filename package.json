@@ -114,7 +114,7 @@
     "test:modal-seam": "mocha test/modal-seam --timeout=30000 --exit",
     "test:dialog-focus": "mocha test/dialog-focus --timeout=30000 --exit",
     "test:dev-serve": "mocha -r esm test/dev-serve --timeout=10000",
-    "test:incremental-selectors": "mocha -r esm test/incremental-selectors --timeout=10000",
+    "test:incremental-selectors": "mocha -r esm test/incremental-selectors --timeout=10000 --exit",
     "test:collection": "mocha -r esm test/collection --timeout=10000",
     "test:search-index": "mocha -r esm test/search-index --timeout=30000",
     "test:wire-format": "mocha -r esm test/wire-format --timeout=10000",

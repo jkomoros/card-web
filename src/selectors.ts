@@ -35,7 +35,7 @@ import {
 
 import {
 	createCardsDiffSelector,
-	diffCards,
+	sharedDiffCards,
 	anyCardMatches,
 	anyChangedCardDiffers,
 	membershipChanged,
@@ -1851,7 +1851,7 @@ export const selectDefaultSet = createSelector(
 	selectRawCards,
 	(sections : Sections, cards : Cards) : CardID[] => {
 		if (_defaultSetState && _defaultSetState.sections === sections) {
-			const delta = diffCards(_defaultSetState.cards, cards);
+			const delta = sharedDiffCards(_defaultSetState.cards, cards);
 			if (!anyChangedCardDiffers(delta, defaultSetCardsDiffer)) {
 				perfCount('diffSelector:defaultSet:skipped');
 				_defaultSetState = {sections, cards, result: _defaultSetState.result};
@@ -1903,7 +1903,7 @@ const selectReadingListSet = createSelector(
 	selectRawCards,
 	(readingList, cards) : CardID[] => {
 		if (_readingListSetState && _readingListSetState.readingList === readingList) {
-			const delta = diffCards(_readingListSetState.cards, cards);
+			const delta = sharedDiffCards(_readingListSetState.cards, cards);
 			if (!membershipChanged(delta)) {
 				_readingListSetState = {readingList, cards, result: _readingListSetState.result};
 				return _readingListSetState.result;
@@ -1922,7 +1922,7 @@ const selectReadingListSetSnapshot = createSelector(
 	selectRawCards,
 	(readingList, cards) : CardID[] => {
 		if (_readingListSetSnapshotState && _readingListSetSnapshotState.readingList === readingList) {
-			const delta = diffCards(_readingListSetSnapshotState.cards, cards);
+			const delta = sharedDiffCards(_readingListSetSnapshotState.cards, cards);
 			if (!membershipChanged(delta)) {
 				_readingListSetSnapshotState = {readingList, cards, result: _readingListSetSnapshotState.result};
 				return _readingListSetSnapshotState.result;
