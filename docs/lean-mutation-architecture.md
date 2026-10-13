@@ -173,9 +173,16 @@ same fixture, plus "no regression" on anything the journey measures.
 > single REMOVE 102 → 0.21ms; 50 held edited states retain 20.3MB before,
 > no measurable growth after. Observable change: a card whose id is an
 > `Object.prototype` property name now appears in the filters it matches.
-> Remaining in slice 3: step 6, the bitset prime handoff on the wire (§1.4.2,
-> **Q1 — owner confirmation pending**), and the Node ratio-gate test in
-> `test/perf-harness/`. The §1.5 fork cost (copying a 47k index when a
+> **Step 6 (Q1, owner-confirmed) landed:** the prime's projection crosses
+> the wire as one ids array plus ~78 `Uint32Array`s, installed through the
+> same builder; plain maps remain the fallback whenever any filter changed
+> since the prime. Node at 47k (DEV density): clone 304ms → 5.1ms, install
+> 795ms → 34ms; `perf:local` at 12k, real worker and wire, same machine
+> back to back: main handoff dispatch 318ms → 121ms, main-thread
+> `UPDATE_CARDS` for the prime 12ms, and `makeFilterFromCards`
+> changedMaps=4 (no re-derivation). Remaining in slice 3: the Node
+> ratio-gate test in `test/perf-harness/`; known untested path: the
+> worker's `forwardBatch` fallback to plain maps. The §1.5 fork cost (copying a 47k index when a
 > non-tip snapshot is extended, 3.25ms) is never paid by the product: the
 > reducer only extends the live filters, and `filtersSnapshot` is copied,
 > never edited.
