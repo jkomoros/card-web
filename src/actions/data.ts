@@ -972,6 +972,8 @@ export const abandonPendingBulkTagOperation = () : ThunkSomeAction => async (dis
 	dispatch(modifyCardSuccess(0));
 };
 
+const SKIPPED_IDS_CAP = 200;
+
 type DurableMultiEdit = {
 	version: 1,
 	id: string,
@@ -980,6 +982,10 @@ type DurableMultiEdit = {
 	nextIndex: number,
 	modifiedCount: number,
 	skippedCount?: number,
+	//The targets skipped because they no longer existed on the server, by
+	//id, so completion can NAME them rather than count them. Capped at
+	//SKIPPED_IDS_CAP; skippedCount is the truth beyond that.
+	skippedIDs?: CardID[],
 	update: CardDiff,
 	substantive?: boolean,
 	kind?: 'single' | 'multi',
@@ -1032,6 +1038,7 @@ const readDurableMultiEdit = () : DurableMultiEdit | null => {
 			!Number.isInteger(value.nextIndex) || value.nextIndex < 0 || value.nextIndex > value.targetIDs.length ||
 			!Number.isInteger(value.modifiedCount) || value.modifiedCount < 0 || value.modifiedCount > value.nextIndex ||
 			(value.skippedCount !== undefined && (!Number.isInteger(value.skippedCount) || value.skippedCount < 0 || value.modifiedCount + value.skippedCount > value.nextIndex)) ||
+			(value.skippedIDs !== undefined && (!Array.isArray(value.skippedIDs) || value.skippedIDs.length > SKIPPED_IDS_CAP || value.skippedIDs.length > (value.skippedCount || 0) || value.skippedIDs.some(id => typeof id !== 'string' || !id))) ||
 			!value.update || typeof value.update !== 'object' || Array.isArray(value.update) ||
 			(value.lastError !== undefined && typeof value.lastError !== 'string') ||
 			(value.oversizedBaseCards !== undefined && (!value.oversizedBaseCards || typeof value.oversizedBaseCards !== 'object' || Array.isArray(value.oversizedBaseCards))) ||
@@ -1079,6 +1086,24 @@ const serverTimestampFieldsOf = (card : Card) : string[] =>
 //wire shape visibly at this restoring edge (#738).
 const restoredPersistedCard = (value : unknown) =>
 	fromWire(value as import('../worker/wire-format.js').Wire<Card>, (seconds, nanoseconds) => new Timestamp(seconds, nanoseconds));
+
+//": “Title A”, “Title B” and 3 more" — the first few by title (the store
+//may still hold the deleted card) or id, then a count. The record keeps at
+//most SKIPPED_IDS_CAP ids; `total` is the real count. Empty when no ids
+//are known (every skip was reconciled from another tab's server markers,
+//which carry counts only): the sentence then ends at the count.
+const describeSkippedCards = (ids : CardID[], total : number, cards : Cards) : string => {
+	const NAMED = 5;
+	const TITLE_MAX = 70;
+	const names = ids.slice(0, NAMED).map(id => {
+		const title = cards[id]?.title;
+		if (!title) return id;
+		return `“${title.length > TITLE_MAX ? title.slice(0, TITLE_MAX - 1) + '…' : title}”`;
+	});
+	if (!names.length) return '';
+	const more = total - names.length;
+	return `: ${more > 0 ? `${names.join(', ')} and ${more} more` : names.join(', ')}`;
+};
 
 const durableMultiEditProgress = (operation : DurableMultiEdit) : SomeAction => ({
 	type: BULK_TAG_OPERATION_PROGRESS,
@@ -1311,6 +1336,7 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 			let chunkIDs : CardID[] = [];
 			let modifiedCount = 0;
 			let skippedCount = 0;
+			let skippedIDs : CardID[] = [];
 			let markerAfterCommit = false;
 			let forceMarkerAfterCommit = false;
 			//Post-write cards for this chunk, applied locally once the commit is
@@ -1322,6 +1348,7 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 				const authoritative = await authoritativeCardsAfterFailedCommit(chunkIDs);
 				if (authoritative.failedIDs.length) throw new Error(`Could not load ${authoritative.failedIDs.length} target cards from the server`);
 				skippedCount = authoritative.removedIDs.length;
+				skippedIDs = authoritative.removedIDs;
 				//L3: refuse to overwrite content written AFTER this record was
 				//saved. Only whole-value fields can destroy anything — additive
 				//diffs (add_tags, references_diff) merge fine — and a field
@@ -1469,6 +1496,7 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 			operation.nextIndex += chunkIDs.length;
 			operation.modifiedCount += modifiedCount;
 			operation.skippedCount = (operation.skippedCount || 0) + skippedCount;
+			if (skippedIDs.length) operation.skippedIDs = [...(operation.skippedIDs || []), ...skippedIDs].slice(0, SKIPPED_IDS_CAP);
 			if (operation.oversizedBaseCards) {
 				for (const id of chunkIDs) delete operation.oversizedBaseCards[id];
 				if (!Object.keys(operation.oversizedBaseCards).length) delete operation.oversizedBaseCards;
@@ -1498,7 +1526,26 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 		if (operation.targetIDs.length > 1) {
 			const skipped = operation.skippedCount || 0;
 			const matched = operation.targetIDs.length - operation.modifiedCount - skipped;
-			dispatch(showSnackbar(`${operation.modifiedCount} cards modified.${matched ? ` ${matched} already matched.` : ''}${skipped ? ` ${skipped} no longer existed and were skipped.` : ''}`, {kind: 'committed'}));
+			if (skipped) {
+				//Some targets were not edited: that is a persistent outcome the
+				//user has to act on (the snackbar used to count them and
+				//vanish). Name them — by title while the store still has the
+				//deleted card, by id otherwise — and say what did happen.
+				const skippedPhrase = skipped === 1 ? 'One card no longer existed and was skipped' : `${skipped} cards no longer existed and were skipped`;
+				const named = describeSkippedCards(operation.skippedIDs || [], skipped, selectRawCards(getState()));
+				//Whole sentences, chosen rather than composed, so each ends in words
+				//this code can vouch for (test/copy-quality).
+				const reassurance = operation.modifiedCount
+					? (matched ? `${matched} already matched. The other cards kept their changes.` : 'The other cards kept their changes.')
+					: (matched ? `${matched} already matched. Nothing else was changed.` : 'Nothing else was changed.');
+				dispatch(reportPersistentError({
+					what: `${operation.modifiedCount} of ${operation.targetIDs.length} cards were edited. ${skippedPhrase}${named}.`,
+					reassurance,
+					dedupeKey: `multi-edit-skipped-${operation.id}`,
+				}));
+			} else {
+				dispatch(showSnackbar(`${operation.modifiedCount} cards modified.${matched ? ` ${matched} already matched.` : ''}`, {kind: 'committed'}));
+			}
 		}
 		dispatch(modifyCardSuccess(operation.modifiedCount, operation.targetIDs));
 	} catch (err) {

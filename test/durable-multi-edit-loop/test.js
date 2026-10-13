@@ -29,7 +29,7 @@
 //test/security.
 
 import assert from 'assert';
-import {bootstrapApp, clearAuxQueue, clearHarnessAlerts, clearWhatUserWasTold, harnessAlerts, wireCard as harnessWireCard} from '../harness-support/app-harness.js';
+import {bootstrapApp, clearAuxQueue, clearHarnessAlerts, clearWhatUserWasTold, harnessAlerts, whatUserWasTold, wireCard as harnessWireCard} from '../harness-support/app-harness.js';
 
 const app = await bootstrapApp();
 const {db, store, uid: UID, firestore} = app;
@@ -315,6 +315,91 @@ describe('durable multi-edit chunk loop (real thunk against the emulator)', func
 		assert.equal(readRecord(), null,
 			'a retry whose target already equals our own pending value must complete, not conflict');
 		assert.equal(await serverBody(card.id), '<p>already landed</p>');
+	});
+
+	it('names the targets a multi-edit skipped because they no longer existed, as a persistent outcome', async () => {
+		//The committed snackbar used to count skipped cards and vanish. A
+		//target that was not edited is something the user has to act on, so
+		//it is reported persistently, by title, with what did happen.
+		const kept = await seedCard('kept', {title: 'Kept card'});
+		const gone = await seedCard('gone', {title: 'Vanished card'});
+		const other = await seedCard('other', {title: 'Other card'});
+		putCardsInStore([kept, gone, other]);
+		await firestore.deleteDoc(doc(db, 'cards', gone.id));
+		clearWhatUserWasTold(store);
+
+		await store.dispatch(modifyCardsWithDurableMultiEdit([kept, gone, other], {body: '<p>edited</p>'}));
+
+		assert.equal(await serverBody(kept.id), '<p>edited</p>');
+		assert.equal(await serverBody(other.id), '<p>edited</p>');
+		const banners = store.getState().errors.errors;
+		const banner = banners.find(entry => /no longer existed/.test(entry.what));
+		assert.ok(banner, `a persistent banner names the skipped card (told: ${JSON.stringify(whatUserWasTold(store))})`);
+		assert.match(banner.what, /^2 of 3 cards were edited\. One card no longer existed and was skipped: “Vanished card”\.$/);
+		assert.match(banner.reassurance, /The other cards kept their changes\./);
+		assert.ok(!store.getState().app.snackbars.some(item => /cards modified/.test(item.message)), 'no committed snackbar competes with the banner');
+		assert.ok(!store.getState().data.cardModificationError, 'the edit itself is not a failure');
+	});
+
+	it('keeps naming skipped targets past the record cap and across a resume', async () => {
+		//The record stores at most 200 skipped ids and its reader rejects
+		//more, so the cap and the validator are coupled: without the cap a
+		//210-skip operation would pause as "corrupt" mid-run. And a resume
+		//must still name the ids persisted before the crash.
+		const kept = await seedCard('kept-cap', {title: 'Kept card'});
+		const gone = [];
+		for (let index = 0; index < 210; index++) {
+			const id = `mel-${Date.now()}-${counter++}-gone-${index}`;
+			gone.push({...harnessWireCard(id, UID), id, title: `Gone ${index}`});
+		}
+		putCardsInStore([kept, ...gone]);
+		clearWhatUserWasTold(store);
+		await store.dispatch(modifyCardsWithDurableMultiEdit([kept, ...gone], {body: '<p>capped</p>'}));
+		assert.equal(await serverBody(kept.id), '<p>capped</p>', 'the operation completed rather than pausing as corrupt');
+		assert.equal(readRecord(), null, 'the record was cleared');
+		let banner = store.getState().errors.errors.find(entry => /no longer existed/.test(entry.what));
+		assert.ok(banner, `banner present (told: ${JSON.stringify(whatUserWasTold(store))})`);
+		assert.match(banner.what, /^1 of 211 cards were edited\. 210 cards no longer existed and were skipped: “Gone 0”, “Gone 1”, “Gone 2”, “Gone 3”, “Gone 4” and 205 more\.$/);
+
+		//A resume: the record from a crashed run already names one skipped
+		//target the store no longer holds; the live run skips another.
+		const live = await seedCard('kept-resume', {title: 'Live card'});
+		const vanished = await seedCard('vanished-resume', {title: 'Vanished live'});
+		putCardsInStore([live, vanished]);
+		await firestore.deleteDoc(doc(db, 'cards', vanished.id));
+		const operationID = `resume-skipped-${Date.now()}`;
+		const earlier = 'earlier-skipped-id';
+		writeRecord(makeRecord(operationID, [earlier, live.id, vanished.id], {body: '<p>resumed</p>'}, {nextIndex: 1, modifiedCount: 0, skippedCount: 1, skippedIDs: [earlier]}));
+		clearWhatUserWasTold(store);
+		await store.dispatch(modifyCardsWithDurableMultiEdit([{id: earlier}, live, vanished], {body: '<p>resumed</p>'}));
+		assert.equal(await serverBody(live.id), '<p>resumed</p>');
+		banner = store.getState().errors.errors.find(entry => entry.dedupeKey === `multi-edit-skipped-${operationID}`);
+		assert.ok(banner, `resume banner present (told: ${JSON.stringify(whatUserWasTold(store))})`);
+		assert.match(banner.what, /^1 of 3 cards were edited\. 2 cards no longer existed and were skipped: earlier-skipped-id, “Vanished live”\.$/);
+
+		//Skips known only by count (reconciled from another tab's server
+		//markers, which carry no ids) end the sentence at the count, and a
+		//long title is cut rather than filling the banner.
+		const longTitle = 'A title that goes on and on and on and on and on and on and on and on and on and on and on';
+		const trimmed = await seedCard('kept-long', {title: longTitle});
+		const longGone = await seedCard('gone-long', {title: longTitle});
+		putCardsInStore([trimmed, longGone]);
+		await firestore.deleteDoc(doc(db, 'cards', longGone.id));
+		const markerOperation = `marker-skipped-${Date.now()}`;
+		writeRecord(makeRecord(markerOperation, ['marker-a', 'marker-b', trimmed.id, longGone.id], {body: '<p>marker</p>'}, {nextIndex: 2, modifiedCount: 0, skippedCount: 2}));
+		clearWhatUserWasTold(store);
+		await store.dispatch(modifyCardsWithDurableMultiEdit([{id: 'marker-a'}, {id: 'marker-b'}, trimmed, longGone], {body: '<p>marker</p>'}));
+		banner = store.getState().errors.errors.find(entry => entry.dedupeKey === `multi-edit-skipped-${markerOperation}`);
+		assert.ok(banner, `marker banner present (told: ${JSON.stringify(whatUserWasTold(store))})`);
+		assert.match(banner.what, /^1 of 4 cards were edited\. 3 cards no longer existed and were skipped: “A title that goes on and on and on and on and on and on and on and on…” and 2 more\.$/);
+		//Nothing edited at all: one skip known by count, the other live.
+		writeRecord(makeRecord(`${markerOperation}-b`, ['marker-c', longGone.id], {body: '<p>marker-b</p>'}, {nextIndex: 1, modifiedCount: 0, skippedCount: 1}));
+		clearWhatUserWasTold(store);
+		await store.dispatch(modifyCardsWithDurableMultiEdit([{id: 'marker-c'}, longGone], {body: '<p>marker-b</p>'}));
+		banner = store.getState().errors.errors.find(entry => entry.dedupeKey === `multi-edit-skipped-${markerOperation}-b`);
+		assert.ok(banner, `nothing-edited banner present (told: ${JSON.stringify(whatUserWasTold(store))})`);
+		assert.match(banner.what, /^0 of 2 cards were edited\. 2 cards no longer existed and were skipped: “A title that goes on and on and on and on and on and on and on and on…” and 1 more\.$/);
+		assert.equal(banner.reassurance, 'Nothing else was changed.');
 	});
 
 	it('tells the user when a single-card save\'s target no longer exists', async () => {

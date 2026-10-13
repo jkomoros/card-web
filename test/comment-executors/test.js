@@ -44,6 +44,24 @@ describe('comment executors (real writes against the emulator)', () => {
 		clearHarnessAlerts();
 	});
 
+	it('resolving a thread twice moves the counters once', async () => {
+		//A second click, or a retry after the first commit's acknowledgement
+		//was lost, re-ran the transaction, which read only the card: the
+		//thread was marked resolved again and thread_count went down twice.
+		const {card, thread} = ids();
+		await setDoc(doc(db, 'cards', card), {...wireCard(card, uid), id: card, thread_count: 2, thread_resolved_count: 0});
+		await setDoc(doc(db, 'threads', thread), {card, author: uid, messages: [], parent_message: '', resolved: false, deleted: false});
+		const {resolveThread} = await import('../../lib/src/actions/comments.js');
+		app.store.dispatch({type: 'UPDATE_USER_PERMISSIONS', permissions: {admin: true}});
+		const threadObject = {id: thread, card, author: uid, resolved: false};
+		await app.store.dispatch(resolveThread(threadObject));
+		await app.store.dispatch(resolveThread(threadObject));
+		const cardDoc = (await getDoc(doc(db, 'cards', card))).data();
+		assert.equal(cardDoc.thread_count, 1, 'thread_count decremented exactly once');
+		assert.equal(cardDoc.thread_resolved_count, 1, 'thread_resolved_count incremented exactly once');
+		assert.equal((await getDoc(doc(db, 'threads', thread))).data().resolved, true);
+	});
+
 	it('opening a thread writes the message, the thread, and bumps thread_count', async () => {
 		const {card, message, thread} = ids();
 		await seedCard(card);

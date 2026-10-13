@@ -131,6 +131,13 @@ export const resolveThread = (thread : CommentThread) : ThunkSomeAction => (disp
 		if (!cardDoc.exists()) {
 			throw 'Doc doesn\'t exist!';
 		}
+		//Already resolved (a second click, or a retry after the first
+		//commit's ack was lost): a no-op. Without this check the counters
+		//moved again on every repeat — thread_count decremented twice for
+		//one thread — because the transaction only ever read the card.
+		const threadDoc = await transaction.get(threadRef);
+		if (!threadDoc.exists()) throw 'Thread doesn\'t exist!';
+		if (threadDoc.data().resolved) return;
 		let newThreadCount = (cardDoc.data().thread_count || 0) - 1;
 		if (newThreadCount < 0) newThreadCount = 0;
 		const newThreadResolvedCount = (cardDoc.data().thread_resolved_count || 0) + 1;
