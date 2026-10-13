@@ -1149,7 +1149,7 @@ const handleCardBatch = (batch : CardBatch) => {
 	//listener receiving an empty snapshot.
 	//fromWire just created this private map, so receiveCards may reuse it while
 	//deduping instead of copying every card into another giant object.
-	isolateDelivery('receiveCards', () => store.dispatch(receiveCards(cards, batch.fetchType, batch.fastDedupe, true, batch.cardFilters, batch.cardFilterCorpusIDs)));
+	isolateDelivery('receiveCards', () => store.dispatch(receiveCards(cards, batch.fetchType, batch.fastDedupe, true, batch.cardFilters, batch.cardFilterCorpusIDs, batch.cardFilterBits)));
 	if (inputCount >= 10000) {
 		console.log(`[corpus-worker] main handoff: ${inputCount} cards decode=${(decodedAt - handleStartedAt).toFixed(0)}ms dispatch=${(performance.now() - decodedAt).toFixed(0)}ms`);
 	}

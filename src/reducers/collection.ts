@@ -38,6 +38,7 @@ import {
 
 import {
 	CollectionState,
+	CardFilterBits,
 	Filters,
 	FilterMaps,
 	FilterMembership,
@@ -47,6 +48,8 @@ import {
 	Sections,
 	CardTestFunc
 } from '../types.js';
+
+import {validCardFilterBits} from '../card-filter-projection.js';
 
 import {
 	cardDerivedMembershipsFromFilterMaps,
@@ -147,6 +150,13 @@ const app = (state : CollectionState = INITIAL_STATE, action : SomeAction) : Col
 			filters: {...state.filters, ...makeFilterFromSection(action.tags, false)}
 		};
 	case UPDATE_CARDS: {
+		const primed = completeCardFilterBits(action.cardFilterBits);
+		if (primed) {
+			return {
+				...state,
+				filters: {...state.filters, ...primed}
+			};
+		}
 		if (completeCardFilterProjection(action.cardFilters)) {
 			//Plain maps on the wire become memberships here, one shared
 			//domain for the whole projection; equal maps share a membership.
@@ -307,6 +317,23 @@ const completeCardFilterProjection = (filters? : FilterMaps) : filters is Filter
 			(Object.getPrototypeOf(filters[name]) === Object.prototype || Object.getPrototypeOf(filters[name]) === null) &&
 			Reflect.ownKeys(filters[name]).length === Object.keys(filters[name]).length &&
 			Object.values(filters[name]).every(value => value === true));
+};
+
+//The prime's bitsets, installed through the same builder the worker used.
+//Anything malformed (a name missing, a bitset the wrong length, a repeated
+//id) yields null and the reducer derives the filters from the cards itself.
+const completeCardFilterBits = (bits? : CardFilterBits) : Filters | null => {
+	if (!bits || !validCardFilterBits(bits, Object.keys(CARD_FILTER_FUNCS))) return null;
+	let memberships;
+	try {
+		memberships = cardDerivedMembershipsFromPrime(bits.ids, bits.words);
+	} catch {
+		return null;
+	}
+	const filters : Filters = {};
+	for (let index = 0; index < bits.names.length; index++) filters[bits.names[index]] = memberships[index];
+	perfCount('cardFilterBits:installed');
+	return filters;
 };
 
 //Stars and reads are user-owned filters: their reducers edit plain maps and

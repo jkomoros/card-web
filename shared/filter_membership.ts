@@ -52,6 +52,11 @@ type MembershipState = Readonly<{
 }>;
 
 const membershipStates = new WeakMap<CardDerivedMembership, MembershipState>();
+//Memberships exactly as cardDerivedMembershipsFromPrime built them, with the
+//ids and flat bits they were built from. An update produces a new object,
+//so presence here means "unchanged since the prime": the worker may then
+//hand the main thread the bits instead of materializing plain maps.
+const primeSources = new WeakMap<CardDerivedMembership, {ids : readonly string[], words : Uint32Array}>();
 
 export class CardDerivedMembership {
 	declare private readonly _cardDerivedMembershipBrand : void;
@@ -350,10 +355,17 @@ export const cardDerivedMembershipsFromPrime = (ids : readonly string[], words :
 			if (any) bits[chunkIndex] = chunk;
 		}
 		membership = wrapMembership({domain, bits: Object.freeze(bits), versions: Object.freeze(versions), order: appendOrder([], entries), size, orderEntries: size});
+		primeSources.set(membership, {ids, words: flat});
 		shared.set(signature, membership);
 		return membership;
 	});
 };
+
+//The ids and flat bits a membership was built from by
+//cardDerivedMembershipsFromPrime, or undefined for any membership that was
+//imported from a plain map or updated since.
+export const primeBitsFor = (membership : Membership) : {ids : readonly string[], words : Uint32Array} | undefined =>
+	isCardDerivedMembership(membership) ? primeSources.get(membership) : undefined;
 
 export const cardDerivedMembershipFromFilterMap = (map : PlainFilterMap) : CardDerivedMembership => {
 	return cardDerivedMembershipsFromFilterMaps([map])[0];

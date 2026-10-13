@@ -71,6 +71,7 @@ import {
 import {
 	CardMetas,
 	CorpusStatus,
+	CardFilterBits,
 	FilterMaps,
 	ModalRequest,
 	ModalRequestID,
@@ -622,7 +623,8 @@ type ActionUpdateCards = {
 	type: typeof UPDATE_CARDS,
 	cards: Cards,
 	fetchType: CardFetchType,
-	cardFilters?: FilterMaps
+	cardFilters?: FilterMaps,
+	cardFilterBits?: CardFilterBits
 };
 
 type ActionEnqueueCardUpdates = {

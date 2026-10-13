@@ -12,6 +12,7 @@ import {
 	CardMeta,
 	CardMetas,
 	CardSimilarityMap,
+	CardFilterBits,
 	FilterMaps,
 	ProcessedCard,
 	SerializedDescriptionToCardList,
@@ -256,8 +257,14 @@ export type CardBatch = {
 	//Present only on the final compact-prime batch. These are the worker's
 	//complete card-derived filter maps for the same atomic corpus generation.
 	cardFilters? : FilterMaps,
-	//Exact domain for cardFilters. Main Redux must already hold or receive
-	//every one of these IDs and no extras before it may install the snapshot.
+	//The same projection as the prime's bitsets, sent INSTEAD of cardFilters
+	//while every filter is still exactly as the prime built it (see
+	//cardFilterBitsForWire). At most one of the two is present.
+	cardFilterBits? : CardFilterBits,
+	//Exact domain for cardFilters / cardFilterBits. Main Redux must already
+	//hold or receive every one of these IDs and no extras before it may
+	//install the snapshot. With cardFilterBits this is the SAME array as
+	//cardFilterBits.ids (one copy on the wire; main checks identity).
 	cardFilterCorpusIDs? : CardID[],
 	removedIDs : CardID[],
 	fetchType : CardFetchType,

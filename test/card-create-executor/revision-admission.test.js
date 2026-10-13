@@ -104,6 +104,17 @@ describe('revision admission (real reducers, real server revisions)', function()
 		store.dispatch(receiveCards({[id]: createImage}, 'unpublished', false, true, projection, corpusIDs));
 		assert.strictEqual(held(id).revision, 2);
 		assert.deepStrictEqual(filterDisagreements(id), [], 'the stale projection was not installed over the held card');
+		//The same projection as the prime's bitsets takes the same gate.
+		const names = Object.keys(CARD_FILTER_FUNCS);
+		const words = names.map(name => {
+			const flat = new Uint32Array(Math.ceil(corpusIDs.length / 32));
+			const index = corpusIDs.indexOf(id);
+			if (CARD_FILTER_FUNCS[name].func(createImage)) flat[index >>> 5] |= 1 << (index & 31);
+			return flat;
+		});
+		store.dispatch(receiveCards({[id]: createImage}, 'unpublished', false, true, undefined, corpusIDs, {ids: corpusIDs, names, words}));
+		assert.strictEqual(held(id).revision, 2);
+		assert.deepStrictEqual(filterDisagreements(id), [], 'the stale bitset projection was not installed over the held card');
 	});
 
 	it('receiveCards refuses an older image against a newer gated bucket, not just the store', async () => {

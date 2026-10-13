@@ -115,6 +115,17 @@ export type Filters = {
 	[filterName : ConcreteFilterName] : FilterMembership
 };
 
+//The worker's complete card-derived projection as the prime built it: one
+//flat bitset per filter over the index of the card in `ids`. ~5ms on the
+//wire and ~100ms to install at 47k, against ~950ms to clone ~78 plain
+//maps. Sent only while every filter is still exactly as the prime built
+//it; otherwise the worker falls back to FilterMaps.
+export type CardFilterBits = {
+	ids : CardID[],
+	names : ConcreteFilterName[],
+	words : Uint32Array[]
+};
+
 export type SectionID = string;
 export type TagID = string;
 

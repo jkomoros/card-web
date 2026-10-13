@@ -279,6 +279,7 @@ import {
 	TweetMap,
 	CardFetchType,
 	CardFlags,
+	CardFilterBits,
 	FilterMaps,
 	FirestoreLeafValue,
 } from '../types.js';
@@ -3904,7 +3905,7 @@ const FAST_DEDUPE_VALIDATION_RATE = 0.01;
 //timestamps are then treated as proof of equivalence, replacing an O(full
 //card) deep compare per doc with a two-number compare. A small sample is
 //still deep-checked and logged (and applied) on mismatch.
-export const receiveCards = (incoming: Cards, fetchType : CardFetchType, fastDedupe = false, ownsInput = false, cardFilters? : FilterMaps, cardFilterCorpusIDs? : CardID[]) : ThunkSomeAction => (dispatch, getState) => {
+export const receiveCards = (incoming: Cards, fetchType : CardFetchType, fastDedupe = false, ownsInput = false, cardFilters? : FilterMaps, cardFilterCorpusIDs? : CardID[], cardFilterBits? : CardFilterBits) : ThunkSomeAction => (dispatch, getState) => {
 	const startTime = performance.now();
 	const existingCards = selectRawCards(getState());
 	//Admission comes FIRST, against the newest copy held anywhere (an
@@ -3929,6 +3930,7 @@ export const receiveCards = (incoming: Cards, fetchType : CardFetchType, fastDed
 	//does not describe what this store holds: never install it.
 	if (refusedIDs.length) {
 		cardFilters = undefined;
+		cardFilterBits = undefined;
 		cardFilterCorpusIDs = undefined;
 	}
 	let cards = admitted;
@@ -3943,9 +3945,15 @@ export const receiveCards = (incoming: Cards, fetchType : CardFetchType, fastDed
 	//Redux ghost (or a partial prime) would silently disappear from filters
 	//before authoritative reconciliation.
 	let safeCardFilters : FilterMaps | undefined;
-	if (cardFilters && cardFilterCorpusIDs) {
+	let safeCardFilterBits : CardFilterBits | undefined;
+	//Bits index their own ids array, which must be the very domain array the
+	//check below verifies against the store; a projection whose ids differ
+	//from the stated domain would index cards the store does not hold.
+	if (cardFilterBits && cardFilterBits.ids !== cardFilterCorpusIDs) cardFilterBits = undefined;
+	if ((cardFilters || cardFilterBits) && cardFilterCorpusIDs) {
 		if (cardFilterDomainMatches(existingCards, cards, cardFilterCorpusIDs)) {
 			safeCardFilters = cardFilters;
+			safeCardFilterBits = cardFilterBits;
 		}
 	}
 	//Worker wire decoding creates a private object for this call. Reuse that
@@ -3999,7 +4007,7 @@ export const receiveCards = (incoming: Cards, fetchType : CardFetchType, fastDed
 		if (Object.values(leftovers).some(cards => Object.keys(cards).length)) {
 			dispatch(updateEnqueuedCards());
 		}
-		dispatch(updateCards(cardsToUpdate, fetchType, safeCardFilters));
+		dispatch(updateCards(cardsToUpdate, fetchType, safeCardFilters, safeCardFilterBits));
 	} else {
 		//The gate exists to batch echo application for the modification in
 		//flight — but only its own targets are echoes. Anything else in the
@@ -4031,7 +4039,7 @@ export const receiveCards = (incoming: Cards, fetchType : CardFetchType, fastDed
 				//safeCardFilters asserts an exact ID-domain match for the whole
 				//batch; it only survives when the whole batch is the immediate
 				//half.
-				dispatch(updateCards(immediate, fetchType, gatedCount ? undefined : safeCardFilters));
+				dispatch(updateCards(immediate, fetchType, gatedCount ? undefined : safeCardFilters, gatedCount ? undefined : safeCardFilterBits));
 			}
 			if (gatedCount) dispatch(enqueueCardUpdates(gated, fetchType));
 		}
@@ -4039,7 +4047,7 @@ export const receiveCards = (incoming: Cards, fetchType : CardFetchType, fastDed
 	if (perfEnabled()) console.log(`[PERF] receiveCards(${fetchType}): total ${(performance.now() - startTime).toFixed(1)}ms`);
 };
 
-const updateCards = (incoming : Cards, fetchType : CardFetchType, cardFilters? : FilterMaps) : ThunkSomeAction => (dispatch, getState) => {
+const updateCards = (incoming : Cards, fetchType : CardFetchType, cardFilters? : FilterMaps, cardFilterBits? : CardFilterBits) : ThunkSomeAction => (dispatch, getState) => {
 	//Admit HERE, once, against the store, so every reducer that consumes
 	//UPDATE_CARDS (data AND collection filters) sees the same map. An
 	//admission inside the data reducer alone left the collection reducer
@@ -4059,7 +4067,8 @@ const updateCards = (incoming : Cards, fetchType : CardFetchType, cardFilters? :
 		//the store does not hold. Drop it and let the reducer derive the
 		//filters from the cards it actually applies (a full pass, only in
 		//this rare case).
-		cardFilters: refusedIDs.length ? undefined : cardFilters
+		cardFilters: refusedIDs.length ? undefined : cardFilters,
+		cardFilterBits: refusedIDs.length ? undefined : cardFilterBits,
 	});
 	dispatch(refreshCardSelector(false));
 };

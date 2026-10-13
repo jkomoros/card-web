@@ -128,6 +128,7 @@ import {
 } from '../types.js';
 
 import {membershipToFilterMap} from '../../shared/filter_membership.js';
+import {cardFilterBitsForWire} from '../card-filter-projection.js';
 
 import {
 	MainToWorkerMessage,
@@ -1055,10 +1056,21 @@ const forwardBatch = (cards : Cards, removedIDs : CardID[], fetchType : CardFetc
 	//One toWire over the whole stripped map, so the batch is Wire<Cards>
 	//end to end (#738) — no unknown hop for a receiver to fumble.
 	const wireCards = toWire(Object.fromEntries(Object.entries(cards).map(([id, card]) => [id, stripForWire(card)])) as Cards, isTimestamp, getTime);
+	//The projection goes as the prime's bitsets when every filter is still
+	//exactly as the prime built it (ids + ~78 small typed arrays), and as
+	//materialized plain maps otherwise (a listener batch raced the prime).
+	const cardFilterBits = cardFilters ? cardFilterBitsForWire(cardFilters) : null;
 	send({
 		type: 'cards',
 		generation,
-		batch: {cards: wireCards, removedIDs, fetchType, fastDedupe, errorFallback, corpusSize: corpus.size, cardFilters: cardFilters ? materializeCardFiltersForWire(cardFilters) : undefined, cardFilterCorpusIDs}
+		batch: {
+			cards: wireCards, removedIDs, fetchType, fastDedupe, errorFallback, corpusSize: corpus.size,
+			cardFilters: cardFilters && !cardFilterBits ? materializeCardFiltersForWire(cardFilters) : undefined,
+			cardFilterBits: cardFilterBits || undefined,
+			//With bits, the ids ARE the domain: send the one array (structured
+			//clone keeps the shared reference, so main can check identity).
+			cardFilterCorpusIDs: cardFilterBits ? cardFilterBits.ids : cardFilterCorpusIDs,
+		}
 	});
 };
 
