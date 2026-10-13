@@ -122,6 +122,57 @@ describe('SubscriptionManager', () => {
 		assert.strictEqual(runs.length, 5);
 	});
 
+	it('recomputes only the subscriptions naming a viewer-state set on that set\'s dirt', () => {
+		//The auto-read a few seconds after every navigation delivered an
+		//UPDATE_READS that re-ran every open subscription; only ones naming
+		//read/unread can differ. Same for stars and the reading list.
+		const {engine, manager, runs} = countingSetup();
+		const UNREAD = 'everything/unread/';
+		const STARRED = 'everything/starred/';
+		const NOT_STARRED = 'everything/unstarred/';
+		const READING_LIST_SET = 'reading-list/';
+		const NOT_IN_LIST = 'everything/not-in-reading-list/';
+		const CHILDREN = 'everything/children/a/';
+		manager.subscribe(1, params('everything/'));
+		manager.subscribe(2, params(UNREAD));
+		manager.subscribe(3, params(STARRED));
+		manager.subscribe(4, params(NOT_STARRED));
+		manager.subscribe(5, params(READING_LIST_SET));
+		manager.subscribe(6, params(NOT_IN_LIST));
+		manager.subscribe(7, params(CHILDREN));
+		//A union member and a configurable sub-expression embed the piece;
+		//a query that merely contains the word does not name the filter.
+		const UNION = 'everything/starred+unread/';
+		const EXCLUDED = 'everything/exclude/read/';
+		const QUERY = 'everything/query/already read this/';
+		manager.subscribe(8, params(UNION));
+		manager.subscribe(9, params(EXCLUDED));
+		manager.subscribe(10, params(QUERY));
+		manager.flush();
+		for (const [scope, expected] of [
+			['reads', [UNREAD, UNION, EXCLUDED]],
+			['stars', [STARRED, NOT_STARRED, UNION]],
+			['reading-list', [NOT_IN_LIST, READING_LIST_SET]],
+		]) {
+			runs.length = 0;
+			manager.markDirty(scope);
+			manager.flush();
+			assert.deepStrictEqual(runs.sort(), [...expected].sort(), `${scope} dirt`);
+		}
+		//The dirt is real: reads delivered for 'a' change the unread result.
+		runs.length = 0;
+		engine.applyAction({type: 'UPDATE_READS', readsToAdd: ['a'], readsToRemove: []});
+		manager.markDirty('reads');
+		manager.flush();
+		assert.deepStrictEqual(runs.sort(), [UNREAD, UNION, EXCLUDED].sort());
+		//Mixed dirt widens to everything.
+		runs.length = 0;
+		manager.markDirty('reads');
+		manager.markDirty('stars');
+		manager.flush();
+		assert.strictEqual(runs.length, 10);
+	});
+
 	it('pins EDITING_CARD_FILTER_NAMES to the registry factories that read the editing card', async () => {
 		const {CONFIGURABLE_FILTER_INFO} = await import('../../lib/src/filters.js');
 		const {EDITING_CARD_FILTER_NAMES, descriptionMayReadEditingCard} = await import('../../lib/src/filter-constants.js');

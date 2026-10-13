@@ -187,6 +187,21 @@ same fixture, plus "no regression" on anything the journey measures.
 > reducer only extends the live filters, and `filtersSnapshot` is copied,
 > never edited.
 
+> **Slice 6 (minimal)** landed: resolve-thread is idempotent on replay
+> (F11); a multi-edit's skipped targets are named persistently (F5), with
+> ids kept on the record (cap 200) so a resume still names them. The
+> suggestion refusal (third item) was already honest on master. The
+> bulk-tag loop still counts rather than names (its markers carry counts).
+> **Slice 7 (minimal)** landed: 'reads' / 'stars' / 'reading-list' dirty
+> scopes with whole-piece name tests; the review's 39-description battery
+> found 0 stale results. It also found that `publishIDFMap` never marked
+> subscriptions dirty and had been refreshed by the auto-read's undirected
+> dirt — fixed. **Open, needs a decision:** relative-date filters
+> (`created/after/today`) have the same exposure at day rollover (the
+> day-key eviction happens only when a filter is constructed during a run);
+> options are a midnight timer in the worker that marks 'all', or a
+> day-keyed dependency. Not verified by execution.
+
 Verified by reading or by synthetic measurement at 47k cards, unless marked.
 
 | Symptom | Mechanism on master | Evidence | Status |

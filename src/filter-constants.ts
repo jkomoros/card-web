@@ -33,6 +33,23 @@ export const EDITING_CARD_FILTER_NAMES : readonly string[] = [
 	'direct-references', 'direct-references-inbound', 'direct-references-outbound',
 ];
 
+//The viewer-state filters: each is changed by exactly one per-user
+//listener action (UPDATE_READS, UPDATE_STARS, UPDATE_READING_LIST), and
+//only subscriptions naming one can change as a result. Each test matches
+//the filter name (and its inverse, and for the reading list the SET name)
+//as a whole piece of the serialized description — pieces are delimited by
+//'/' and, inside a union, '+' — because a bare substring would make
+//'reading-list' depend on reads and re-run the reading-list collections
+//on every auto-read. A configurable sub-expression (exclude/read/) embeds
+//the piece the same way, so it still matches.
+const namesPiece = (names : string[]) : RegExp => new RegExp(`(^|[/+])(${names.join('|')})([/+]|$)`);
+const READS_PIECE = namesPiece(['read', 'unread']);
+const STARS_PIECE = namesPiece(['starred', 'unstarred']);
+const READING_LIST_PIECE = namesPiece(['reading-list', 'in-reading-list', 'not-in-reading-list']);
+export const descriptionMayReadReads = (description : string) : boolean => READS_PIECE.test(description);
+export const descriptionMayReadStars = (description : string) : boolean => STARS_PIECE.test(description);
+export const descriptionMayReadReadingList = (description : string) : boolean => READING_LIST_PIECE.test(description);
+
 //Conservative substring test, like the selection test: a configurable filter
 //is written `name/args`, union members and configurable sub-expressions embed
 //the literal, so any description that could read the editing card contains

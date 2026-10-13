@@ -18,7 +18,10 @@ import {
 
 import {
 	SELECTED_FILTER_NAME,
-	descriptionMayReadEditingCard
+	descriptionMayReadEditingCard,
+	descriptionMayReadReads,
+	descriptionMayReadStars,
+	descriptionMayReadReadingList
 } from '../filter-constants.js';
 
 export type SubscriptionParams = {
@@ -42,8 +45,12 @@ export type SubscriptionPush = RunCollectionResult & {
 //profile on the real 40k corpus re-ran every open subscription each time
 //(~46 collection runs per Save→New cycle, the largest single warm cost on
 //the worker); only subscriptions whose description can read the editing
-//card (EDITING_CARD_FILTER_NAMES) can change. Everything else is 'all'.
-export type DirtyScope = 'selection' | 'editing' | 'all';
+//card (EDITING_CARD_FILTER_NAMES) can change. 'reads', 'stars' and
+//'reading-list' mean ONLY that per-user set changed (its listener
+//delivered): the auto-read ~5s after every navigation used to re-run every
+//open subscription on the real corpus, when only ones naming read/unread
+//can differ. Everything else is 'all'.
+export type DirtyScope = 'selection' | 'editing' | 'reads' | 'stars' | 'reading-list' | 'all';
 
 type Subscription = SubscriptionParams & {
 	lastIDs : CardID[] | null,
@@ -67,6 +74,20 @@ type Subscription = SubscriptionParams & {
 	//Whether the description names a configurable filter that reads the
 	//editing card (see DirtyScope 'editing'); computed once at subscribe.
 	dependsOnEditingCard : boolean,
+	//Whether the description names the viewer-state filters each scoped
+	//dirt can change (see DirtyScope 'reads' / 'stars' / 'reading-list').
+	dependsOnReads : boolean,
+	dependsOnStars : boolean,
+	dependsOnReadingList : boolean,
+};
+
+//For each narrow scope, the dependency that lets a subscription change.
+const SCOPE_DEPENDENCY : {[scope in Exclude<DirtyScope, 'all'>] : (subscription : Subscription) => boolean} = {
+	'selection': subscription => subscription.dependsOnSelection,
+	'editing': subscription => subscription.dependsOnEditingCard,
+	'reads': subscription => subscription.dependsOnReads,
+	'stars': subscription => subscription.dependsOnStars,
+	'reading-list': subscription => subscription.dependsOnReadingList,
 };
 
 const resultsEqual = (subscription : Subscription, result : RunCollectionResult) : boolean => {
@@ -156,6 +177,9 @@ export class SubscriptionManager {
 			lastErrorMessage: null,
 			dependsOnSelection: params.description.includes(SELECTED_FILTER_NAME),
 			dependsOnEditingCard: descriptionMayReadEditingCard(params.description),
+			dependsOnReads: descriptionMayReadReads(params.description),
+			dependsOnStars: descriptionMayReadStars(params.description),
+			dependsOnReadingList: descriptionMayReadReadingList(params.description),
 		});
 		//New subscriptions get a result promptly.
 		this._scheduleFlush();
@@ -260,11 +284,10 @@ export class SubscriptionManager {
 			//A FAILED subscription (lastErrorMessage set) never skips: its
 			//recovery would otherwise wait for the next 'all'-scope dirt,
 			//leaving the failure banner up after the cause healed.
-			if (scope === 'selection' && subscription.lastIDs !== null && !subscription.dependsOnSelection && subscription.lastErrorMessage === null) continue;
-			//Same shape for the mirrored editing card: the worker corpus does
-			//not change until the card is saved, so a subscription that cannot
-			//read the editing card cannot change.
-			if (scope === 'editing' && subscription.lastIDs !== null && !subscription.dependsOnEditingCard && subscription.lastErrorMessage === null) continue;
+			//Same shape for the mirrored editing card (the worker corpus does
+			//not change until the card is saved) and for the viewer-state
+			//sets: a subscription that cannot read what changed cannot change.
+			if (scope !== 'all' && subscription.lastIDs !== null && !SCOPE_DEPENDENCY[scope](subscription) && subscription.lastErrorMessage === null) continue;
 			let result : RunCollectionResult;
 			const start = performance.now();
 			try {

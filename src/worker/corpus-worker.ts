@@ -161,6 +161,7 @@ import {
 } from './query-engine.js';
 
 import {
+	DirtyScope,
 	SubscriptionManager
 } from './subscription-manager.js';
 
@@ -173,7 +174,10 @@ import {
 	RECONCILE_CARDS_AFTER_FAILED_COMMIT,
 	SELECT_CARDS,
 	UNSELECT_CARDS,
-	CLEAR_SELECTED_CARDS
+	CLEAR_SELECTED_CARDS,
+	UPDATE_READS,
+	UPDATE_STARS,
+	UPDATE_READING_LIST
 } from '../actions.js';
 
 import {
@@ -475,6 +479,12 @@ const publishIDFMap = () => {
 	const startedAt = performance.now();
 	const published = idfIndex.publish();
 	engine.setIDFMap(published);
+	//A new IDF map re-ranks every similar/ result that runs on the
+	//fingerprint fallback. Nothing marked that dirt: it was refreshed by
+	//accident, by the auto-read's undirected 'all' dirt a few seconds after
+	//each navigation, and once reads dirt was scoped the stale ranking
+	//stayed on screen (slice-7 review). Once per epoch, so cheap.
+	subscriptions.markDirty();
 	const termCount = Object.keys(published.idf).length;
 	send({
 		type: 'idfMap',
@@ -1038,6 +1048,17 @@ const pushMetaDeltas = (cards : Cards, removedIDs : CardID[], suppressSend = fal
 	//a genuinely changed meta arrives.
 	if (suppressSend || (Object.keys(changed).length === 0 && removed.length === 0)) return;
 	send({type: 'cardMeta', generation, metas: changed, removedIDs: removed});
+};
+
+//The narrow dirty scope each forwarded action's change can be confined to;
+//anything unlisted is 'all'. test/subscription-manager pins this table.
+const FORWARDED_ACTION_SCOPE : {[type : string] : DirtyScope} = {
+	[SELECT_CARDS]: 'selection',
+	[UNSELECT_CARDS]: 'selection',
+	[CLEAR_SELECTED_CARDS]: 'selection',
+	[UPDATE_READS]: 'reads',
+	[UPDATE_STARS]: 'stars',
+	[UPDATE_READING_LIST]: 'reading-list',
 };
 
 const materializeCardFiltersForWire = (filters : Filters) : FilterMaps => {
@@ -3456,10 +3477,10 @@ workerScope.addEventListener('message', event => {
 		//Selection toggles are per-keypress user actions that can only
 		//change selection-filter results; scope the dirt so the flush skips
 		//unaffected subscriptions and runs without the batch-coalescing
-		//delay (#760).
-		subscriptions.markDirty(
-			action.type === SELECT_CARDS || action.type === UNSELECT_CARDS || action.type === CLEAR_SELECTED_CARDS
-				? 'selection' : 'all');
+		//delay (#760). A per-user set delivery (reads, stars, reading list)
+		//can only change subscriptions naming that set's filters — the
+		//auto-read after every navigation otherwise re-ran all of them.
+		subscriptions.markDirty(FORWARDED_ACTION_SCOPE[action.type] || 'all');
 		break;
 	}
 	case 'hydrateCollectionState':

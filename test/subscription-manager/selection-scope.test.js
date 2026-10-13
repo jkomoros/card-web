@@ -175,23 +175,42 @@ describe('selection-scoped flushes (#760)', () => {
 		assert.deepStrictEqual(pushes[1].ids, ['c']);
 	});
 
-	it('corpus-worker maps exactly the three selection actions to the selection scope', () => {
+	it('corpus-worker maps exactly the listed forwarded actions to their narrow scopes', () => {
 		//Source-text pin (repo convention, e.g. test/worker-listener-trust):
-		//the manager tests above drive markDirty('selection') by hand, so
-		//without this nothing asserts the real forwarded-action wiring. The
-		//failure direction of an UNLISTED action is safe ('all' = correct but
-		//slow); the dangerous drift is a non-selection action being added to
-		//the selection branch.
+		//the manager tests drive markDirty(scope) by hand, so without this
+		//nothing asserts the real forwarded-action wiring. The failure
+		//direction of an UNLISTED action is safe ('all' = correct but
+		//slow); the dangerous drift is an action being mapped to a scope
+		//whose dependency test cannot see what that action changes.
 		const source = readFileSync(new URL('../../src/worker/corpus-worker.ts', import.meta.url), 'utf8');
-		const branch = source.match(/subscriptions\.markDirty\(\s*\n?\s*action\.type === ([^)]+)\? 'selection' : 'all'\)/);
-		assert.ok(branch, 'corpus-worker must scope forwarded-action dirt by action type');
-		const condition = branch[1];
-		for (const expected of ['SELECT_CARDS', 'UNSELECT_CARDS', 'CLEAR_SELECTED_CARDS']) {
-			assert.ok(condition.includes(expected), `selection scope must include ${expected}`);
-		}
-		const referenced = condition.match(/[A-Z][A-Z_]+/g) || [];
-		assert.deepStrictEqual([...new Set(referenced)].sort(), ['CLEAR_SELECTED_CARDS', 'SELECT_CARDS', 'UNSELECT_CARDS'],
-			'only the selection actions may map to the selection scope');
+		const table = source.match(/const FORWARDED_ACTION_SCOPE[\s\S]*?=\s*\{([^}]*)\}/);
+		assert.ok(table, 'corpus-worker must scope forwarded-action dirt through FORWARDED_ACTION_SCOPE');
+		const body = table[1].replace(/\/\/[^\n]*/g, '');
+		const entries = Object.fromEntries([...body.matchAll(/\[([A-Z_]+)\]:\s*'([a-z-]+)'/g)].map(([, type, scope]) => [type, scope]));
+		//Every entry must be of the shape the parse above reads: an entry
+		//written any other way (a bare key, double quotes) would map an
+		//action without this pin seeing it.
+		assert.strictEqual((body.match(/:/g) || []).length, Object.keys(entries).length, 'every table entry must be [ACTION]: \'scope\'');
+		assert.deepStrictEqual(entries, {
+			SELECT_CARDS: 'selection',
+			UNSELECT_CARDS: 'selection',
+			CLEAR_SELECTED_CARDS: 'selection',
+			UPDATE_READS: 'reads',
+			UPDATE_STARS: 'stars',
+			UPDATE_READING_LIST: 'reading-list',
+		});
+		assert.ok(/subscriptions\.markDirty\(FORWARDED_ACTION_SCOPE\[action\.type\] \|\| 'all'\)/.test(source), 'the forwarded-action branch must consult the table');
+	});
+
+	it('corpus-worker marks subscriptions dirty when it publishes a new IDF map', () => {
+		//A new IDF map re-ranks similar/ results running on the fingerprint
+		//fallback. With reads dirt scoped, nothing else refreshes them: the
+		//auto-read's 'all' dirt used to, by accident. Source-text pin, like
+		//the table above: the publish path is worker-internal.
+		const source = readFileSync(new URL('../../src/worker/corpus-worker.ts', import.meta.url), 'utf8');
+		const publish = source.match(/const publishIDFMap = \(\) => \{([\s\S]*?)\n\};/);
+		assert.ok(publish, 'publishIDFMap must exist');
+		assert.ok(/engine\.setIDFMap\(published\);[\s\S]*subscriptions\.markDirty\(\);/.test(publish[1]), 'publishIDFMap must mark subscriptions dirty after installing the map');
 	});
 
 	it('a selection markDirty pulls an already-scheduled slow flush forward', async () => {
