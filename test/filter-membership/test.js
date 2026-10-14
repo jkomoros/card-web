@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import {spawnSync} from 'node:child_process';
 import {
 	CardDerivedMembership,
+	MEMBERSHIP_MISUSE_KEY,
 	cardDerivedMembershipFromFilterMap,
 	cardDerivedMembershipsFromFilterMaps,
-	isCardDerivedMembership,
 	membershipEntries,
 	membershipHas,
 	membershipKeys,
@@ -41,11 +41,17 @@ describe('persistent card filter membership', () => {
 		assert.equal(membershipHas(plain,'constructor'),false);assert.equal(membershipHas(plain,'toString'),false);
 	});
 
-	it('keeps storage opaque and requires explicit plain transport', () => {
+	it('keeps storage opaque, requires explicit plain transport, and fails loudly when read like a map', () => {
 		assert.throws(()=>new CardDerivedMembership(Symbol()),/created by filter membership helpers/);
 		const membership=cardDerivedMembershipFromFilterMap({a:true,b:true});
-		assert.deepEqual(Object.keys(membership),[]);assert(Object.isFrozen(membership));
-		const clone=structuredClone(membership);assert.equal(isCardDerivedMembership(clone),false);assert.deepEqual(clone,{});
+		assert(Object.isFrozen(membership));
+		//Read like a plain map — through any helper the type guard cannot see
+		//— it does not quietly read as empty.
+		assert.deepEqual(Object.keys(membership),[MEMBERSHIP_MISUSE_KEY],'the one key IS the instruction');
+		assert.throws(()=>({...membership}),/membershipHas/);
+		assert.throws(()=>Object.values(membership),/membershipHas/);
+		assert.throws(()=>structuredClone(membership),/membershipHas/);
+		assert.match(JSON.stringify({filters:{published:membership}}),/CardDerivedMembership/);
 		const plain=membershipToFilterMap(membership);assert.deepEqual(plain,{a:true,b:true});plain.a=false;
 		assert.equal(membershipHas(membership,'a'),true,'transport mutation reached private membership state');
 	});

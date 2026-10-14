@@ -3,11 +3,11 @@
 /**
  * One-time migration script to backfill NLP tokens for existing cards
  *
- * Usage (DEV by default; prod must be named AND confirmed):
- *   node tools/migrate-nlp-tokens.mjs              # Run on dev
- *   node tools/migrate-nlp-tokens.mjs --dry-run    # Preview without writing
- *   node tools/migrate-nlp-tokens.mjs --limit=100  # Test on first 100 cards
- *   node tools/migrate-nlp-tokens.mjs --prod --confirm-project=complexity-compendium
+ * Usage (DEV and dry-run by default; prod must be named AND confirmed):
+ *   node tools/migrate-nlp-tokens.mjs                      # DEV dry run
+ *   node tools/migrate-nlp-tokens.mjs --write              # DEV, writes
+ *   node tools/migrate-nlp-tokens.mjs --write --limit=100  # first 100 cards
+ *   node tools/migrate-nlp-tokens.mjs --prod --write --confirm-project=complexity-compendium
  *
  * Prerequisites:
  *   Run: gcloud auth application-default login
@@ -18,7 +18,7 @@ import { getFirestore } from 'firebase-admin/firestore';
 import { writeFileSync } from 'fs';
 import { JSDOM } from 'jsdom';
 import { devProdConfig } from '../lib/tools/util.js';
-import { cardWithNormalizedTextPropertiesSimple, ngrams, CURRENT_NLP_VERSION, nlpSourceFingerprintForCard } from '../shared/dist/nlp.js';
+import { nlpStorageFieldsForCard, CURRENT_NLP_VERSION, nlpSourceFingerprintForCard } from '../shared/dist/nlp.js';
 import { overrideDocument } from '../shared/dist/document.js';
 
 // Set up jsdom for Node.js environment (NLP code needs DOM to parse HTML)
@@ -47,8 +47,8 @@ Usage: node tools/migrate-nlp-tokens.mjs [OPTIONS]
 Backfill NLP tokens (nlp_tokens, nlp_search_tokens, nlp_version) for existing cards.
 
 Options:
-  --prod        Use the PRODUCTION database (also needs --confirm-project=<id>)
-  --dry-run     Preview changes without writing to Firestore
+  --write       Actually write (the default is a dry run)
+  --prod        Use the PRODUCTION database (writing also needs --confirm-project=<id>)
   --limit=N     Only process first N cards (for testing)
   --help, -h    Show this help message
 
@@ -56,17 +56,18 @@ Prerequisites:
   Run once: gcloud auth application-default login
 
 Examples:
-  node tools/migrate-nlp-tokens.mjs --dry-run
-  node tools/migrate-nlp-tokens.mjs --limit=100
-  node tools/migrate-nlp-tokens.mjs --prod --confirm-project=complexity-compendium
+  node tools/migrate-nlp-tokens.mjs
+  node tools/migrate-nlp-tokens.mjs --write --limit=100
+  node tools/migrate-nlp-tokens.mjs --prod --write --confirm-project=complexity-compendium
 	`);
 	process.exit(0);
 }
 
-//DEV unless prod is named explicitly. This tool used to default to PROD
-//with no flags at all — one stray invocation away from a production write.
+//DEV unless prod is named explicitly, and a DRY RUN unless --write is
+//given — the same convention as tools/cutover-working-notes-titles.mjs.
+//This tool used to default to PROD and to WRITING with no flags at all.
 const isDev = !args.prod;
-const dryRun = args['dry-run'];
+const dryRun = !args.write;
 const limit = args.limit ? parseInt(args.limit) : null;
 
 // Initialize Firebase Admin with Application Default Credentials
@@ -181,33 +182,7 @@ async function migrate() {
 						continue;
 					}
 
-					// Generate NLP tokens
-					const processedCard = cardWithNormalizedTextPropertiesSimple(card);
-
-					// Convert to storage format: only normalized + uppercaseRanges.
-					// stemmed and withoutStopWords are derived at load time.
-					const nlpTokens = {};
-					for (const [fieldName, runs] of Object.entries(processedCard.nlp)) {
-						nlpTokens[fieldName] = runs.map(run => ({
-							normalized: run.normalized,
-							...(run.uppercaseRanges ? { uppercaseRanges: run.uppercaseRanges } : {})
-						}));
-					}
-
-					// Generate nlp_search_tokens: flat array of deduplicated
-					// stemmed unigrams + bigrams for array-contains queries
-					const searchTokenSet = new Set();
-					for (const [, runs] of Object.entries(processedCard.nlp)) {
-						if (!runs) continue;
-						for (const run of runs) {
-							for (const word of run.stemmed.split(' ')) {
-								if (word) searchTokenSet.add(word);
-							}
-							for (const bigram of ngrams(run.stemmed, 2)) {
-								searchTokenSet.add(bigram);
-							}
-						}
-					}
+					const nlpFields = nlpStorageFieldsForCard(card);
 
 					// Add to batch (if not dry run)
 					if (!dryRun) {
@@ -215,10 +190,8 @@ async function migrate() {
 							//NLP tokens; bumping `updated` would redeliver the entire corpus
 							//to every device. Derived tokens self-heal on the next real edit.
 							batch.update(docSnap.ref, {
-								nlp_tokens: nlpTokens,
-								nlp_search_tokens: Array.from(searchTokenSet),
+								...nlpFields,
 								nlp_source_fingerprint: nlpSourceFingerprintForCard(card),
-								nlp_version: CURRENT_NLP_VERSION
 							});
 					}
 

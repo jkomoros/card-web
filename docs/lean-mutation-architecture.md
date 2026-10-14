@@ -169,9 +169,14 @@ same fixture, plus "no regression" on anything the journey measures.
 > reducer storage switched with a position-keyed prime builder
 > (`cardDerivedMembershipsFromPrime`) and a duplicate-id fallback. Measured
 > against the §1.6 gate at 12k, medians of 20: prime 0.85× (gate ≤1.1×),
-> new-card UPDATE_CARDS 0.004× (gate ≤0.1×), single edit 2.9 → 0.22ms,
-> single REMOVE 102 → 0.21ms; 50 held edited states retain 20.3MB before,
-> no measurable growth after. Observable change: a card whose id is an
+> new-card UPDATE_CARDS 0.004× (gate ≤0.1×), single REMOVE 102 → 0.21ms;
+> 50 held edited states retain 20.3MB before, no measurable growth after.
+> **Per edit shape** (the debt review's measurement, 12k): the win is on
+> card CREATION (78ms → 1ms: ~37 filters flip) and filter-flipping edits
+> (publish toggle 0.41 → 0.19ms); a body edit that flips no filter was
+> already ~0.1ms on master and is ~0.1ms now; a full 12k re-delivery is
+> unchanged (0.96×). The win is proportional to the number of filters an
+> edit touches, which is the point, not a flat speedup. Observable change: a card whose id is an
 > `Object.prototype` property name now appears in the filters it matches.
 > **Step 6 (Q1, owner-confirmed) landed:** the prime's projection crosses
 > the wire as one ids array plus ~78 `Uint32Array`s, installed through the

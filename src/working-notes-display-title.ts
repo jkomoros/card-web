@@ -96,7 +96,25 @@ export const generatedWorkingNotesTitle = (card : ProcessedCard, inputs : Displa
 	return terms ? `${date} ${terms}` : date;
 };
 
+//Inputs objects carry no clock, so "older" is: the entry's inputs are the
+//ones most recently handed out by the selector (seen later than the queued
+//ones). The queue records the order inputs were first seen.
+const inputsOrder = new WeakMap<DisplayTitleInputs, number>();
+let inputsSeen = 0;
+const noteInputs = (inputs : DisplayTitleInputs) => {
+	if (!inputsOrder.has(inputs)) inputsOrder.set(inputs, ++inputsSeen);
+};
+const queuedInputsIsOlder = (entryInputs : DisplayTitleInputs, queuedInputs : DisplayTitleInputs) : boolean =>
+	(inputsOrder.get(entryInputs) || 0) > (inputsOrder.get(queuedInputs) || 0);
+
 const memo = new WeakMap<ProcessedCard, {inputs : DisplayTitleInputs, title : string}>();
+
+//Stale-while-revalidate for the budgeted variant: when the INPUTS change (an
+//IDF epoch, or any concept/synonym edit — and in a corpus that is mostly
+//notes, a concept edit used to revert ~90% of the visible drawer to bare
+//dates for half a second), the previous title is still the best thing to
+//show until the new one is computed. Only a card with no title at all shows
+//the date placeholder.
 
 //An authored title wins; a non-working-notes card without one has no
 //display title (the drawer's own full-bleed fallback applies there).
@@ -105,6 +123,7 @@ export const displayTitle = (card : ProcessedCard, inputs : DisplayTitleInputs) 
 	if (card.card_type !== 'working-notes') return '';
 	const hit = memo.get(card);
 	if (hit && hit.inputs === inputs) return hit.title;
+	noteInputs(inputs);
 	const title = generatedWorkingNotesTitle(card, inputs);
 	memo.set(card, {inputs, title});
 	return title;
@@ -137,10 +156,14 @@ const scheduleDrain = () => {
 		while (queue.length && performance.now() < deadline) {
 			const {card, inputs} = queue.shift() as {card : ProcessedCard, inputs : DisplayTitleInputs};
 			queued.delete(card);
-			//A card computed since it was queued (within a later render's
-			//budget, possibly under newer inputs) keeps that entry: recomputing
-			//under the queued inputs would evict the newer one.
-			if (memo.has(card)) continue;
+			//A card computed since it was queued under THESE inputs (within a
+			//later render's budget) keeps that entry; one memoized under older
+			//inputs is what the stale-while-revalidate branch is showing, and
+			//is recomputed here. Recomputing under inputs newer than the
+			//queued ones would evict the newer entry, so skip those too.
+			const current = memo.get(card);
+			if (current && current.inputs === inputs) continue;
+			if (current && current.inputs !== inputs && queuedInputsIsOlder(current.inputs, inputs)) continue;
 			displayTitle(card, inputs);
 		}
 		for (const listener of listeners) listener();
@@ -153,13 +176,15 @@ export const displayTitleBudgeted = (card : ProcessedCard, inputs : DisplayTitle
 	if (card.card_type !== 'working-notes') return '';
 	const hit = memo.get(card);
 	if (hit && hit.inputs === inputs) return hit.title;
+	noteInputs(inputs);
 	if (performance.now() < budgetDeadline) return displayTitle(card, inputs);
 	if (!queued.has(card)) {
+		noteInputs(inputs);
 		queued.add(card);
 		queue.push({card, inputs});
 		scheduleDrain();
 	}
-	return displayTitleDateLabel(card);
+	return hit ? hit.title : displayTitleDateLabel(card);
 };
 
 //Subscribers are re-rendered after each drained slice. Returns the

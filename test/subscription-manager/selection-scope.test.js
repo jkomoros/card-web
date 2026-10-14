@@ -175,23 +175,13 @@ describe('selection-scoped flushes (#760)', () => {
 		assert.deepStrictEqual(pushes[1].ids, ['c']);
 	});
 
-	it('corpus-worker maps exactly the listed forwarded actions to their narrow scopes', () => {
-		//Source-text pin (repo convention, e.g. test/worker-listener-trust):
-		//the manager tests drive markDirty(scope) by hand, so without this
-		//nothing asserts the real forwarded-action wiring. The failure
-		//direction of an UNLISTED action is safe ('all' = correct but
-		//slow); the dangerous drift is an action being mapped to a scope
-		//whose dependency test cannot see what that action changes.
-		const source = readFileSync(new URL('../../src/worker/corpus-worker.ts', import.meta.url), 'utf8');
-		const table = source.match(/const FORWARDED_ACTION_SCOPE[\s\S]*?=\s*\{([^}]*)\}/);
-		assert.ok(table, 'corpus-worker must scope forwarded-action dirt through FORWARDED_ACTION_SCOPE');
-		const body = table[1].replace(/\/\/[^\n]*/g, '');
-		const entries = Object.fromEntries([...body.matchAll(/\[([A-Z_]+)\]:\s*'([a-z-]+)'/g)].map(([, type, scope]) => [type, scope]));
-		//Every entry must be of the shape the parse above reads: an entry
-		//written any other way (a bare key, double quotes) would map an
-		//action without this pin seeing it.
-		assert.strictEqual((body.match(/:/g) || []).length, Object.keys(entries).length, 'every table entry must be [ACTION]: \'scope\'');
-		assert.deepStrictEqual(entries, {
+	it('corpus-worker maps exactly the listed forwarded actions to their narrow scopes', async () => {
+		//The table is DATA in its own module: a source-text pin on it accepted
+		//a spread of a second table (the adversarial review showed one mapping
+		//every card update to selection-only dirt). The one remaining text
+		//check is that the forwarded-action branch consults the table.
+		const {FORWARDED_ACTION_SCOPE} = await import('../../lib/src/worker/forwarded-action-scope.js');
+		assert.deepStrictEqual({...FORWARDED_ACTION_SCOPE}, {
 			SELECT_CARDS: 'selection',
 			UNSELECT_CARDS: 'selection',
 			CLEAR_SELECTED_CARDS: 'selection',
@@ -199,6 +189,8 @@ describe('selection-scoped flushes (#760)', () => {
 			UPDATE_STARS: 'stars',
 			UPDATE_READING_LIST: 'reading-list',
 		});
+		assert.ok(Object.isFrozen(FORWARDED_ACTION_SCOPE));
+		const source = readFileSync(new URL('../../src/worker/corpus-worker.ts', import.meta.url), 'utf8');
 		assert.ok(/subscriptions\.markDirty\(FORWARDED_ACTION_SCOPE\[action\.type\] \|\| 'all'\)/.test(source), 'the forwarded-action branch must consult the table');
 	});
 

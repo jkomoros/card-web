@@ -161,6 +161,35 @@ precedent for writing more of it.
 
 ---
 
+## Invariants of the lean mutation architecture
+
+These are enforced by Rules, guards and pins, but a contributor should know
+them before touching the code they govern (design: `docs/lean-mutation-architecture.md`).
+
+- **`cards/{id}.revision` is monotonic and Rules-enforced.** Every content
+  write is `stored + 1`; `MultiBatch` injects the increment — never write
+  `revision` yourself. Every holder (worker corpus, store, enqueued buckets,
+  `updateCards`, editor base) admits an image only if its revision is ≥ the
+  held one (`shared/card-revision.ts`). Equal revisions tie and are admitted.
+- **Card-derived filters are opaque memberships** (`shared/filter_membership.ts`).
+  Read them only through `membershipHas` / `membershipKeys` /
+  `membershipToFilterMap`. `tools/check-filter-membership.cjs` (in `test:ci`)
+  rejects native enumeration it can see; what it cannot see fails loudly at
+  runtime (`Object.keys` yields the instruction, spread/clone throw). Plain
+  maps cross the worker boundary; memberships never do.
+- **A per-user filter needs a dirty scope.** `UPDATE_READS` / `UPDATE_STARS`
+  / `UPDATE_READING_LIST` recompute only subscriptions naming their filters
+  (`src/filter-constants.ts` name lists, pinned to the registry). Add a new
+  viewer-dependent filter and the pin fails until you place it.
+- **Working-notes titles are a display projection**
+  (`src/working-notes-display-title.ts`), computed from the viewer's own
+  inputs. Nothing under `src/actions`, `src/worker`, the diff/batch/queue
+  layers, `shared/` or `functions/` may import it (pinned). Never prefill an
+  editor with it.
+- **A parked single save reads as pending** through
+  `durableCardMutationPendingForCard` until its own record exists; that one
+  seam is what the Edit control, `editingStart` and the recovery banner ask.
+
 ## Environment traps
 
 These have each cost real debugging time. None are optional.

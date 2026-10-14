@@ -11,7 +11,7 @@ import {JSDOM} from 'jsdom';
 import {overrideDocument} from '../../shared/dist/document.js';
 import admin from 'firebase-admin';
 import {planWorkingNotesCutover, runWorkingNotesCutover, GENERATED_TITLE} from '../../tools/cutover-working-notes-titles.mjs';
-import {nlpSourceFingerprintForCard, cardWithNormalizedTextPropertiesSimple, ngrams, CURRENT_NLP_VERSION} from '../../shared/dist/nlp.js';
+import {nlpSourceFingerprintForCard, nlpStorageFieldsForCard} from '../../shared/dist/nlp.js';
 
 const dom = new JSDOM('<!DOCTYPE html><html><body></body></html>');
 overrideDocument(dom.window.document);
@@ -19,17 +19,8 @@ overrideDocument(dom.window.document);
 const sentinels = {serverTimestamp: () => 'SERVER_TIMESTAMP', increment: (n) => `INCREMENT_${n}`};
 const note = (id, extras = {}) => ({id, card_type: 'working-notes', title: '', body: `<p>Body of ${id} with some distinct words</p>`, ...extras});
 const fingerprintOf = card => nlpSourceFingerprintForCard(card);
-//What the client writes on a save (the script's fullNLPFields is a copy).
-const fullNLPFields = (card) => {
-	const processed = cardWithNormalizedTextPropertiesSimple(card);
-	const nlp_tokens = Object.fromEntries(Object.entries(processed.nlp).map(([field, runs]) => [field, runs.map(run => ({normalized: run.normalized, ...(run.uppercaseRanges ? {uppercaseRanges: run.uppercaseRanges} : {})}))]));
-	const tokens = new Set();
-	for (const runs of Object.values(processed.nlp)) for (const run of runs || []) {
-		for (const word of run.stemmed.split(' ')) if (word) tokens.add(word);
-		for (const bigram of ngrams(run.stemmed, 2)) tokens.add(bigram);
-	}
-	return {nlp_tokens, nlp_search_tokens: Array.from(tokens), nlp_version: CURRENT_NLP_VERSION};
-};
+//The ONE storage-shape implementation, shared with the client save path.
+const fullNLPFields = nlpStorageFieldsForCard;
 
 //A card whose stored NLP fields and fingerprint are current for its text.
 const tokenized = (card) => ({...card, ...fullNLPFields(card), nlp_source_fingerprint: fingerprintOf(card)});

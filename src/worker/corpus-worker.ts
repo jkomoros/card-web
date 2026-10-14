@@ -161,9 +161,12 @@ import {
 } from './query-engine.js';
 
 import {
-	DirtyScope,
 	SubscriptionManager
 } from './subscription-manager.js';
+
+import {
+	FORWARDED_ACTION_SCOPE
+} from './forwarded-action-scope.js';
 
 import {
 	setURLDiagnosticsListener
@@ -171,13 +174,7 @@ import {
 
 import {
 	ECHO_LOCAL_CARD_MODIFICATIONS,
-	RECONCILE_CARDS_AFTER_FAILED_COMMIT,
-	SELECT_CARDS,
-	UNSELECT_CARDS,
-	CLEAR_SELECTED_CARDS,
-	UPDATE_READS,
-	UPDATE_STARS,
-	UPDATE_READING_LIST
+	RECONCILE_CARDS_AFTER_FAILED_COMMIT
 } from '../actions.js';
 
 import {
@@ -1048,17 +1045,6 @@ const pushMetaDeltas = (cards : Cards, removedIDs : CardID[], suppressSend = fal
 	//a genuinely changed meta arrives.
 	if (suppressSend || (Object.keys(changed).length === 0 && removed.length === 0)) return;
 	send({type: 'cardMeta', generation, metas: changed, removedIDs: removed});
-};
-
-//The narrow dirty scope each forwarded action's change can be confined to;
-//anything unlisted is 'all'. test/subscription-manager pins this table.
-const FORWARDED_ACTION_SCOPE : {[type : string] : DirtyScope} = {
-	[SELECT_CARDS]: 'selection',
-	[UNSELECT_CARDS]: 'selection',
-	[CLEAR_SELECTED_CARDS]: 'selection',
-	[UPDATE_READS]: 'reads',
-	[UPDATE_STARS]: 'stars',
-	[UPDATE_READING_LIST]: 'reading-list',
 };
 
 const materializeCardFiltersForWire = (filters : Filters) : FilterMaps => {

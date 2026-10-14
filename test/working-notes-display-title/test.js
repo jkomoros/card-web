@@ -280,6 +280,37 @@ describe('working-notes display title consumers', () => {
 		assert.strictEqual(link._autoValue, 'Authored');
 	});
 
+	it('on an inputs change the budgeted title shows the previous title, not the date, until recomputed', async () => {
+		//A concept edit changes the inputs identity for every note at once;
+		//in a corpus that is mostly notes that used to revert the visible
+		//drawer to bare dates until the slices caught up.
+		const cards = corpus();
+		cards.s = baseCard('s', {card_type: 'working-notes', body: NOTE_BODY + '<p>stale while revalidate</p>', published: false});
+		const stateA = stateFor(cards);
+		const card = selectCards(stateA).s;
+		const inputsA = selectDisplayTitleInputs(stateA);
+		beginDisplayTitleBudget();
+		const first = displayTitleBudgeted(card, inputsA);
+		assert.match(first, new RegExp(`^${escapeRegExp(NOTE_DATE)} \\S+`));
+		//New inputs, budget spent: the old title stays on screen and the
+		//recompute is queued.
+		const stateB = stateFor(cards, {idf: {revalidate: 7, stale: 7}, maxIDF: 7});
+		const inputsB = selectDisplayTitleInputs(stateB);
+		beginDisplayTitleBudget(performance.now() - 1000);
+		assert.strictEqual(displayTitleBudgeted(card, inputsB), first, 'the previous title is shown, not the date');
+		assert.strictEqual(pendingDisplayTitleCount(), 1);
+		await new Promise(resolve => setTimeout(resolve, 30));
+		assert.strictEqual(pendingDisplayTitleCount(), 0);
+		beginDisplayTitleBudget(performance.now() - 1000);
+		const revalidated = displayTitleBudgeted(card, inputsB);
+		assert.strictEqual(revalidated, displayTitle(card, inputsB), 'the drain recomputed under the new inputs');
+		//A card never computed still shows the date.
+		cards.fresh = baseCard('fresh', {card_type: 'working-notes', body: '<p>never seen</p>', published: false});
+		const stateC = stateFor(cards);
+		beginDisplayTitleBudget(performance.now() - 1000);
+		assert.strictEqual(displayTitleBudgeted(selectCards(stateC).fresh, selectDisplayTitleInputs(stateC)), NOTE_DATE);
+	});
+
 	it('an idle-slice drain does not evict a title computed since the card was queued', async () => {
 		const cards = corpus();
 		cards.q = baseCard('q', {card_type: 'working-notes', body: NOTE_BODY + '<p>queued</p>', published: false});

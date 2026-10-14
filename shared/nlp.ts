@@ -8,6 +8,7 @@ import {
 import { TypedObject } from './typed_object.js';
 import { innerTextForHTML } from './util.js';
 import type {
+	NLPTokenStorage,
 	Card,
 	ProcessedCard,
 	ProcessedRunInterface,
@@ -391,6 +392,31 @@ const extractContentWords = (card : Card) : NLPInfo => {
 };
 
 //Simplified version for server-side use without fallbackText, importantNgrams, or synonymMap
+//The stored NLP fields a card save writes: normalized runs (stemmed and
+//stop-word forms are derived at load), the flat search-token array for
+//array-contains queries, and the version. ONE implementation, used by the
+//client save path and every admin tool that rewrites cards — the cutover
+//review found four copies, with a test checking one copy against another.
+export const nlpStorageFieldsForCard = (card : Card) : {nlp_tokens : NLPTokenStorage, nlp_search_tokens : string[], nlp_version : number} => {
+	const processed = cardWithNormalizedTextPropertiesSimple(card);
+	const nlp_tokens : NLPTokenStorage = {};
+	for (const [fieldName, runs] of TypedObject.entries(processed.nlp)) {
+		nlp_tokens[fieldName] = runs.map(run => ({
+			normalized: run.normalized,
+			...(run.uppercaseRanges ? {uppercaseRanges: run.uppercaseRanges} : {})
+		}));
+	}
+	const searchTokens = new Set<string>();
+	for (const runs of Object.values(processed.nlp)) {
+		if (!runs) continue;
+		for (const run of runs) {
+			for (const word of run.stemmed.split(' ')) if (word) searchTokens.add(word);
+			for (const bigram of ngrams(run.stemmed, 2)) searchTokens.add(bigram);
+		}
+	}
+	return {nlp_tokens, nlp_search_tokens: Array.from(searchTokens), nlp_version: CURRENT_NLP_VERSION};
+};
+
 export const cardWithNormalizedTextPropertiesSimple = (card: Card): ProcessedCard => {
 	return {
 		...card,

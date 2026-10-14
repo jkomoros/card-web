@@ -42,10 +42,16 @@ export const EDITING_CARD_FILTER_NAMES : readonly string[] = [
 //'reading-list' depend on reads and re-run the reading-list collections
 //on every auto-read. A configurable sub-expression (exclude/read/) embeds
 //the piece the same way, so it still matches.
-const namesPiece = (names : string[]) : RegExp => new RegExp(`(^|[/+])(${names.join('|')})([/+]|$)`);
-const READS_PIECE = namesPiece(['read', 'unread']);
-const STARS_PIECE = namesPiece(['starred', 'unstarred']);
-const READING_LIST_PIECE = namesPiece(['reading-list', 'in-reading-list', 'not-in-reading-list']);
+//test/subscription-manager pins these three lists to the filter registry's
+//VIEWER_DEPENDENT_FILTER_NAMES, so a new per-user filter cannot be added
+//without being placed in a scope (or the pin naming it).
+export const READS_FILTER_NAMES : readonly string[] = ['read', 'unread'];
+export const STARS_FILTER_NAMES : readonly string[] = ['starred', 'unstarred'];
+export const READING_LIST_FILTER_NAMES : readonly string[] = ['reading-list', 'in-reading-list', 'not-in-reading-list'];
+const namesPiece = (names : readonly string[]) : RegExp => new RegExp(`(^|[/+])(${names.join('|')})([/+]|$)`);
+const READS_PIECE = namesPiece(READS_FILTER_NAMES);
+const STARS_PIECE = namesPiece(STARS_FILTER_NAMES);
+const READING_LIST_PIECE = namesPiece(READING_LIST_FILTER_NAMES);
 export const descriptionMayReadReads = (description : string) : boolean => READS_PIECE.test(description);
 export const descriptionMayReadStars = (description : string) : boolean => STARS_PIECE.test(description);
 export const descriptionMayReadReadingList = (description : string) : boolean => READING_LIST_PIECE.test(description);

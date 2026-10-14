@@ -35,7 +35,7 @@ import { initializeApp, applicationDefault } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { JSDOM } from 'jsdom';
 import { fileURLToPath } from 'url';
-import { cardWithNormalizedTextPropertiesSimple, ngrams, CURRENT_NLP_VERSION, nlpSourceFingerprintForCard } from '../shared/dist/nlp.js';
+import { nlpStorageFieldsForCard, nlpSourceFingerprintForCard } from '../shared/dist/nlp.js';
 import { DERIVED_FIELDS_FOR_CARD_TYPE } from '../shared/dist/card_fields.js';
 import { overrideDocument } from '../shared/dist/document.js';
 
@@ -50,30 +50,7 @@ export const GENERATED_TITLE = /^(> )?\d{1,2}\/\d{1,2}\/\d{2}( |$)/;
 //transforms per card, fat-tail bodies included.
 const PAGE_SIZE = 100;
 
-//The same storage shape tools/migrate-nlp-tokens.mjs writes.
-const fullNLPFields = (card) => {
-	const processedCard = cardWithNormalizedTextPropertiesSimple(card);
-	const nlpTokens = {};
-	for (const [fieldName, runs] of Object.entries(processedCard.nlp)) {
-		nlpTokens[fieldName] = runs.map(run => ({
-			normalized: run.normalized,
-			...(run.uppercaseRanges ? { uppercaseRanges: run.uppercaseRanges } : {})
-		}));
-	}
-	const searchTokenSet = new Set();
-	for (const runs of Object.values(processedCard.nlp)) {
-		if (!runs) continue;
-		for (const run of runs) {
-			for (const word of run.stemmed.split(' ')) if (word) searchTokenSet.add(word);
-			for (const bigram of ngrams(run.stemmed, 2)) searchTokenSet.add(bigram);
-		}
-	}
-	return {
-		nlp_tokens: nlpTokens,
-		nlp_search_tokens: Array.from(searchTokenSet),
-		nlp_version: CURRENT_NLP_VERSION,
-	};
-};
+const fullNLPFields = (card) => nlpStorageFieldsForCard(card);
 
 //Structural equality that ignores key order: Firestore hands maps back in
 //its own key order, so a stringify comparison would never match.
@@ -209,7 +186,7 @@ const main = async () => {
 	const started = Date.now();
 	const {counts, ambiguousIDs} = await runWorkingNotesCutover(getFirestore(), {write, log: line => console.log('  ' + line)});
 	console.log(`done in ${((Date.now() - started) / 1000).toFixed(1)}s:`, JSON.stringify(counts));
-	if (ambiguousIDs.length) console.log(`ambiguous (titles kept, NLP regenerated): ${ambiguousIDs.join(', ')}`);
+	if (ambiguousIDs.length) console.log(`ambiguous (titles kept; NLP fields rewritten where they differed): ${ambiguousIDs.join(', ')}`);
 	if (counts['precondition-failed']) {
 		console.log('some writes raced an edit; run again');
 		process.exit(2);

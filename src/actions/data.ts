@@ -191,19 +191,9 @@ import {
 } from '../card_fields.js';
 
 import {
-	cardWithNormalizedTextProperties
-} from '../nlp.js';
-
-import {
-	ngrams,
-	CURRENT_NLP_VERSION,
+	nlpStorageFieldsForCard,
 	nlpSourceFingerprintForCard
 } from '../../shared/nlp.js';
-
-import type {
-	NLPTokenStorage,
-	CardFieldType
-} from '../../shared/types.js';
 
 import {
 	cardDiffHasChanges,
@@ -2097,43 +2087,10 @@ export const modifyCardWithBatch = async (state : State, card : Card, rawUpdate 
 		//Create a temporary updated card for NLP processing
 		const tempUpdatedCard = applyCardFirebaseUpdate(card, cardUpdateObject);
 
-		//Process the card to generate NLP tokens
-		//Pass empty maps for fallbackText, importantNgrams, and synonyms
-		const processedCard = cardWithNormalizedTextProperties(tempUpdatedCard, {}, {}, {});
-
-		//Convert ProcessedRunInterface to ProcessedRunStorage for Firestore
-		//Only store normalized + uppercaseRanges; stemmed and withoutStopWords
-		//are derived at load time since the stemmer is deterministic and cheap.
-		const nlpTokens : NLPTokenStorage = {};
-		for (const [fieldName, runs] of TypedObject.entries(processedCard.nlp)) {
-			nlpTokens[fieldName as CardFieldType] = runs.map(run => ({
-				normalized: run.normalized,
-				...(run.uppercaseRanges ? { uppercaseRanges: run.uppercaseRanges } : {})
-			}));
-		}
-
-		//Generate nlp_search_tokens: flat array of deduplicated stemmed
-		//unigrams + bigrams for server-side array-contains queries
-		const searchTokenSet = new Set<string>();
-		for (const [, runs] of TypedObject.entries(processedCard.nlp)) {
-			if (!runs) continue;
-			for (const run of runs) {
-				//Add individual stemmed words
-				for (const word of run.stemmed.split(' ')) {
-					if (word) searchTokenSet.add(word);
-				}
-				//Add bigrams
-				for (const bigram of ngrams(run.stemmed, 2)) {
-					searchTokenSet.add(bigram);
-				}
-			}
-		}
-
-		//Add NLP data to card update
-		cardUpdateObject.nlp_tokens = nlpTokens;
-		cardUpdateObject.nlp_search_tokens = Array.from(searchTokenSet);
+		//The stored NLP fields, from the one shared implementation that the
+		//admin tools (cutover, token migration) also write with.
+		Object.assign(cardUpdateObject, nlpStorageFieldsForCard(tempUpdatedCard));
 		cardUpdateObject.nlp_source_fingerprint = nlpSourceFingerprintForCard(tempUpdatedCard);
-		cardUpdateObject.nlp_version = CURRENT_NLP_VERSION;
 	}
 
 	//A prior card in this multi-edit may already have changed this card's

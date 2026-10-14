@@ -188,7 +188,7 @@ Each write fires `updateCardEmbedding` once, as a cheap `setPayload`. The number
 
 Conventions follow `prod-landing-runsheet.md`. All prod steps are **[OWNER] only**.
 
-`01-revision-and-admission.md` does not exist yet; this assumes `get('revision',0)+1`.
+The Rules' content gate is `revision == get('revision',0)+1` (`01-revision-and-admission.md`, landed).
 
 **Quiesce instead of ordering** (Q4): rules-first is unnecessary (T5) and denies saves from unrefreshed clients.
 
@@ -196,17 +196,17 @@ Conventions follow `prod-landing-runsheet.md`. All prod steps are **[OWNER] only
    - `npm test` is green on the slice-8 commit;
    - the DEV rehearsal is signed off;
    - the DEV `deploy-stamp.json` equals HEAD.
-1. **[OWNER] Close every app instance on every device.** An old client's finisher would rewrite titles, and an old client does not write `revision`.
+1. **[OWNER] Close every app instance on every device.** An old client's finisher would rewrite titles, and an old client does not write `revision` — after the deploy its content writes are DENIED: its queued creates/forks/imports are discarded as permanent failures, and its single saves pause with their durable record. **Before closing, check each client's save pill is idle and no recovery banner is up**; a paused save left behind is recoverable by the new build (same record key), but only if site data is NOT cleared (step 5).
 2. **[OWNER]** `npm run backup`. It calls `gcloudEnsureProd()` itself. Verify that the export completes.
 3. **[OWNER]** Run `npm test`, then `npm run deploy`. The deploy runs no tests, which is why the suite runs first. It ships rules, indexes, hosting and functions together; with no clients open, their order doesn't matter. Then check that `deploy-stamp.json` equals HEAD and that `dirty` is false.
 4. **[OWNER]** Run the script:
    1. `--prod` dry run. Review the counts; `ambiguous` should be 0.
    2. `--prod --write --confirm-project=complexity-compendium`.
-   3. Dry run again. Expect `clean == total`.
+   3. Dry run again. Expect `unchanged == total` (`clean` excludes ambiguous cards, which stay reported on every run).
 5. **[OWNER]** On each of the ~3 clients:
-   1. DevTools → Application → Storage → **Clear site data**. This also unregisters the service worker.
-   2. Close all tabs and reopen.
-   3. Sign in and wait for syncState `live`.
+   1. **Do not clear site data**: localStorage holds stamped edit drafts and any paused durable record, and the new build replays them. If the worker's persisted snapshot must go (a restore, not this cutover), clear only IndexedDB.
+   2. Close all tabs and reopen (the service worker updates on reload).
+   3. Sign in and wait for syncState `live`; resolve any recovery banner or paused save it shows.
 6. **[OWNER]** Verify:
    - the Working notes tab shows dated titles;
    - a newly created note has `title == ''` in Firestore;

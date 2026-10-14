@@ -58,11 +58,28 @@ const membershipStates = new WeakMap<CardDerivedMembership, MembershipState>();
 //hand the main thread the bits instead of materializing plain maps.
 const primeSources = new WeakMap<CardDerivedMembership, {ids : readonly string[], words : Uint32Array}>();
 
+//Misuse fails loudly rather than reading as an empty map. The guard is
+//type-aware and cannot see a membership that reaches Object.keys / spread /
+//JSON through a generic or `unknown` parameter — which used to yield [] / {}
+/// "{}" silently. One enumerable accessor whose NAME is the instruction and
+//whose getter throws: Object.keys shows the instruction, and any spread,
+//Object.values/entries, structuredClone or for-in read throws it.
+export const MEMBERSHIP_MISUSE_KEY = 'This is a CardDerivedMembership: read it with membershipHas / membershipKeys / membershipToFilterMap';
 export class CardDerivedMembership {
 	declare private readonly _cardDerivedMembershipBrand : void;
 	constructor(authority : symbol) {
 		if (authority !== AUTHORITY) throw new Error('CardDerivedMembership is created by filter membership helpers');
+		Object.defineProperty(this, MEMBERSHIP_MISUSE_KEY, {
+			enumerable: true,
+			configurable: false,
+			get() { throw new Error(MEMBERSHIP_MISUSE_KEY); },
+		});
 		Object.freeze(this);
+	}
+	//JSON.stringify consults this first: a labelled placeholder rather than
+	//a throw, so a debugging dump of state stays readable.
+	toJSON() : string {
+		return '<' + MEMBERSHIP_MISUSE_KEY + '>';
 	}
 }
 

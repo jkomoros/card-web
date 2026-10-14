@@ -173,6 +173,20 @@ describe('SubscriptionManager', () => {
 		assert.strictEqual(runs.length, 10);
 	});
 
+	it('pins the reads/stars/reading-list scope names to the registry\'s viewer-dependent filters', async () => {
+		//A per-user filter added to filters.ts without a scope would go stale
+		//silently on its set's dirt; this fails instead.
+		const {READS_FILTER_NAMES, STARS_FILTER_NAMES, READING_LIST_FILTER_NAMES, SELECTED_FILTER_NAME} = await import('../../lib/src/filter-constants.js');
+		const {VIEWER_DEPENDENT_FILTER_NAMES, INVERSE_FILTER_NAMES, SET_INFOS} = await import('../../lib/src/filters.js');
+		const scoped = new Set([...READS_FILTER_NAMES, ...STARS_FILTER_NAMES, ...READING_LIST_FILTER_NAMES]);
+		const selection = new Set([SELECTED_FILTER_NAME, ...Object.entries(INVERSE_FILTER_NAMES).filter(([, base]) => base === SELECTED_FILTER_NAME).map(([inverse]) => inverse)]);
+		const unscoped = [...VIEWER_DEPENDENT_FILTER_NAMES].filter(name => !scoped.has(name) && !selection.has(name));
+		assert.deepStrictEqual(unscoped, [], 'every viewer-dependent filter must belong to a dirty scope');
+		assert.ok(scoped.has(SET_INFOS['reading-list'].filterEquivalent));
+		assert.ok(scoped.has('reading-list'), 'the reading-list SET name is scoped too');
+		for (const name of scoped) if (name !== 'reading-list') assert.ok(VIEWER_DEPENDENT_FILTER_NAMES.has(name), `${name} is scoped but not viewer-dependent`);
+	});
+
 	it('pins EDITING_CARD_FILTER_NAMES to the registry factories that read the editing card', async () => {
 		const {CONFIGURABLE_FILTER_INFO} = await import('../../lib/src/filters.js');
 		const {EDITING_CARD_FILTER_NAMES, descriptionMayReadEditingCard} = await import('../../lib/src/filter-constants.js');
