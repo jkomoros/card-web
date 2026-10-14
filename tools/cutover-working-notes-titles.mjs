@@ -40,10 +40,15 @@ import { DERIVED_FIELDS_FOR_CARD_TYPE } from '../shared/dist/card_fields.js';
 import { overrideDocument } from '../shared/dist/document.js';
 
 //The exact prefix the old finisher produced: toLocaleDateString('en-US',
-//{month:'numeric', day:'numeric', year:'2-digit'}) followed by the terms.
-export const GENERATED_TITLE = /^\d{1,2}\/\d{1,2}\/\d{2}( |$)/;
+//{month:'numeric', day:'numeric', year:'2-digit'}) followed by the terms —
+//and, for one week in October 2020 (56d47c9c..943e7f7d), the same with a
+//leading "> ". A note not saved since then still carries that form.
+export const GENERATED_TITLE = /^(> )?\d{1,2}\/\d{1,2}\/\d{2}( |$)/;
 
-const PAGE_SIZE = 400;
+//Reads page by page; each page is one batch. Kept well under Firestore's
+//500-operation and 10 MiB request limits with full NLP fields and two
+//transforms per card, fat-tail bodies included.
+const PAGE_SIZE = 100;
 
 //The same storage shape tools/migrate-nlp-tokens.mjs writes.
 const fullNLPFields = (card) => {
@@ -81,29 +86,30 @@ const canonical = (value) => {
 //Pure: what to write for one card, or nothing. `sentinels` supplies the
 //server-timestamp and increment values so the planner itself is testable
 //without the admin SDK.
+//
+//The NLP fields and the fingerprint are always written TOGETHER, from the
+//card as it will be stored. A fingerprint written alone would stamp
+//whatever tokens are stored as current — and a card whose body changed
+//through a path that skipped token regeneration (the drift the fingerprint
+//exists to detect) would become fast and wrong: searched and recalled by
+//its old words until its next edit. The review caught the first draft
+//doing exactly that.
 export const planWorkingNotesCutover = (card, sentinels) => {
 	if (card.card_type !== 'working-notes') return {kind: 'not-working-notes', update: null};
 	const generated = GENERATED_TITLE.test(card.title || '');
 	const next = generated ? {...card, title: ''} : card;
 	const update = {};
-	let kind = 'clean';
-	if (generated) {
-		update.title = '';
-		kind = 'cleared';
-	} else if (card.title) {
-		//Kept, and reported as ambiguous on every run; its NLP fields are
-		//written only when they differ from what is stored, so a second run
-		//over the same card writes nothing.
-		kind = 'ambiguous';
-		const fields = fullNLPFields(next);
-		const stored = {nlp_tokens: card.nlp_tokens, nlp_search_tokens: card.nlp_search_tokens, nlp_version: card.nlp_version};
-		if (canonical(fields) !== canonical(stored)) Object.assign(update, fields);
-	}
-	if (card.nlp_source_fingerprint !== undefined) {
-		const fingerprint = nlpSourceFingerprintForCard(next);
-		if (fingerprint !== card.nlp_source_fingerprint) {
-			update.nlp_source_fingerprint = fingerprint;
-			if (kind === 'clean') kind = 'fingerprint-only';
+	let kind = generated ? 'cleared' : card.title ? 'ambiguous' : 'clean';
+	if (generated) update.title = '';
+	//A card that was never tokenized (no tokens, no fingerprint) and needs
+	//no clearing is not this script's: tools/migrate-nlp-tokens.mjs is.
+	const tokenized = card.nlp_tokens !== undefined || card.nlp_source_fingerprint !== undefined;
+	if (generated || tokenized) {
+		const desired = {...fullNLPFields(next), nlp_source_fingerprint: nlpSourceFingerprintForCard(next)};
+		const stored = {nlp_tokens: card.nlp_tokens, nlp_search_tokens: card.nlp_search_tokens, nlp_version: card.nlp_version, nlp_source_fingerprint: card.nlp_source_fingerprint};
+		if (canonical(desired) !== canonical(stored)) {
+			Object.assign(update, desired);
+			if (kind === 'clean') kind = 'retokenized';
 		}
 	}
 	if (!Object.keys(update).length) return {kind, update: null};
@@ -117,7 +123,7 @@ export const planWorkingNotesCutover = (card, sentinels) => {
 export const runWorkingNotesCutover = async (db, {write, log = () => {}}) => {
 	//`unchanged` counts every card that needed no write, whatever its kind;
 	//a second run over a finished corpus has unchanged == total.
-	const counts = {total: 0, cleared: 0, 'fingerprint-only': 0, ambiguous: 0, clean: 0, unchanged: 0, 'precondition-failed': 0};
+	const counts = {total: 0, cleared: 0, retokenized: 0, ambiguous: 0, clean: 0, unchanged: 0, 'precondition-failed': 0};
 	const ambiguousIDs = [];
 	const sentinels = {serverTimestamp: () => FieldValue.serverTimestamp(), increment: (n) => FieldValue.increment(n)};
 	let last = null;
@@ -155,7 +161,7 @@ export const runWorkingNotesCutover = async (db, {write, log = () => {}}) => {
 				}
 			}
 		}
-		log(`${counts.total} scanned — cleared ${counts.cleared}, fingerprint-only ${counts['fingerprint-only']}, ambiguous ${counts.ambiguous}, clean ${counts.clean}`);
+		log(`${counts.total} scanned — cleared ${counts.cleared}, retokenized ${counts.retokenized}, ambiguous ${counts.ambiguous}, clean ${counts.clean}, unchanged ${counts.unchanged}`);
 		last = page.docs[page.docs.length - 1];
 		if (page.size < PAGE_SIZE) break;
 	}

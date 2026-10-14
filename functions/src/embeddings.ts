@@ -155,10 +155,12 @@ export const textContentForEmbeddingForCard = (card : EmbeddableCard) : string =
 	//TODO: ideally this would literally be the cardPlainContent implementation from src/util.ts
 	//This is now possible because cardPlainContent is now in shared/util.ts.
 	const parts : string[] = [];
-	//Skip the computed title on working-notes cards since they are entire
-	//computed. No other field for any card-type is computed yet.
 	//Working-notes titles used to be generated from the viewer's corpus and
-	//were excluded; they are authored (usually empty) now, like any other.
+	//were excluded here; they are authored (usually empty) now, like any
+	//other type's. CURRENT_EMBEDDING_VERSION is deliberately NOT bumped: the
+	//text is unchanged for every card whose title is empty — which, after
+	//the cutover script clears the generated ones, is every working-notes
+	//card — so a bump would re-embed the whole corpus for nothing.
 	const title = card.title || '';
 	if (title) parts.push(title);
 	const body = innerTextForHTML(card.body, true);

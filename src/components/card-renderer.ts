@@ -352,7 +352,9 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 			be saved. */
 			[data-placeholder]:empty::before {
 				content: attr(data-placeholder);
-				color: var(--app-dark-text-color-subtle);
+				/* Subordinate text (HOUSE-STYLE §4.5): the subtle token is
+				near-invisible on the unpublished background. */
+				color: var(--app-dark-text-color-light);
 				font-weight: normal;
 			}
 
@@ -452,6 +454,10 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 		const scrollableFields : CardFieldTypeEditable[] = [];
 		const scrollableFooterFields : CardFieldTypeEditable[] = [];
 		for (const [fieldName,fieldConfig] of TypedObject.entries(fieldsToRender)) {
+			//An optional field left empty is not rendered in view mode at all —
+			//not as an empty container, and not as the type icon that a title
+			//row brings with it (master drew neither for a working-notes card).
+			if (!this.editing && !this._card[fieldName] && (OPTIONAL_FIELDS_FOR_CARD_TYPE[cardType] || {})[fieldName]) continue;
 			if (fieldName == 'title') {
 				titleFields.push(fieldName);
 			} else if (fieldConfig.nonScrollable) {

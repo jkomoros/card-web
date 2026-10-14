@@ -10,8 +10,8 @@ import {spawnSync} from 'child_process';
 import {JSDOM} from 'jsdom';
 import {overrideDocument} from '../../shared/dist/document.js';
 import admin from 'firebase-admin';
-import {planWorkingNotesCutover, GENERATED_TITLE} from '../../tools/cutover-working-notes-titles.mjs';
-import {nlpSourceFingerprintForCard} from '../../shared/dist/nlp.js';
+import {planWorkingNotesCutover, runWorkingNotesCutover, GENERATED_TITLE} from '../../tools/cutover-working-notes-titles.mjs';
+import {nlpSourceFingerprintForCard, cardWithNormalizedTextPropertiesSimple, ngrams, CURRENT_NLP_VERSION} from '../../shared/dist/nlp.js';
 
 const dom = new JSDOM('<!DOCTYPE html><html><body></body></html>');
 overrideDocument(dom.window.document);
@@ -19,60 +19,97 @@ overrideDocument(dom.window.document);
 const sentinels = {serverTimestamp: () => 'SERVER_TIMESTAMP', increment: (n) => `INCREMENT_${n}`};
 const note = (id, extras = {}) => ({id, card_type: 'working-notes', title: '', body: `<p>Body of ${id} with some distinct words</p>`, ...extras});
 const fingerprintOf = card => nlpSourceFingerprintForCard(card);
+//What the client writes on a save (the script's fullNLPFields is a copy).
+const fullNLPFields = (card) => {
+	const processed = cardWithNormalizedTextPropertiesSimple(card);
+	const nlp_tokens = Object.fromEntries(Object.entries(processed.nlp).map(([field, runs]) => [field, runs.map(run => ({normalized: run.normalized, ...(run.uppercaseRanges ? {uppercaseRanges: run.uppercaseRanges} : {})}))]));
+	const tokens = new Set();
+	for (const runs of Object.values(processed.nlp)) for (const run of runs || []) {
+		for (const word of run.stemmed.split(' ')) if (word) tokens.add(word);
+		for (const bigram of ngrams(run.stemmed, 2)) tokens.add(bigram);
+	}
+	return {nlp_tokens, nlp_search_tokens: Array.from(tokens), nlp_version: CURRENT_NLP_VERSION};
+};
+
+//A card whose stored NLP fields and fingerprint are current for its text.
+const tokenized = (card) => ({...card, ...fullNLPFields(card), nlp_source_fingerprint: fingerprintOf(card)});
 
 describe('cutover planner', () => {
-	it('recognizes the generator\'s date prefix and nothing else', () => {
-		for (const title of ['11/4/20 Truth Landing Ground', '1/1/26', '12/31/99 x']) assert.ok(GENERATED_TITLE.test(title), title);
-		for (const title of ['', 'Authored', '2020/11/04 x', '11/4/2020 x', ' 11/4/20 x', 'On 11/4/20']) assert.ok(!GENERATED_TITLE.test(title), JSON.stringify(title));
+	it('recognizes the generator\'s date prefix (and its one-week "> " variant) and nothing else', () => {
+		for (const title of ['11/4/20 Truth Landing Ground', '1/1/26', '12/31/99 x', '> 10/20/20 Early Form']) assert.ok(GENERATED_TITLE.test(title), title);
+		for (const title of ['', 'Authored', '2020/11/04 x', '11/4/2020 x', ' 11/4/20 x', 'On 11/4/20', '>11/4/20 x']) assert.ok(!GENERATED_TITLE.test(title), JSON.stringify(title));
 	});
 
-	it('plans the six shapes: generated with and without a stored fingerprint, ambiguous, empty, stale fingerprint only, other types', () => {
-		const generatedNoFingerprint = note('g1', {title: '11/4/20 Truth Landing Ground'});
-		const generatedWithFingerprint = note('g2', {title: '11/4/20 Truth Landing Ground', nlp_source_fingerprint: 'stale'});
+	it('plans the shapes: generated, ambiguous, current, stale tokens, never tokenized, other types', () => {
+		const generated = note('g1', {title: '11/4/20 Truth Landing Ground'});
+		const generatedTokenized = tokenized(note('g2', {title: '11/4/20 Truth Landing Ground'}));
 		const ambiguous = note('a1', {title: 'My own note title', nlp_source_fingerprint: 'stale'});
-		const empty = note('e1', {nlp_source_fingerprint: fingerprintOf(note('e1'))});
-		const staleOnly = note('s1', {nlp_source_fingerprint: 'stale'});
+		const current = tokenized(note('e1'));
+		const staleFingerprint = {...tokenized(note('s1')), nlp_source_fingerprint: 'stale'};
+		const neverTokenized = note('n1');
 		const content = {...note('c1', {title: '11/4/20 looks generated'}), card_type: 'content'};
 
-		const p1 = planWorkingNotesCutover(generatedNoFingerprint, sentinels);
+		const p1 = planWorkingNotesCutover(generated, sentinels);
 		assert.strictEqual(p1.kind, 'cleared');
-		assert.deepStrictEqual(p1.update, {title: '', updated: 'SERVER_TIMESTAMP', revision: 'INCREMENT_1'}, 'no stored fingerprint: none written');
+		assert.strictEqual(p1.update.title, '');
+		assert.deepStrictEqual(Object.keys(p1.update).sort(), ['nlp_search_tokens', 'nlp_source_fingerprint', 'nlp_tokens', 'nlp_version', 'revision', 'title', 'updated'], 'a cleared card is tokenized for its new text and fingerprinted together');
+		assert.strictEqual(p1.update.nlp_source_fingerprint, fingerprintOf({...generated, title: ''}), 'the fingerprint is of the card WITHOUT the generated title');
+		assert.ok(!p1.update.nlp_search_tokens.includes('landing'), 'the generated title\'s words are not indexed');
 
-		const p2 = planWorkingNotesCutover(generatedWithFingerprint, sentinels);
+		const p2 = planWorkingNotesCutover(generatedTokenized, sentinels);
 		assert.strictEqual(p2.kind, 'cleared');
-		assert.strictEqual(p2.update.title, '');
-		assert.strictEqual(p2.update.nlp_source_fingerprint, fingerprintOf({...generatedWithFingerprint, title: ''}), 'the fingerprint is of the card WITHOUT the generated title');
-		assert.notStrictEqual(p2.update.nlp_source_fingerprint, fingerprintOf(generatedWithFingerprint));
+		assert.notStrictEqual(p2.update.nlp_source_fingerprint, generatedTokenized.nlp_source_fingerprint);
 
 		const p3 = planWorkingNotesCutover(ambiguous, sentinels);
 		assert.strictEqual(p3.kind, 'ambiguous');
 		assert.strictEqual(p3.update.title, undefined, 'an authored-looking title is kept');
-		assert.ok(p3.update.nlp_tokens && p3.update.nlp_search_tokens && p3.update.nlp_version, 'its NLP fields are regenerated as authored');
 		assert.ok(p3.update.nlp_search_tokens.includes('own'), 'the kept title is indexed');
-		assert.strictEqual(p3.update.nlp_source_fingerprint, fingerprintOf(ambiguous));
+		assert.strictEqual(p3.update.nlp_source_fingerprint, fingerprintOf(ambiguous), 'and fingerprinted with its tokens');
 
-		assert.deepStrictEqual(planWorkingNotesCutover(empty, sentinels), {kind: 'clean', update: null});
-		assert.deepStrictEqual(planWorkingNotesCutover(note('e2'), sentinels), {kind: 'clean', update: null}, 'no title, no stored fingerprint: nothing to do');
+		assert.deepStrictEqual(planWorkingNotesCutover(current, sentinels), {kind: 'clean', update: null});
+		assert.deepStrictEqual(planWorkingNotesCutover(neverTokenized, sentinels), {kind: 'clean', update: null}, 'never tokenized and nothing to clear: not this script\'s');
 
-		const p5 = planWorkingNotesCutover(staleOnly, sentinels);
-		assert.strictEqual(p5.kind, 'fingerprint-only');
-		assert.deepStrictEqual(Object.keys(p5.update).sort(), ['nlp_source_fingerprint', 'revision', 'updated']);
+		const p5 = planWorkingNotesCutover(staleFingerprint, sentinels);
+		assert.strictEqual(p5.kind, 'retokenized');
+		assert.ok(p5.update.nlp_tokens, 'tokens are rewritten with the fingerprint, never the fingerprint alone');
 
 		assert.deepStrictEqual(planWorkingNotesCutover(content, sentinels), {kind: 'not-working-notes', update: null});
 	});
 
-	it('is idempotent: planning the written result again is clean', () => {
-		const card = note('g3', {title: '11/4/20 Truth Landing Ground', nlp_source_fingerprint: 'stale', revision: 4});
-		const {update} = planWorkingNotesCutover(card, sentinels);
-		const after = {...card, title: update.title, nlp_source_fingerprint: update.nlp_source_fingerprint, revision: 5};
-		assert.deepStrictEqual(planWorkingNotesCutover(after, sentinels), {kind: 'clean', update: null});
-		//An ambiguous card stays reported as ambiguous, but writes nothing
-		//once its NLP fields and fingerprint are current.
-		const ambiguous = note('a2', {title: 'Kept', nlp_source_fingerprint: 'stale'});
-		const first = planWorkingNotesCutover(ambiguous, sentinels);
-		assert.strictEqual(first.kind, 'ambiguous');
-		const written = {...ambiguous, nlp_tokens: first.update.nlp_tokens, nlp_search_tokens: first.update.nlp_search_tokens, nlp_version: first.update.nlp_version, nlp_source_fingerprint: first.update.nlp_source_fingerprint};
-		assert.deepStrictEqual(planWorkingNotesCutover(written, sentinels), {kind: 'ambiguous', update: null});
+	it('never stamps stale tokens as current: a body that changed behind the tokens is re-tokenized', () => {
+		//The drift the fingerprint exists to detect: tokens from an old body,
+		//a fingerprint that no longer matches. Writing a fresh fingerprint
+		//alone would have made this card fast and wrong.
+		const old = tokenized(note('d1', {body: '<p>alpha beta original words</p>'}));
+		const drifted = {...old, body: '<p>zebra quokka replaced everything</p>'};
+		const {kind, update} = planWorkingNotesCutover(drifted, sentinels);
+		assert.strictEqual(kind, 'retokenized');
+		assert.ok(update.nlp_search_tokens.includes('zebra'), 'the stored tokens reflect the new body');
+		assert.ok(!update.nlp_search_tokens.includes('alpha'));
+		assert.strictEqual(update.nlp_source_fingerprint, fingerprintOf(drifted));
+		//And the generated-title case too.
+		const driftedGenerated = {...old, title: '11/4/20 Alpha Beta', body: '<p>zebra quokka replaced everything</p>'};
+		const cleared = planWorkingNotesCutover(driftedGenerated, sentinels);
+		assert.strictEqual(cleared.kind, 'cleared');
+		assert.ok(cleared.update.nlp_search_tokens.includes('zebra'));
+	});
+
+	it('is idempotent: planning the written result again writes nothing', () => {
+		for (const card of [
+			note('g3', {title: '11/4/20 Truth Landing Ground', nlp_source_fingerprint: 'stale', revision: 4}),
+			note('a2', {title: 'Kept', nlp_source_fingerprint: 'stale'}),
+			{...tokenized(note('s2')), nlp_source_fingerprint: 'stale'},
+		]) {
+			const {kind, update} = planWorkingNotesCutover(card, sentinels);
+			assert.ok(update, kind);
+			const {updated, revision, ...fields} = update;
+			assert.strictEqual(updated, 'SERVER_TIMESTAMP');
+			assert.strictEqual(revision, 'INCREMENT_1');
+			const after = {...card, ...fields};
+			const again = planWorkingNotesCutover(after, sentinels);
+			assert.strictEqual(again.update, null, `${kind} written again`);
+			assert.strictEqual(again.kind, kind === 'ambiguous' ? 'ambiguous' : 'clean');
+		}
 	});
 });
 
@@ -105,6 +142,7 @@ describe('cutover script against the emulator', function() {
 		assert.strictEqual(ambiguous.title, 'Kept title');
 		assert.strictEqual(ambiguous.revision, 2);
 		assert.ok(ambiguous.nlp_tokens, 'ambiguous card got NLP fields');
+		assert.strictEqual(ambiguous.nlp_source_fingerprint, fingerprintOf({...seeded[`cut-${stamp}-ambiguous`], id: `cut-${stamp}-ambiguous`}), 'and its fingerprint');
 		assert.ok(first.stdout.includes(`cut-${stamp}-ambiguous`), 'the ambiguous id is reported');
 		const clean = (await db.collection('cards').doc(`cut-${stamp}-clean`).get()).data();
 		assert.strictEqual(clean.revision, 2, 'a clean card is untouched');
@@ -117,6 +155,34 @@ describe('cutover script against the emulator', function() {
 		const again = (await db.collection('cards').doc(`cut-${stamp}-generated`).get()).data();
 		assert.strictEqual(again.revision, 4, 'the second run wrote nothing');
 		assert.strictEqual((await db.collection('cards').doc(`cut-${stamp}-ambiguous`).get()).data().revision, 2);
+	});
+
+	it('a card edited between the read and the commit fails its precondition and is left for a re-run', async () => {
+		const stamp = Date.now();
+		const ids = ['p0', 'p1', 'p2'].map(suffix => `cut-${stamp}-${suffix}`);
+		for (const id of ids) await db.collection('cards').doc(id).set({...note('x', {title: '11/4/20 Truth Landing Ground', revision: 1}), id, updated: admin.firestore.Timestamp.fromMillis(1_600_000_000_000)});
+		//Between the page read and its commit, another client authors a title
+		//on one of the cards.
+		const racedDB = {
+			collection: name => db.collection(name),
+			batch: () => {
+				const real = db.batch();
+				const commit = real.commit.bind(real);
+				real.commit = async () => {
+					await db.collection('cards').doc(ids[1]).update({title: 'Authored mid-run', updated: admin.firestore.FieldValue.serverTimestamp()});
+					return commit();
+				};
+				return real;
+			},
+		};
+		const first = await runWorkingNotesCutover(racedDB, {write: true});
+		assert.ok(first.counts['precondition-failed'] >= 3, `the whole raced batch failed its precondition: ${JSON.stringify(first.counts)}`);
+		assert.strictEqual((await db.collection('cards').doc(ids[1]).get()).data().title, 'Authored mid-run', 'the mid-run edit survived');
+		const second = await runWorkingNotesCutover(db, {write: true});
+		assert.strictEqual(second.counts['precondition-failed'], 0);
+		assert.strictEqual((await db.collection('cards').doc(ids[0]).get()).data().title, '', 'the re-run cleared the unraced card');
+		assert.strictEqual((await db.collection('cards').doc(ids[1]).get()).data().title, 'Authored mid-run', 'and reported the authored one as ambiguous');
+		assert.ok(second.ambiguousIDs.includes(ids[1]));
 	});
 
 	it('refuses to run without the emulator host, and prod without confirmation', () => {

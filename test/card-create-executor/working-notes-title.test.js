@@ -14,7 +14,8 @@ const app = await bootstrapApp();
 const {db, store, firestore} = app;
 const {doc, getDocs, getDocsFromServer, getDoc, query, collection: coll, where} = firestore;
 
-const {bulkCreateWorkingNotes, modifyCard} = await import('../../lib/src/actions/data.js');
+const {bulkCreateWorkingNotes, modifyCard, createCard} = await import('../../lib/src/actions/data.js');
+const {newID} = await import('../../lib/src/util.js');
 const {CARD_TYPE_EDITING_FINISHERS} = await import('../../lib/src/card_finishers.js');
 const {DERIVED_FIELDS_FOR_CARD_TYPE, OPTIONAL_FIELDS_FOR_CARD_TYPE, TEXT_FIELD_CONFIGURATION} = await import('../../lib/shared/card_fields.js');
 const {selectRawCards} = await import('../../lib/src/selectors.js');
@@ -52,26 +53,30 @@ describe('working-notes titles are authored, never generated', function() {
 	it('a bulk import writes empty titles; a body edit keeps them empty; an authored title is kept verbatim', async () => {
 		const marker = 'wn-title-' + Date.now();
 		const bodies = [`<p>${marker} alpha</p>`, `<p>${marker} beta</p>`, `<p>${marker} gamma</p>`];
-		//Delta-listener stand-in: bulkCreateWorkingNotes waits for its cards
-		//to arrive in the store, which in the app the listener provides.
-		const delivered = new Set();
-		const deliveryTimer = setInterval(() => {
-			void (async () => {
+		//Delta-listener stand-in, like bulk-import-session's: deliver the
+		//committed cards to the store ONCE, after the import reports them all
+		//committed. Polling the server while the writes are in flight made
+		//the SDK fail an internal assertion about half the time.
+		let delivered = false;
+		const unsubscribe = store.subscribe(() => {
+			if (delivered || store.getState().bulkImport.progress?.committed !== bodies.length) return;
+			delivered = true;
+			setTimeout(async () => {
 				const snapshot = await getDocs(query(coll(db, 'cards'), where('card_type', '==', 'working-notes')));
+				const cards = {};
 				for (const docSnapshot of snapshot.docs) {
-					const card = docSnapshot.data();
-					if (delivered.has(docSnapshot.id) || !String(card.body || '').includes(marker)) continue;
-					delivered.add(docSnapshot.id);
-					//Raw UPDATE_CARDS, not receiveCards: the import's own pending
-					//modification would gate a receiveCards delivery.
-					store.dispatch({type: 'UPDATE_CARDS', cards: {[docSnapshot.id]: {...card, id: docSnapshot.id}}, fetchType: 'unpublished'});
+					if (!String(docSnapshot.data().body || '').includes(marker)) continue;
+					cards[docSnapshot.id] = {...docSnapshot.data(), id: docSnapshot.id};
 				}
-			})();
-		}, 50);
+				//Raw UPDATE_CARDS, not receiveCards: the import's own pending
+				//modification would gate a receiveCards delivery.
+				store.dispatch({type: 'UPDATE_CARDS', cards, fetchType: 'unpublished'});
+			}, 0);
+		});
 		try {
 			await store.dispatch(bulkCreateWorkingNotes(bodies));
 		} finally {
-			clearInterval(deliveryTimer);
+			unsubscribe();
 		}
 		const snapshot = await getDocsFromServer(query(coll(db, 'cards'), where('card_type', '==', 'working-notes')));
 		const created = snapshot.docs.filter(d => String(d.data().body || '').includes(marker));
@@ -92,5 +97,75 @@ describe('working-notes titles are authored, never generated', function() {
 		await store.dispatch(modifyCard(selectRawCards(store.getState())[first.id], {title: 'My own title'}, true));
 		server = (await getDoc(doc(db, 'cards', first.id))).data();
 		assert.strictEqual(server.title, 'My own title');
+	});
+
+	it('renders no title row and no type icon for an untitled note in view mode, and a placeholder while editing', async function() {
+		this.timeout(20000);
+		//Making the title LEGAL made editableFieldsForCardType return it, and
+		//the renderer's title row (with the card-type icon) is drawn whenever
+		//a title field exists — so every note grew an icon and an empty h1
+		//that master never drew (the step-A review caught it).
+		await import('../../lib/src/components/card-renderer.js');
+		const element = app.dom.window.document.createElement('card-renderer');
+		const card = {
+			id: 'render-note', card_type: 'working-notes', title: '', body: '<p>A note body</p>', section: '', tags: [], published: false, full_bleed: false,
+			references: {}, references_info: {}, references_inbound: {}, references_info_inbound: {}, auto_todo_overrides: {}, images: [], slugs: [], notes: '', todo: '',
+			star_count: 0, thread_count: 0, font_size_boost: {},
+		};
+		//jsdom has no execCommand; the renderer's empty-body caret hack
+		//calls it when editing starts.
+		if (!app.dom.window.document.execCommand) app.dom.window.document.execCommand = () => true;
+		element.card = card;
+		element.editing = false;
+		element.dataIsFullyLoaded = true;
+		app.dom.window.document.body.appendChild(element);
+		try {
+			await element.updateComplete;
+			assert.strictEqual(element.shadowRoot.querySelector('[data-field=title]'), null, 'no title element in view mode');
+			assert.strictEqual(element.shadowRoot.querySelector('.title-container svg'), null, 'no card-type icon in view mode');
+			assert.ok(element.shadowRoot.querySelector('[data-field=body]'), 'the body still renders');
+			element.editing = true;
+			await element.updateComplete;
+			const title = element.shadowRoot.querySelector('[data-field=title]');
+			assert.ok(title, 'the title is editable while editing');
+			assert.strictEqual(title.dataset.placeholder, 'Optional title');
+			assert.strictEqual(title.childNodes.length, 0, 'the placeholder is a pseudo-element, never content');
+			//With an authored title, view mode shows it.
+			element.editing = false;
+			element.card = {...card, title: 'Authored'};
+			await element.updateComplete;
+			//jsdom does not implement innerText, which is how a non-HTML field's
+			//text is set, so check the property the renderer assigns.
+			const authored = element.shadowRoot.querySelector('[data-field=title]');
+			assert.ok(authored, 'an authored title renders in view mode');
+			assert.strictEqual(authored.innerText || authored.textContent, 'Authored');
+		} finally {
+			element.remove();
+		}
+	});
+
+	it('createCard writes an empty title for a working-notes card', async () => {
+		//A vended id skips the slug-legality callable, so createCard runs
+		//end to end in the harness.
+		const id = newID();
+		const marker = 'wn-create-' + Date.now();
+		let delivered = false;
+		const unsubscribe = store.subscribe(() => {
+			if (delivered || store.getState().data.pendingNewCardID !== id) return;
+			delivered = true;
+			setTimeout(async () => {
+				const snap = await getDoc(doc(db, 'cards', id));
+				if (snap.exists()) store.dispatch({type: 'UPDATE_CARDS', cards: {[id]: {...snap.data(), id}}, fetchType: 'unpublished'});
+			}, 100);
+		});
+		try {
+			await store.dispatch(createCard({id, cardType: 'working-notes', body: `<p>${marker} created directly</p>`, noNavigate: true}));
+		} finally {
+			unsubscribe();
+		}
+		const server = (await getDoc(doc(db, 'cards', id))).data();
+		assert.ok(server, 'the card was created');
+		assert.strictEqual(server.card_type, 'working-notes');
+		assert.strictEqual(server.title, '', `createCard generated a title: ${JSON.stringify(server.title)}`);
 	});
 });
