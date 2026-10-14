@@ -1,0 +1,245 @@
+/*eslint-env node, es2022*/
+
+//The working-notes display title (slice 5 §5.2): a viewer-side projection
+//that replaces the finisher which used to write the same dated summary
+//into the shared title field. Parity is asserted against a verbatim copy
+//of that finisher (git show 8f56ea89:src/card_finishers.ts), run over the
+//same state, so the only difference is where the string lives.
+
+import {JSDOM} from 'jsdom';
+import {overrideDocument} from '../../lib/shared/document.js';
+const dom = new JSDOM('', {url: 'http://localhost/'});
+overrideDocument(dom.window.document);
+globalThis.window = dom.window;
+globalThis.document = dom.window.document;
+globalThis.Document = dom.window.Document;
+globalThis.HTMLElement = dom.window.HTMLElement;
+globalThis.customElements = dom.window.customElements;
+globalThis.CSSStyleSheet = dom.window.CSSStyleSheet;
+
+import assert from 'assert';
+import {readFileSync, readdirSync, statSync} from 'fs';
+import path from 'path';
+
+const {BASE_DATA} = await import('../fingerprint/data.js');
+const {cardWithNormalizedTextProperties, FingerprintGenerator} = await import('../../lib/src/nlp.js');
+const {backportFallbackTextMapForCard} = await import('../../lib/src/util.js');
+const {selectCards, selectConcepts, selectSynonymMap, getSemanticFingerprintForCard} = await import('../../lib/src/selectors.js');
+const {
+	displayTitle, displayTitleBudgeted, beginDisplayTitleBudget, generatedWorkingNotesTitle,
+	selectDisplayTitleInputs, subscribeDisplayTitles, pendingDisplayTitleCount, displayTitleDateLabel,
+} = await import('../../lib/src/working-notes-display-title.js');
+
+const NOTE_BODY = '<p>Hill climbing is totally a thing.</p><p>There is not one truth</p><p>(just as there is not one cause, or one solution)</p><p>Truth is a mindset, a process. Seeking disconfirming evidence, incorporating it into an ever-more nuanced model. Ground-truthing even when it\'s inconvenient.</p><p>Things can be more or less true, it\'s that there\'s a <em>spectrum</em>.</p><p>Truth is an asymptotic ideal, what matters is motion towards the goal, not ever landing at it.</p>';
+const stamp = (seconds) => ({seconds, nanoseconds: 0, toMillis() { return seconds * 1000; }});
+//Mid-day UTC, so the local-timezone date label is the same day everywhere.
+const NOTE_SECONDS = 1_604_500_000;
+const NOTE_DATE = new Date(NOTE_SECONDS * 1000).toLocaleDateString('en-US', {month: 'numeric', day: 'numeric', year: '2-digit'});
+const escapeRegExp = text => text.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
+const baseCard = (id, extras = {}) => ({
+	id, card_type: 'content', title: '', body: '', section: 'main', tags: [], references: {}, references_info: {}, references_inbound: {}, references_info_inbound: {},
+	star_count: 0, thread_count: 0, notes: '', todo: '', auto_todo_overrides: {}, published: true, full_bleed: false, images: [], slugs: [],
+	created: stamp(1_600_000_000), updated: stamp(1_700_000_000), updated_substantive: stamp(NOTE_SECONDS), ...extras,
+});
+const corpus = () => {
+	const cards = Object.fromEntries(Object.entries(BASE_DATA).map(([id, data]) => [id, baseCard(id, data)]));
+	cards.note = baseCard('note', {card_type: 'working-notes', body: NOTE_BODY, published: false});
+	return cards;
+};
+const stateFor = (cards, workerIDF = null) => ({data: {cards, workerIDF, sections: {}, tags: {}}});
+
+//master@8f56ea89 src/card_finishers.ts workingNotesExtractor, with the one
+//deliberate difference: the date source (Q1: updated_substantive, not
+//updated, which every inbound-link write and the cutover bump).
+const legacyExtractor = (card, state) => {
+	const fallbackMap = backportFallbackTextMapForCard(card, selectCards(state));
+	const cardCopy = cardWithNormalizedTextProperties(card, fallbackMap || {}, selectConcepts(state), selectSynonymMap(state));
+	const fingerprint = getSemanticFingerprintForCard(state, cardCopy, ['body']);
+	const pretty = fingerprint.dedupedPrettyItemsFromCard();
+	return displayTitleDateLabel(card) + ' ' + pretty.split(' ').slice(0, 8).join(' ');
+};
+
+describe('working-notes display title', () => {
+	//With no worker map the selector hands out the pending sentinel (a
+	//jsdom window reads as worker mode), i.e. TF-only ranking until the
+	//first epoch — a real boot state — and then a real injected map.
+	it('matches the finisher it replaced, before the first IDF epoch and with an injected IDF map', () => {
+		//An injected map, as the worker would publish one: built over the
+		//same corpus by a generator so it has the real shape.
+		const injected = new FingerprintGenerator(Object.fromEntries(Object.entries(corpus()).map(([id, card]) => [id, cardWithNormalizedTextProperties(card, {}, {}, {})])))._idfMap;
+		for (const workerIDF of [null, {idf: injected.idf, maxIDF: injected.maxIDF}]) {
+			const cards = corpus();
+			const state = stateFor(cards, workerIDF);
+			const expected = legacyExtractor(cards.note, state);
+			const actual = displayTitle(selectCards(state).note, selectDisplayTitleInputs(state));
+			assert.strictEqual(actual, expected, `workerIDF ${workerIDF ? 'injected' : 'pending'}`);
+			assert.match(actual, new RegExp(`^${escapeRegExp(NOTE_DATE)} \\S+( \\S+){1,7}$`), actual);
+			assert.ok(/truth/i.test(actual), 'the body\'s dominant term is in the title');
+		}
+	});
+
+	it('an authored title wins; other card types have no display title; the date falls back to created', () => {
+		const cards = corpus();
+		cards.note.title = 'Mine';
+		cards.plain = baseCard('plain', {body: '<p>a body</p>'});
+		cards.undated = baseCard('undated', {card_type: 'working-notes', body: '<p>x</p>', updated_substantive: undefined, created: stamp(1_577_880_000)});
+		const state = stateFor(cards);
+		const processed = selectCards(state);
+		const inputs = selectDisplayTitleInputs(state);
+		assert.strictEqual(displayTitle(processed.note, inputs), 'Mine');
+		assert.strictEqual(displayTitle(processed.plain, inputs), '');
+		assert.ok(displayTitle(processed.undated, inputs).startsWith(new Date(1_577_880_000 * 1000).toLocaleDateString('en-US', {month: 'numeric', day: 'numeric', year: '2-digit'})));
+	});
+
+	it('memoizes on the card object and the inputs: an unrelated save recomputes nothing', () => {
+		const cards = corpus();
+		const state = stateFor(cards);
+		const inputs = selectDisplayTitleInputs(state);
+		const original = FingerprintGenerator.prototype.fingerprintForCardObj;
+		let computed = 0;
+		FingerprintGenerator.prototype.fingerprintForCardObj = function(...args) { computed++; return original.apply(this, args); };
+		try {
+			const processed = selectCards(state);
+			const first = displayTitle(processed.note, inputs);
+			assert.strictEqual(computed, 1);
+			assert.strictEqual(displayTitle(processed.note, inputs), first);
+			assert.strictEqual(computed, 1, 'a hit computes nothing');
+			//Another card changes: the note keeps its identity through an
+			//incremental update, and its title is still a hit.
+			const next = stateFor({...cards, '02af83': {...cards['02af83'], title: 'renamed'}});
+			assert.strictEqual(selectCards(next).note, processed.note, 'unchanged card keeps its processed identity');
+			displayTitle(selectCards(next).note, selectDisplayTitleInputs(next));
+			assert.strictEqual(computed, 1, 'an unrelated save is still a hit');
+			//A new image of the note recomputes.
+			const edited = stateFor({...cards, note: {...cards.note, body: NOTE_BODY + '<p>more</p>'}});
+			displayTitle(selectCards(edited).note, selectDisplayTitleInputs(edited));
+			assert.strictEqual(computed, 2);
+			//New inputs (an IDF epoch) recompute.
+			const epoch = stateFor(cards, {idf: {truth: 3}, maxIDF: 3});
+			displayTitle(selectCards(epoch).note, selectDisplayTitleInputs(epoch));
+			assert.strictEqual(computed, 3);
+		} finally {
+			FingerprintGenerator.prototype.fingerprintForCardObj = original;
+		}
+	});
+
+	it('accepts a frozen card and never writes to it', () => {
+		const cards = corpus();
+		const state = stateFor(cards);
+		const processed = selectCards(state).note;
+		Object.freeze(processed);
+		const before = JSON.stringify(processed);
+		const title = displayTitle(processed, selectDisplayTitleInputs(state));
+		assert.ok(title.length > 9);
+		assert.strictEqual(JSON.stringify(processed), before);
+		assert.strictEqual(processed.title, '');
+	});
+
+	it('past the render budget returns the date alone, then fills in an idle slice and notifies', async () => {
+		const cards = corpus();
+		for (let index = 0; index < 6; index++) cards['n' + index] = baseCard('n' + index, {card_type: 'working-notes', body: NOTE_BODY + `<p>variant ${index}</p>`, published: false});
+		const state = stateFor(cards);
+		const processed = selectCards(state);
+		const inputs = selectDisplayTitleInputs(state);
+		let notified = 0;
+		const unsubscribe = subscribeDisplayTitles(() => { notified++; });
+		//A budget that is already spent: everything queues.
+		beginDisplayTitleBudget(performance.now() - 1000);
+		const placeholders = ['n0', 'n1', 'n2'].map(id => displayTitleBudgeted(processed[id], inputs));
+		for (const placeholder of placeholders) assert.strictEqual(placeholder, NOTE_DATE, 'the placeholder is the date alone');
+		assert.strictEqual(pendingDisplayTitleCount(), 3);
+		await new Promise(resolve => setTimeout(resolve, 30));
+		assert.strictEqual(pendingDisplayTitleCount(), 0);
+		assert.ok(notified >= 1, 'subscribers were told to re-render');
+		for (const id of ['n0', 'n1', 'n2']) assert.match(displayTitleBudgeted(processed[id], inputs), new RegExp(`^${escapeRegExp(NOTE_DATE)} \\S+`), 'filled in after the slice');
+		//Within budget, misses are computed synchronously.
+		beginDisplayTitleBudget();
+		assert.match(displayTitleBudgeted(processed.n3, inputs), new RegExp(`^${escapeRegExp(NOTE_DATE)} \\S+`));
+		assert.strictEqual(pendingDisplayTitleCount(), 0);
+		unsubscribe();
+	});
+
+	it('is a projection: the kernel reads only the card and the inputs', () => {
+		const cards = corpus();
+		const state = stateFor(cards);
+		const inputs = selectDisplayTitleInputs(state);
+		const processed = selectCards(state).note;
+		assert.strictEqual(generatedWorkingNotesTitle(processed, inputs), displayTitle(processed, inputs));
+	});
+
+	it('is never imported by a write path, the worker, or the server', () => {
+		//Source pin: the one guarantee that makes this a PROJECTION. Anything
+		//that builds a card to save, replays a queue, or runs in the worker or
+		//on the server must not be able to reach a generated title.
+		const root = path.resolve('src');
+		const forbidden = ['src/actions', 'src/worker', 'src/card_diff.ts', 'src/multi_batch.ts', 'src/aux-write-queue.ts', 'src/edit-draft.ts', 'src/edit-recovery.ts', 'functions/src', 'shared'];
+		const offenders = [];
+		const walk = dir => {
+			for (const entry of readdirSync(dir)) {
+				const full = path.join(dir, entry);
+				if (statSync(full).isDirectory()) { walk(full); continue; }
+				if (!/\.(ts|js|mjs|cjs)$/.test(entry)) continue;
+				//Imports only: comments may name the module.
+				if (!/(from\s*['"][^'"]*working-notes-display-title|import\(\s*['"][^'"]*working-notes-display-title)/.test(readFileSync(full, 'utf8'))) continue;
+				const relative = path.relative(path.resolve('.'), full);
+				if (relative.startsWith('src/working-notes-display-title')) continue;
+				if (forbidden.some(prefix => relative === prefix || relative.startsWith(prefix + '/') || relative.startsWith(prefix.replace(/\.ts$/, '')))) offenders.push(relative);
+			}
+		};
+		walk(root);
+		for (const dir of ['functions/src', 'shared']) walk(path.resolve(dir));
+		assert.deepStrictEqual(offenders, [], 'a write path, the worker or the server imports the display-title projection');
+	});
+});
+
+//§5.3 privacy: the projection is computed from the VIEWER's inputs. The
+//fingerprint is over the body alone, so a title holds only the note's own
+//words (T4) — what leaked through the finisher was the RANKING: which of
+//the note's words made the cut was decided by the viewer's IDF over the
+//viewer's corpus, unpublished cards included, and that choice was written
+//into the shared field for everyone. Two viewers with different corpora
+//must get their own titles, and one viewer's must not be reshaped by the
+//other's having computed first.
+describe('working-notes display title privacy', () => {
+	//More than eight candidate words, each used once, so the cut is decided
+	//by IDF alone.
+	const NOTE = '<p>Truth seeking, mindset, process, evidence, nuance, growth, asymptote, motion, landing, spectrum, discovery, context, development.</p>';
+	//Viewer A also holds forty unpublished cards that use the note's
+	//dominant term in every sentence, so for A it is common and ranks low.
+	const fixture = (viewer) => {
+		const cards = corpus();
+		cards.w = baseCard('w', {card_type: 'working-notes', published: true, body: NOTE});
+		if (viewer === 'A') {
+			for (let index = 0; index < 40; index++) cards['private' + index] = baseCard('private' + index, {published: false, body: `<p>Truth, seeking, mindset, process, evidence and nuance, private note ${index}.</p>`});
+		}
+		return cards;
+	};
+	//Each viewer's IDF map is built over that viewer's own corpus, as the
+	//worker builds its per-epoch map over the visible corpus.
+	const titleFor = (viewer) => {
+		const cards = fixture(viewer);
+		const idf = new FingerprintGenerator(Object.fromEntries(Object.entries(cards).map(([id, card]) => [id, cardWithNormalizedTextProperties(card, {}, {}, {})])))._idfMap;
+		const state = stateFor(cards, {idf: idf.idf, maxIDF: idf.maxIDF});
+		return displayTitle(selectCards(state).w, selectDisplayTitleInputs(state));
+	};
+
+	it('two viewers with different corpora get different titles for the same note (the non-vacuity check)', () => {
+		const a = titleFor('A');
+		const b = titleFor('B');
+		assert.notStrictEqual(a, b, `A: ${a} / B: ${b}`);
+		//The six words A's private corpus saturates are common for A and
+		//fall out of A's eight; B, who sees nothing unusual, keeps some.
+		const saturated = /truth|seeking|mindset|process|evidence|nuance/gi;
+		const count = title => (title.match(saturated) || []).length;
+		assert.ok(count(b) >= 3, `B keeps the saturated terms: ${b}`);
+		assert.ok(count(a) <= count(b) - 3, `A's private corpus demotes them: ${a}`);
+	});
+
+	it('a viewer\'s title is computed from that viewer\'s inputs alone, whoever computed first', () => {
+		const before = titleFor('B');
+		titleFor('A');
+		const after = titleFor('B');
+		assert.strictEqual(after, before, 'no module-level state crosses viewers');
+		assert.strictEqual(titleFor('A'), titleFor('A'));
+	});
+});

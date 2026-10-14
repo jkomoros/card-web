@@ -1047,7 +1047,7 @@ export const selectWorkerIDF = (state : State) => state.data.workerIDF;
 // make FingerprintGenerator run a synchronous whole-corpus IDF build on the
 // UI thread, the multi-second stall the worker index exists to remove. Off
 // mode returns null and keeps the local small-corpus computation.
-const selectWorkerIDFMap = createSelector(
+export const selectWorkerIDFMap = createSelector(
 	selectWorkerIDF,
 	(workerIDF) => workerIDF ? {
 		idf: workerIDF.idf,

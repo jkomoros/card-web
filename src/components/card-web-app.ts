@@ -68,7 +68,14 @@ import {
 } from '../selectors.js';
 
 import {
-	Card,
+	displayTitle,
+	selectDisplayTitleInputs,
+	DisplayTitleInputs
+} from '../working-notes-display-title.js';
+
+
+import {
+	ProcessedCard,
 	State
 } from '../types.js';
 
@@ -82,7 +89,10 @@ const SERVICE_WORKER_UPDATE_CHANNEL = 'card-web-service-worker-update-v1';
 class CardWebApp extends connect(store)(LitElement) {
 
 	@state()
-		_card: Card | null;
+		_card: ProcessedCard | null;
+
+	@state()
+		_displayTitleInputs : DisplayTitleInputs | null = null;
 
 	@state()
 		_page: string;
@@ -851,7 +861,10 @@ class CardWebApp extends connect(store)(LitElement) {
 
 	override updated(changedProps : PropertyValues<this>) {
 		if (changedProps.has('_card') && this._card) {
-			const pageTitle = (this._card.title ? this._card.title + ' - ' : '') + this.appTitle ;
+			//A working-notes card without an authored title shows its dated
+			//display title here, as it does in the drawer.
+			const shownTitle = this._card.title || (this._card.card_type === 'working-notes' && this._displayTitleInputs ? displayTitle(this._card, this._displayTitleInputs) : '');
+			const pageTitle = (shownTitle ? shownTitle + ' - ' : '') + this.appTitle ;
 			updateMetadata({
 				title: pageTitle,
 				description: pageTitle
@@ -866,6 +879,7 @@ class CardWebApp extends connect(store)(LitElement) {
 	override stateChanged(state : State) {
 		this._persistentErrors = state.errors.errors;
 		this._card = selectActiveCard(state);
+		this._displayTitleInputs = selectDisplayTitleInputs(state);
 		this._editorOpen = Boolean(state.editor?.editing);
 		//§4.6: one breakpoint, threaded down as a property, never a CSS query.
 		this._mobileMode = Boolean(state.app.mobileMode);

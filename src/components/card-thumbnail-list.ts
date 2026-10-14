@@ -38,11 +38,18 @@ import {
 	ARROW_DOWNWARD_ICON
 } from '../../shared/icons.js';
 
+import {
+	beginDisplayTitleBudget,
+	displayTitleBudgeted,
+	selectDisplayTitleInputs,
+	subscribeDisplayTitles,
+	DisplayTitleInputs
+} from '../working-notes-display-title.js';
+
 import { ButtonSharedStyles } from './button-shared-styles.js';
 
 import {
 	BadgeMap,
-	Card,
 	CardBooleanMap,
 	CardID,
 	State,
@@ -144,6 +151,12 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 
 	@state()
 		_cardsSelected: boolean;
+
+	//A new inputs identity (an IDF epoch) re-titles the window, so it
+	//re-renders like any other derived state.
+	@state()
+		_displayTitleInputs : DisplayTitleInputs | null = null;
+	_unsubscribeDisplayTitles : (() => void) | null = null;
 
 	_selectionAnchor = new CardSelectionAnchor();
 
@@ -363,9 +376,24 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 		`
 	];
 
+	override connectedCallback() {
+		super.connectedCallback();
+		//Titles past the render budget fill in idle slices; re-render then.
+		this._unsubscribeDisplayTitles = subscribeDisplayTitles(() => this.requestUpdate());
+	}
+
+	override disconnectedCallback() {
+		if (this._unsubscribeDisplayTitles) this._unsubscribeDisplayTitles();
+		this._unsubscribeDisplayTitles = null;
+		super.disconnectedCallback();
+	}
+
 	override render() {
 		const collection = this.collection;
 		if (!collection) return html``;
+		//A cold window of working-notes computes titles for this long, then
+		//shows dates and fills in idle slices (working-notes-display-title).
+		beginDisplayTitleBudget();
 		return html`
 			${this.renderOffset ? html`<div class='row'><button id='prev' class='small' title='Previous cards' @click=${this._handlePreviousClicked}>${ARROW_UPWARD_ICON}</button><label class='interactive' for='prev'>Previous ${this._offsetChunk} cards</label></div>` : ''}
 			<div class='${this._dragging ? 'dragging' : ''} ${this.grid ? 'grid' : ''} ${this._cardsSelected ? 'cards-selected' : ''}'>
@@ -470,8 +498,9 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 		`;
 	}
 
-	_titleForCard(card : Card) : string {
+	_titleForCard(card : ProcessedCard) : string {
 		if (card.title) return card.title;
+		if (card.card_type === 'working-notes') return displayTitleBudgeted(card, this._displayTitleInputs || selectDisplayTitleInputs(store.getState() as State));
 		//It' sonly legal to not have a title if you're full-bleed;
 		if (!card.full_bleed) return '';
 		if (!card.body) return '';
@@ -669,6 +698,7 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 
 	override stateChanged(state : State) {
 		this._badgeMap = selectBadgeMap(state);
+		this._displayTitleInputs = selectDisplayTitleInputs(state);
 		const cardsSelected = selectCardsSelected(state);
 		if (this._cardsSelected && !cardsSelected) this._selectionAnchor.reset();
 		this._cardsSelected = cardsSelected;

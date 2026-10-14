@@ -18,12 +18,24 @@ import {
 import {
 	Card,
 	CSSColorString,
+	State,
 	TagInfos
 } from '../types.js';
 
 import {
 	COLORS
 } from '../../shared/card_fields.js';
+
+import { store } from '../store.js';
+
+import {
+	selectCards
+} from '../selectors.js';
+
+import {
+	displayTitle,
+	selectDisplayTitleInputs
+} from '../working-notes-display-title.js';
 
 import * as icons from '../../shared/icons.js';
 
@@ -399,7 +411,16 @@ class TagChip  extends LitElement {
 		if (!this.tagInfos) return this.tagName;
 		const info = this.tagInfos[this.tagName];
 		if (!info) return this.tagName;
-		return info.title || this.tagName;
+		if (info.title) return info.title;
+		//A chip for a working-notes card without an authored title (the
+		//selector keeps the raw title and does not fall back to the slug):
+		//its dated display title, computed for this one preview card.
+		if (info.previewCard) {
+			const state = store.getState() as State;
+			const card = selectCards(state)[info.previewCard];
+			if (card && card.card_type === 'working-notes') return displayTitle(card, selectDisplayTitleInputs(state)) || this.tagName;
+		}
+		return this.tagName;
 	}
 
 	get _description() {

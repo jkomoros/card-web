@@ -14,6 +14,12 @@ import {
 	selectCtrlKeyPressed
 } from '../selectors.js';
 
+import {
+	displayTitle,
+	selectDisplayTitleInputs,
+	DisplayTitleInputs
+} from '../working-notes-display-title.js';
+
 import { toggleOnReadingList } from '../actions/user.js';
 
 import {
@@ -31,7 +37,7 @@ import {
 	CardBooleanMap,
 	CardFieldTypeEditable,
 	CardID,
-	Cards,
+	ProcessedCards,
 	CardMetas,
 	CardType,
 	FilterMap,
@@ -71,13 +77,16 @@ class CardLink extends connect(store)(LitElement) {
 		_reads: FilterMap;
 
 	@state()
-		_cards: Cards;
+		_cards: ProcessedCards;
 
 	@state()
 		_cardMetas: CardMetas;
 
 	@state()
 		_readingListMap: CardBooleanMap;
+
+	@state()
+		_displayTitleInputs : DisplayTitleInputs | null = null;
 
 	@state()
 		_page: string;
@@ -185,6 +194,12 @@ class CardLink extends connect(store)(LitElement) {
 		if (!this.auto || !this.card) return '';
 		if (this.auto === 'title') {
 			const meta = this._cardMetas ? this._cardMetas[this.card] : null;
+			//A working-notes card without an authored title: its dated
+			//display title, from the full card (the meta carries no body).
+			if (meta && !meta.title && meta.card_type === 'working-notes') {
+				const full = this._cards ? this._cards[this.card] : null;
+				return full && this._displayTitleInputs ? displayTitle(full, this._displayTitleInputs) : '';
+			}
 			if (meta) return meta.title;
 		}
 		const full = this._cards ? this._cards[this.card] : null;
@@ -229,6 +244,7 @@ class CardLink extends connect(store)(LitElement) {
 	override stateChanged(state : State) {
 		this._reads = selectUserReads(state);
 		this._cards = selectCards(state);
+		this._displayTitleInputs = selectDisplayTitleInputs(state);
 		this._cardMetas = selectCardMetas(state);
 		this._readingListMap = selectUserReadingListMap(state);
 		this._page = selectPage(state);
