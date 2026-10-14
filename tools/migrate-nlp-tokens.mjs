@@ -3,11 +3,11 @@
 /**
  * One-time migration script to backfill NLP tokens for existing cards
  *
- * Usage:
- *   node tools/migrate-nlp-tokens.mjs              # Run on prod
- *   node tools/migrate-nlp-tokens.mjs --dev        # Run on dev
+ * Usage (DEV by default; prod must be named AND confirmed):
+ *   node tools/migrate-nlp-tokens.mjs              # Run on dev
  *   node tools/migrate-nlp-tokens.mjs --dry-run    # Preview without writing
  *   node tools/migrate-nlp-tokens.mjs --limit=100  # Test on first 100 cards
+ *   node tools/migrate-nlp-tokens.mjs --prod --confirm-project=complexity-compendium
  *
  * Prerequisites:
  *   Run: gcloud auth application-default login
@@ -47,7 +47,7 @@ Usage: node tools/migrate-nlp-tokens.mjs [OPTIONS]
 Backfill NLP tokens (nlp_tokens, nlp_search_tokens, nlp_version) for existing cards.
 
 Options:
-  --dev         Use development database
+  --prod        Use the PRODUCTION database (also needs --confirm-project=<id>)
   --dry-run     Preview changes without writing to Firestore
   --limit=N     Only process first N cards (for testing)
   --help, -h    Show this help message
@@ -56,14 +56,16 @@ Prerequisites:
   Run once: gcloud auth application-default login
 
 Examples:
-  node tools/migrate-nlp-tokens.mjs --dev --dry-run
+  node tools/migrate-nlp-tokens.mjs --dry-run
   node tools/migrate-nlp-tokens.mjs --limit=100
-  node tools/migrate-nlp-tokens.mjs
+  node tools/migrate-nlp-tokens.mjs --prod --confirm-project=complexity-compendium
 	`);
 	process.exit(0);
 }
 
-const isDev = args.dev;
+//DEV unless prod is named explicitly. This tool used to default to PROD
+//with no flags at all — one stray invocation away from a production write.
+const isDev = !args.prod;
 const dryRun = args['dry-run'];
 const limit = args.limit ? parseInt(args.limit) : null;
 
@@ -71,6 +73,10 @@ const limit = args.limit ? parseInt(args.limit) : null;
 const config = devProdConfig();
 const projectConfig = isDev ? config.dev : config.prod;
 const projectId = projectConfig.firebase.projectId;
+if (!isDev && !dryRun && args['confirm-project'] !== projectId) {
+	console.error(`Refusing to write to PROD without --confirm-project=${projectId}`);
+	process.exit(1);
+}
 console.log('🚀 NLP Token Migration Script\n');
 console.log('Configuration:');
 console.log('  Project:', projectId);

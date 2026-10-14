@@ -202,6 +202,28 @@ same fixture, plus "no regression" on anything the journey measures.
 > options are a midnight timer in the worker that marks 'all', or a
 > day-keyed dependency. Not verified by execution.
 
+> **Slice 5** landed in three steps: (A) the working-notes title is
+> authorable and optional, the finisher is gone (no write path yields a
+> generated title; emulator-tested); (B) the dated summary is a viewer-side
+> projection (`src/working-notes-display-title.ts`, memoized on the processed
+> card, budgeted in the drawer, consumers wired, import-boundary pin), with
+> parity against a verbatim copy of the finisher and a privacy test on the
+> thing that actually leaked — the ranking, decided by the viewer's IDF over
+> the viewer's corpus; (C) `tools/cutover-working-notes-titles.mjs` (DEV and
+> dry-run by default; prod needs `--prod --write --confirm-project`; refuses
+> a pre-slice-5 `shared/dist`; idempotent; precondition on update time;
+> `revision` +1 and `updated` bumped per write), tested against the
+> emulator, plus `tools/migrate-nlp-tokens.mjs` no longer defaults to PROD
+> (Q6). Decisions taken as the doc recommended: Q1 `updated_substantive ??
+> created`, Q2 an empty authored title renders nothing, Q7 epoch drift
+> accepted. **Slice 8**: the runbook is `04-private-titles-and-cutover.md`
+> §4.3 (quiesce → backup → test → deploy → script dry-run / write / dry-run
+> → clear site data on each client → verify), with the DEV rehearsal first;
+> every prod step and the deletion of the parked branch's DEV functions
+> (§4.4) are owner actions. **Order matters:** step A must not reach prod
+> ahead of the script run (T1: every existing note's stored fingerprint
+> mismatches until then).
+
 Verified by reading or by synthetic measurement at 47k cards, unless marked.
 
 | Symptom | Mechanism on master | Evidence | Status |
