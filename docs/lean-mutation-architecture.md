@@ -227,7 +227,29 @@ same fixture, plus "no regression" on anything the journey measures.
 > every prod step and the deletion of the parked branch's DEV functions
 > (§4.4) are owner actions. **Order matters:** step A must not reach prod
 > ahead of the script run (T1: every existing note's stored fingerprint
-> mismatches until then).
+> mismatches until then — on the DEV export that is 38,360 of 38,360 notes,
+> and the corpus is 95% notes).
+
+> **Whole-branch review (Oct 14), measured on the DEV export, real browser,
+> master vs branch, sequential on one machine.** Pre-cutover the branch
+> showed a 5s warm-boot main-thread freeze; on the CUT-OVER corpus that
+> freeze is master's (longest main task 4.3s vs 1.07s; usable 8.5s vs
+> 4.75s; main heap after boot −59MB, worker −90MB). Save→New per cycle,
+> 20s-gap method: worker 6.05s → 3.69s, main 1.60s → 1.10s, runCollection
+> runs unchanged at 46 (each ~half the cost) — real, but short of "no
+> whole-corpus work" (§0 goal 1); the remaining runs are the drawer's
+> reference blocks re-requested per auto-read, the §3.4 worker result
+> cache not built. 12k synthetic: Save → new editor 1.52s → 0.45s, worker
+> per cycle −83%, typing worker busy −65%, drawer nav worker −60%, star
+> toggle worker −20%, memory after boot worker 703 → 479MB. Drawer nav at
+> 12k has an unattributed +5ms main per navigation. Working-notes tab cold
+> open (the owner's main view after cutover): first paint ~295ms with ~83%
+> of rows as date placeholders, all titles by ~480ms, one ~110ms main task;
+> a concept edit used to revert ~200 of 250 rows to dates — the budgeted
+> variant is stale-while-revalidate now (572bcac8; measured before it).
+> The emulator's similarity request loops on both builds while an editor
+> is open; the branch loops 4–5× faster because each run is cheaper — not
+> reproducible outside the emulator, unverified on prod.
 
 Verified by reading or by synthetic measurement at 47k cards, unless marked.
 
