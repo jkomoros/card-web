@@ -1319,7 +1319,10 @@ export const selectTagInfosForCards = createSelector(
 	createCardsDiffSelector({
 		name: 'tagInfosForCards',
 		needsRecompute: delta => anyChangedCardDiffers(delta, (prev, next) => prev.name !== next.name || prev.title !== next.title),
-		compute: cards => Object.fromEntries(Object.entries(cards).map(entry => [entry[0], {id: entry[0], title: entry[1] ? (entry[1].title || entry[1].name) : '', previewCard: entry[0]}]))
+		//An untitled working-notes card keeps an EMPTY title here rather
+		//than falling back to its name (an id), so a chip or label can show
+		//its dated display title instead (HS-1.4: never an id as a name).
+		compute: cards => Object.fromEntries(Object.entries(cards).map(entry => [entry[0], {id: entry[0], title: entry[1] ? (entry[1].title || (entry[1].card_type === 'working-notes' ? '' : entry[1].name)) : '', previewCard: entry[0]}]))
 	})
 );
 

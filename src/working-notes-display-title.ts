@@ -81,7 +81,10 @@ export const displayTitleDate = (card : Card) : Date => {
 	return new Date();
 };
 
-export const displayTitleDateLabel = (card : Card) : string => displayTitleDate(card).toLocaleDateString('en-US', {month: 'numeric', day: 'numeric', year: '2-digit'});
+//One formatter, hoisted: toLocaleDateString constructs one per call (~35µs),
+//and a cold drawer window renders ~250 date placeholders per pass.
+const DATE_FORMAT = new Intl.DateTimeFormat('en-US', {month: 'numeric', day: 'numeric', year: '2-digit'});
+export const displayTitleDateLabel = (card : Card) : string => DATE_FORMAT.format(displayTitleDate(card));
 
 //The projection itself, uncached. The card must be the processed card (its
 //normalized text, backported reference text and concept enrichment are what
@@ -134,6 +137,10 @@ const scheduleDrain = () => {
 		while (queue.length && performance.now() < deadline) {
 			const {card, inputs} = queue.shift() as {card : ProcessedCard, inputs : DisplayTitleInputs};
 			queued.delete(card);
+			//A card computed since it was queued (within a later render's
+			//budget, possibly under newer inputs) keeps that entry: recomputing
+			//under the queued inputs would evict the newer one.
+			if (memo.has(card)) continue;
 			displayTitle(card, inputs);
 		}
 		for (const listener of listeners) listener();

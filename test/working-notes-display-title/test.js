@@ -243,3 +243,59 @@ describe('working-notes display title privacy', () => {
 		assert.strictEqual(titleFor('A'), titleFor('A'));
 	});
 });
+
+//The consumers. Both of these were missed by the first build because no
+//test drove them: card-link showed '' whenever the compact meta was absent
+//(the warm-boot prime sends none), and the chip branch was unreachable
+//because the tag-info selector fell back to the card's name.
+describe('working-notes display title consumers', () => {
+	it('selectTagInfosForCards keeps an untitled note\'s title empty rather than its name', async () => {
+		const {selectTagInfosForCards} = await import('../../lib/src/selectors.js');
+		const cards = corpus();
+		cards.note.name = 'note';
+		cards.plain = baseCard('plain', {name: 'plain-name', body: '<p>x</p>'});
+		const infos = selectTagInfosForCards(stateFor(cards));
+		assert.strictEqual(infos.note.title, '', 'no id-shaped name stands in for an untitled note');
+		assert.strictEqual(infos.plain.title, 'plain-name', 'other types still fall back to their name');
+		assert.strictEqual(infos.note.previewCard, 'note');
+	});
+
+	it('card-link shows the display title with and without a compact meta', async () => {
+		await import('../../lib/src/components/card-link.js');
+		const cards = corpus();
+		const state = stateFor(cards);
+		const processed = selectCards(state);
+		const inputs = selectDisplayTitleInputs(state);
+		const expected = displayTitle(processed.note, inputs);
+		const link = document.createElement('card-link');
+		link.auto = 'title';
+		link.card = 'note';
+		link._cards = processed;
+		link._displayTitleInputs = inputs;
+		link._cardMetas = {note: {id: 'note', title: '', card_type: 'working-notes', published: false}};
+		assert.strictEqual(link._autoValue, expected, 'with a meta');
+		link._cardMetas = {};
+		assert.strictEqual(link._autoValue, expected, 'without a meta (warm-boot prime, off mode)');
+		link._cardMetas = {note: {id: 'note', title: 'Authored', card_type: 'working-notes', published: false}};
+		assert.strictEqual(link._autoValue, 'Authored');
+	});
+
+	it('an idle-slice drain does not evict a title computed since the card was queued', async () => {
+		const cards = corpus();
+		cards.q = baseCard('q', {card_type: 'working-notes', body: NOTE_BODY + '<p>queued</p>', published: false});
+		const stateA = stateFor(cards);
+		const stateB = stateFor(cards, {idf: {queued: 5}, maxIDF: 5});
+		const card = selectCards(stateA).q;
+		const inputsA = selectDisplayTitleInputs(stateA);
+		const inputsB = selectDisplayTitleInputs(stateB);
+		beginDisplayTitleBudget(performance.now() - 1000);
+		displayTitleBudgeted(card, inputsA);
+		assert.strictEqual(pendingDisplayTitleCount(), 1);
+		//Computed under newer inputs before the slice runs.
+		const under = displayTitle(card, inputsB);
+		await new Promise(resolve => setTimeout(resolve, 30));
+		assert.strictEqual(pendingDisplayTitleCount(), 0);
+		beginDisplayTitleBudget(performance.now() - 1000);
+		assert.strictEqual(displayTitleBudgeted(card, inputsB), under, 'the newer entry survived the drain');
+	});
+});

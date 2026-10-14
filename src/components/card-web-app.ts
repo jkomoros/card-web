@@ -860,7 +860,7 @@ class CardWebApp extends connect(store)(LitElement) {
 	}
 
 	override updated(changedProps : PropertyValues<this>) {
-		if (changedProps.has('_card') && this._card) {
+		if ((changedProps.has('_card') || changedProps.has('_displayTitleInputs')) && this._card) {
 			//A working-notes card without an authored title shows its dated
 			//display title here, as it does in the drawer.
 			const shownTitle = this._card.title || (this._card.card_type === 'working-notes' && this._displayTitleInputs ? displayTitle(this._card, this._displayTitleInputs) : '');

@@ -194,10 +194,15 @@ class CardLink extends connect(store)(LitElement) {
 		if (!this.auto || !this.card) return '';
 		if (this.auto === 'title') {
 			const meta = this._cardMetas ? this._cardMetas[this.card] : null;
+			const full = this._cards ? this._cards[this.card] : null;
 			//A working-notes card without an authored title: its dated
 			//display title, from the full card (the meta carries no body).
-			if (meta && !meta.title && meta.card_type === 'working-notes') {
-				const full = this._cards ? this._cards[this.card] : null;
+			//Decided on whichever of the two is present: metas are absent
+			//during the warm-boot prime and in off mode, and the full card
+			//is what that fallback has always used.
+			const cardType = meta ? meta.card_type : full ? full.card_type : null;
+			const title = meta ? meta.title : full ? full.title : '';
+			if (cardType === 'working-notes' && !title) {
 				return full && this._displayTitleInputs ? displayTitle(full, this._displayTitleInputs) : '';
 			}
 			if (meta) return meta.title;
