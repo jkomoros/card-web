@@ -30,6 +30,7 @@ import {
 import {
 	TEXT_FIELD_CONFIGURATION,
 	CARD_TYPE_CONFIGURATION,
+	OPTIONAL_FIELDS_FOR_CARD_TYPE,
 	editableFieldsForCardType,
 	IMAGES_TEXT_FIELD
 } from '../../shared/card_fields.js';
@@ -346,6 +347,15 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 				flex:1;
 			}
 
+			/* An optional field left empty while editing (working-notes
+			title): the hint is a pseudo-element, never content, so it cannot
+			be saved. */
+			[data-placeholder]:empty::before {
+				content: attr(data-placeholder);
+				color: var(--app-dark-text-color-subtle);
+				font-weight: normal;
+			}
+
 			[data-field=body] blockquote {
 				margin: 0;
 				quotes: "“" "”";
@@ -612,7 +622,12 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 		const htmlFormatter = HTML_FORMATTERS[field];
 		if (value && htmlFormatter) htmlToSet = htmlFormatter(value);
 		if (value && config.displayPrefix) htmlToSet = '<span>' + config.displayPrefix + '</span> ' + value;
-		if (!value && !this.editing) {
+		//An optional field left empty is nothing to show in view mode and a
+		//placeholder (not content) while editing.
+		const optional = Boolean((OPTIONAL_FIELDS_FOR_CARD_TYPE[this._card.card_type] || {})[field]);
+		if (!value && optional) {
+			htmlToSet = '';
+		} else if (!value && !this.editing) {
 			if (this._card.full_bleed) {
 				value = '';
 			} else {
@@ -634,6 +649,8 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 			ele.field = field;
 			ele.dataset.field = field;
 		}
+		if (optional && this.editing) ele.dataset.placeholder = 'Optional title';
+		else delete ele.dataset.placeholder;
 
 		//Add or remove a font size boost if there is one for this card and fieldName.
 		let fontSizeBoost = '';
@@ -757,8 +774,10 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 					document.execCommand('delete');
 				}
 			}
-			//If the title is empty we _always_ want to select it
-			if (!this._card.title && this._elements.title) {
+			//If the title is empty we _always_ want to select it — unless it
+			//is optional for this type, where the body is what the author
+			//came to write.
+			if (!this._card.title && this._elements.title && !(OPTIONAL_FIELDS_FOR_CARD_TYPE[this._card.card_type] || {}).title) {
 				//If there isn't a title, we actually want the title focused
 				//(after clearing out hte extra 'nbsp'. For some reason
 				//Chrome doesn't actually focus the second item, unless we

@@ -134,6 +134,7 @@ import {
 
 import {
 	editableFieldsForCardType,
+	OPTIONAL_FIELDS_FOR_CARD_TYPE,
 	REFERENCE_TYPES,
 	CARD_TYPE_CONFIGURATION,
 	LEGAL_OUTBOUND_REFERENCES_BY_CARD_TYPE
@@ -618,6 +619,7 @@ class CardEditor extends connect(store)(LitElement) {
 									type='text'
 									@input='${this._handleTextFieldUpdated}'
 									data-field=${entry[0]}
+									placeholder=${(OPTIONAL_FIELDS_FOR_CARD_TYPE[card.card_type] || {})[entry[0]] ? 'Optional title' : ''}
 									.value=${card[entry[0]] || ''}
 								></input>
 								${this._userMayUseAI && entry[0] == 'title' ? 

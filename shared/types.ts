@@ -717,6 +717,11 @@ export type CardFieldTypeConfiguration = {
 	// are already "counted" so should be skipped when extracting normalized card
 	// details for example in indexes.
 	derivedForCardTypes? : CardTypeMap,
+	// optionalForCardTypes: a map of CARD_TYPE constant to true for card types on
+	// which the field is legal and authorable but may be left empty: the editor
+	// shows a placeholder instead of demanding it, and creation does not prompt
+	// for it. (A legal field is otherwise required.)
+	optionalForCardTypes? : CardTypeMap,
 	// noContentEditable: if true, even if the form field is editable, it won't be made
 	// editable on card renderer, the only way to modify it will be in the edit text
 	// field in the content tab of editor.

@@ -157,7 +157,9 @@ export const textContentForEmbeddingForCard = (card : EmbeddableCard) : string =
 	const parts : string[] = [];
 	//Skip the computed title on working-notes cards since they are entire
 	//computed. No other field for any card-type is computed yet.
-	const title = card.card_type != 'working-notes' ? (card.title || '') : '';
+	//Working-notes titles used to be generated from the viewer's corpus and
+	//were excluded; they are authored (usually empty) now, like any other.
+	const title = card.title || '';
 	if (title) parts.push(title);
 	const body = innerTextForHTML(card.body, true);
 	if (body) parts.push(body);

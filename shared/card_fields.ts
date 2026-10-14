@@ -422,10 +422,18 @@ export const TEXT_FIELD_CONFIGURATION : CardFieldTypeConfigurationMap = {
 			'concept': true,
 			'work': true,
 			'person': true,
+			//Authorable and optional. The finisher that used to DERIVE a
+			//working-notes title wrote the viewer's private corpus terms into
+			//the shared title field; the dated summary is now a display-only
+			//projection (src/working-notes-display-title.ts), and the stored
+			//title is whatever the author typed, usually nothing.
+			'working-notes': true,
 		},
 		derivedForCardTypes: {
-			'working-notes': true,
 			'quote': true
+		},
+		optionalForCardTypes: {
+			'working-notes': true,
 		},
 		autoFontSizeBoostForCardTypes: {},
 		matchWeight: 1.0,
@@ -538,6 +546,11 @@ export const TEXT_FIELD_CONFIGURATION : CardFieldTypeConfigurationMap = {
 
 export const DERIVED_FIELDS_FOR_CARD_TYPE = Object.fromEntries(TypedObject.keys(CARD_TYPE_CONFIGURATION).map(typ => {
 	return [typ, Object.fromEntries(TypedObject.entries(TEXT_FIELD_CONFIGURATION).filter(entry => entry[1].derivedForCardTypes ? entry[1].derivedForCardTypes[typ] : false).map(entry => [entry[0], true]))];
+}));
+
+//The fields a card type may leave empty although they are legal on it.
+export const OPTIONAL_FIELDS_FOR_CARD_TYPE = Object.fromEntries(TypedObject.keys(CARD_TYPE_CONFIGURATION).map(typ => {
+	return [typ, Object.fromEntries(TypedObject.entries(TEXT_FIELD_CONFIGURATION).filter(entry => entry[1].optionalForCardTypes ? entry[1].optionalForCardTypes[typ] : false).map(entry => [entry[0], true]))];
 }));
 
 //types of card that have a body

@@ -1,18 +1,13 @@
 import {
-	cardWithNormalizedTextProperties,
 	getAllConceptStringsFromConceptCard,
 	getAllConceptCardsForConcept
 } from './nlp.js';
 
 import {
-	getSemanticFingerprintForCard,
-	selectCards,
-	selectConcepts,
-	selectSynonymMap
+	selectCards
 } from './selectors.js';
 
 import {
-	backportFallbackTextMapForCard,
 	clipTitle
 } from './util.js';
 
@@ -25,24 +20,6 @@ import {
 	CardType,
 	State
 } from './types.js';
-
-const NUM_TERMS_OF_FINGERPRINT = 8;
-
-const workingNotesExtractor = (card : Card, state : State) => {
-	//TODO: also include first part of semantic fingerprint.
-	const date = card.updated && card.updated.toDate ? card.updated.toDate() : new Date();
-	//The fingerprint requires these to be up to date, but we only update these
-	//on a timeout in textFieldUpdated so typing isn't expensive. It's possible
-	//that timeout hasn't fired yet, so make sure the card content is up to date.
-	const fallbackMap = backportFallbackTextMapForCard(card, selectCards(state));
-	const conceptsMap = selectConcepts(state);
-	const synonymMap = selectSynonymMap(state);
-	const cardCopy = cardWithNormalizedTextProperties(card, fallbackMap || {}, conceptsMap, synonymMap);
-	const fingerprint = getSemanticFingerprintForCard(state, cardCopy, ['body']);
-	const pretty = fingerprint.dedupedPrettyItemsFromCard();
-	const title = date.toLocaleDateString('en-US', {month:'numeric', day:'numeric', year:'2-digit'}) + ' ' + pretty.split(' ').slice(0, NUM_TERMS_OF_FINGERPRINT).join(' ');
-	card.title = title;
-};
 
 const conceptValidator = (card : Card, state : State) => {
 	//The primary purpose of this validator is to make sure that this card's
@@ -66,8 +43,13 @@ const conceptValidator = (card : Card, state : State) => {
 //happen, which makes it also a useful place to do validation before saving.
 //Note that the card might not have ever been saved before, so its timestamp
 //fields in particular might be empty or sentinel values.
+//
+//Working-notes no longer has one: its finisher wrote a dated semantic
+//fingerprint of the body — built over the VIEWER's corpus and IDF — into the
+//shared title field on every save, and worker-off rebuilt that IDF over the
+//whole corpus per save. The title is authorable and optional now, and the
+//dated summary is a display-only projection (working-notes-display-title.ts).
 export const CARD_TYPE_EDITING_FINISHERS : {[type in CardType]+?: (card : Card, state : State) => void} = {
-	'working-notes': workingNotesExtractor,
 	'concept': conceptValidator,
 	'quote': (card : Card) => {
 		const title = innerTextForHTML(card.body);

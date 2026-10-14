@@ -165,11 +165,18 @@ export const generateCorpus = (opts = {}) => {
 			if (!tagSeen.has(tag)) { tagSeen.add(tag); tags.push(tag); }
 		}
 		const ts = spreadTs(rnd, epochSeconds);
-		const title = 'Perf card ' + i + ' ' + sampleWord(rnd) + ' ' + sampleWord(rnd);
+		//Drawn in the original order (title words, then type) so every other
+		//field of a seeded corpus is byte-identical to earlier baselines.
+		const titleCandidate = 'Perf card ' + i + ' ' + sampleWord(rnd) + ' ' + sampleWord(rnd);
+		const cardType = pickWeighted(rnd, CARD_TYPE_WEIGHTS);
+		//Working-notes titles are authored and optional and almost always
+		//empty in a real corpus (slice 5); a synthetic one would make every
+		//display-title measurement vacuous.
+		const title = cardType === 'working-notes' ? '' : titleCandidate;
 		const body = makeBody(rnd, thisBodyBytes);
 		cards[id] = {
 			id,
-			card_type: pickWeighted(rnd, CARD_TYPE_WEIGHTS),
+			card_type: cardType,
 			section: pick(rnd, SECTIONS),
 			title,
 			body,

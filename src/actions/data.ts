@@ -1984,8 +1984,8 @@ const echoLocalCardModifications = (localEchoes : Cards, expectedScope? : EchoAu
 const awaitingServerTimestampIDs : Set<CardID> = new Set();
 
 //These operations change metadata only. Running content finishers first is
-//both expensive (working-note titles fingerprint the corpus) and incorrect:
-//an unchanged duplicate concept title can reject a tag/priority operation.
+//incorrect: an unchanged duplicate concept title can reject a tag/priority
+//operation.
 //Keep normal diff generation and validation, including reference validation.
 const MULTI_EDIT_METADATA_FIELDS = new Set([
 	'add_tags', 'remove_tags', 'auto_todo_overrides_enablements',
@@ -2035,7 +2035,7 @@ export const modifyCardWithBatch = async (state : State, card : Card, rawUpdate 
 		: await generateFinalCardDiff(state, card, rawUpdate);
 	// A dialog multi-edit promises to touch only the fields the user selected.
 	// Content edits still run card-type finishers, but derived edits to
-	// unrelated fields (notably working-notes/quote titles)
+	// unrelated fields (notably quote titles)
 	// must not leak into a label, TODO, reference, or publication operation.
 	if (explicitFieldsOnly) {
 		update = Object.fromEntries(TypedObject.entries(update).filter(([field]) => field in rawUpdate)) as CardDiff;
@@ -2674,8 +2674,6 @@ export const bulkCreateWorkingNotes = (bodies : string[], flags? : CardFlags) : 
 	if (!WORKING_NOTES_CONFIG) throw new Error('No working notes config');
 	if (WORKING_NOTES_CONFIG.publishedByDefault) throw new Error('Working notes are not published by default');
 	if (!WORKING_NOTES_CONFIG.orphanedByDefault) throw new Error('Working notes are not orphaned by default');
-	const cardFinisher = CARD_TYPE_EDITING_FINISHERS['working-notes'];
-	if (!cardFinisher) throw new Error('Working notes didn\'t a card finisher');
 
 	if (bodies.length == 0) return;
 	//Refuse an oversized paste HERE, where the user chose the bodies, rather
@@ -2754,7 +2752,6 @@ export const bulkCreateWorkingNotes = (bodies : string[], flags? : CardFlags) : 
 		obj.updated_substantive = importTimestamp;
 		obj.updated_message = importTimestamp;
 		obj.body = body;
-		cardFinisher(obj, state);
 		if (flags) obj.flags = {...flags};
 		intents.push(makeAuxWriteIntent(user.uid, 'card-create', id, '', {
 			kind: 'card-create',

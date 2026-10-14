@@ -10,8 +10,11 @@ let sequence = 0;
 
 const seed = async count => {
 	const prefix = `maintenance-guard-${Date.now()}-${sequence++}`;
+	//Quote cards: the one type whose finisher still DERIVES the title from
+	//the body (working-notes titles are authored since slice 5), so the
+	//task has something to rewrite for every seeded card.
 	const cards = Array.from({length: count}, (_, index) => ({
-		...wireCard(`${prefix}-${index}`, uid), id: `${prefix}-${index}`, card_type: 'working-notes',
+		...wireCard(`${prefix}-${index}`, uid), id: `${prefix}-${index}`, card_type: 'quote',
 		title: 'Outdated derived title', body: `<p>Distinct maintenance content ${index}</p>`,
 	}));
 	await Promise.all(cards.map(card => setDoc(doc(db, 'cards', card.id), card)));

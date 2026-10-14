@@ -89,6 +89,7 @@ import {
 import {
 	REFERENCE_TYPES,
 	DEFAULT_CARD_TYPE,
+	OPTIONAL_FIELDS_FOR_CARD_TYPE,
 	editableFieldsForCardType,
 	CARD_TYPE_CONFIGURATION,
 } from '../../shared/card_fields.js';
@@ -456,7 +457,9 @@ class FindDialog extends connect(store)(DialogElement) {
 
 		const cardType = this._cardTypeToAdd;
 
-		const needTitle = editableFieldsForCardType(cardType).title;
+		//An optional title is not prompted for: the card is created without
+		//one and the editor offers it as a placeholder.
+		const needTitle = editableFieldsForCardType(cardType).title && !(OPTIONAL_FIELDS_FOR_CARD_TYPE[cardType] || {}).title;
 		let title : string | null = '';
 		if (needTitle) {
 			const query = this._query || '';

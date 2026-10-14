@@ -98,8 +98,10 @@ const baseCards = (extras) => {
 			[CARD_ID_FOUR]: {
 				'card_type': CARD_TYPE_WORKING_NOTES,
 				'body': '<p>Hill climbing is totally a thing.</p><p>There is not one truth</p><p>(just as there is not one cause, or one solution)</p><p>Truth is a mindset, a process. Seeking disconfirming evidence, incorporating it into an ever-more nuanced model. Ground-truthing even when it\'s inconvenient.</p><p>(Make sure to make it not "any truth is as good as any other" post modernism). Things can be more or less true, it\'s that there\'s a <em>spectrum</em>.</p><p>Truth is an asymptotic ideal, what matters is motion towards the goal, not ever landing at it. And if you think you\'ve landed at it, and thus no longer have more growth to do, you\'re wrong... and dangerous, because you\'ve stopped learning</p><p>Learning as the process of truth discovery.</p><p>Truth as being a partially situated context. What is true for you in your personal development in the moment might not be true for you later.</p><p>The more it exists outside and generally and directly affects others, the more that it\'s ground-truthed and not subjective.</p>',
-				//This title should be skipped since it's a working notes card
-				'title': '11/4/20 Truth Landing Ground True You\'ve Ever Incorporating Process',
+				//Working-notes titles are authored and optional (slice 5); an
+				//empty one contributes nothing, exactly as the generated title
+				//used to be skipped as derived.
+				'title': '',
 			},
 			[CARD_ID_FIVE]: {
 				'body': '<p>https://www.wikipedia.org/blammo is a great site. It\'s important to think of stuff (e.g. other stuff).</p><p>hill-climbing is the same as hill climbing. This is not--not really--the same. This is a quote: "a quote is here". Boundaries/edges are imporant to think about</p><p>Anothe site to know about is komoroske.com/sudoku, or even washingtonpost.com</p>',
