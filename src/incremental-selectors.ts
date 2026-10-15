@@ -112,6 +112,13 @@ type CardsDiffSelectorOptions<R> = {
 	//result; a first call always computes.
 	needsRecompute : (delta : CardsDelta) => boolean,
 	compute : (cards : Cards) => R,
+	//Optional incremental path, used instead of `compute` whenever there is a
+	//previous result and needsRecompute said it could have changed: carry the
+	//previous result forward over the delta. It must be an acceptable stand-in
+	//for `compute` (for the everything set: identical for distinct sort
+	//orders, documented tie behavior otherwise); the first call and a reset
+	//still go through `compute`.
+	update? : (previous : R, cards : Cards, delta : CardsDelta) => R,
 };
 
 //Returns a function (cards) => R that keeps the previous result identity when
@@ -123,11 +130,15 @@ export const createCardsDiffSelector = <R>(options : CardsDiffSelectorOptions<R>
 	return (cards : Cards) : R => {
 		if (lastCards === cards) return lastResult;
 		let recompute = true;
+		let delta : CardsDelta | null = null;
 		if (lastCards !== null) {
-			const delta = sharedDiffCards(lastCards, cards);
+			delta = sharedDiffCards(lastCards, cards);
 			recompute = options.needsRecompute(delta);
 		}
-		if (recompute) {
+		if (recompute && delta && options.update) {
+			perfCount('diffSelector:' + options.name + ':update');
+			lastResult = options.update(lastResult, cards, delta);
+		} else if (recompute) {
 			perfCount('diffSelector:' + options.name + ':recompute');
 			lastResult = options.compute(cards);
 		} else {

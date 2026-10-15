@@ -818,13 +818,17 @@ const permanentFailure = (error : unknown) : boolean => {
 //creation look exactly like a successful one.
 export type AuxWriteOutcome = 'committed' | 'queued' | 'discarded';
 
-//Persist the intent, then attempt it. On server ack the intent clears; on
-//failure it stays queued for replay (unless the failure is permanent). The
-//returned promise reports the attempt, but callers need not await it — the
-//queue owns completion.
-export const runDurableAuxWrite = (intent : AuxWriteIntent) : Promise<AuxWriteOutcome> => {
+//Persist and claim the intent WITHOUT attempting it, and hand back the
+//function that starts the attempt. The two halves are split so a caller can
+//act on "this is durable now" before the server has answered — card creation
+//echoes the new card and opens its editor on the persisted intent, the way
+//the editor's own saves release on theirs (02-editor-session-and-queue.md
+//§1.4) — and so a refusal to persist is a synchronous throw the caller can
+//handle before showing anything. The attempt starts at most once; the queue
+//owns completion from there exactly as for runDurableAuxWrite.
+export const persistDurableAuxWrite = (intent : AuxWriteIntent) : (() => Promise<AuxWriteOutcome>) => {
 	const executor = executors[intent.kind];
-	if (!executor) return Promise.reject(new Error(`No executor for aux write kind ${intent.kind}`));
+	if (!executor) throw new Error(`No executor for aux write kind ${intent.kind}`);
 	//Over budget, a best-effort write degrades to session-only exactly as it
 	//does on quota; something the user WROTE must be refused loudly instead.
 	//
@@ -837,7 +841,7 @@ export const runDurableAuxWrite = (intent : AuxWriteIntent) : Promise<AuxWriteOu
 	//Degrading the cheap kind protects the expensive one.
 	const admission = groupFitsInQueue([intent]);
 	const overBudget = !admission.ok;
-	if (overBudget && HIGH_VALUE_KINDS.has(intent.kind)) return Promise.reject(new Error(admission.ok ? '' : admission.message));
+	if (overBudget && HIGH_VALUE_KINDS.has(intent.kind)) throw new Error(admission.ok ? '' : admission.message);
 	if (overBudget) {
 		//Session-only, the same degradation a best-effort kind already takes on
 		//a quota failure: attempt it, but do not let it consume the durable
@@ -850,7 +854,7 @@ export const runDurableAuxWrite = (intent : AuxWriteIntent) : Promise<AuxWriteOu
 	//(restore the compose text, tell the user the card was not created)
 	//instead of showing a success it cannot back up.
 	if (!persisted && HIGH_VALUE_KINDS.has(intent.kind)) {
-		return Promise.reject(new Error('This change could not be saved locally, so it was not submitted. Browser storage may be full or blocked.'));
+		throw new Error('This change could not be saved locally, so it was not submitted. Browser storage may be full or blocked.');
 	}
 	inFlight.set(intent.id, intent);
 	//Claim it before attempting, not just on replay. The type comment always
@@ -860,7 +864,25 @@ export const runDurableAuxWrite = (intent : AuxWriteIntent) : Promise<AuxWriteOu
 	//and execute it too. star-add then double-increments the card's counters
 	//and comment-add double-increments thread_count.
 	claimIntent(intent.id);
-	return attemptPersistedIntent(intent).finally(() => releaseClaim(intent.id));
+	let started : Promise<AuxWriteOutcome> | null = null;
+	return () => {
+		if (!started) started = attemptPersistedIntent(intent).finally(() => releaseClaim(intent.id));
+		return started;
+	};
+};
+
+//Persist the intent, then attempt it. On server ack the intent clears; on
+//failure it stays queued for replay (unless the failure is permanent). The
+//returned promise reports the attempt, but callers need not await it — the
+//queue owns completion.
+export const runDurableAuxWrite = (intent : AuxWriteIntent) : Promise<AuxWriteOutcome> => {
+	let start : () => Promise<AuxWriteOutcome>;
+	try {
+		start = persistDurableAuxWrite(intent);
+	} catch (err) {
+		return Promise.reject(err);
+	}
+	return start();
 };
 
 //A Firestore commit on the main thread's MEMORY-ONLY cache neither resolves nor
@@ -1136,48 +1158,48 @@ export const replayPendingAuxWrites = async (uid : Uid) : Promise<void> => {
 	replayRunning = true;
 	try {
 		await withReplayLock(async () => {
-		for (const intent of readPendingAuxWrites()) {
-			if (intent.uid !== uid || inFlight.has(intent.id)) continue;
-			const executor = executors[intent.kind];
-			if (!executor) {
+			for (const intent of readPendingAuxWrites()) {
+				if (intent.uid !== uid || inFlight.has(intent.id)) continue;
+				const executor = executors[intent.kind];
+				if (!executor) {
 				//Not an error: the registering module may simply not be loaded
 				//yet. Registration re-triggers replay (see above). Logged
 				//because a silent skip here is indistinguishable from a
 				//successful replay when reading the queue from outside.
-				console.warn(`[aux-write] no executor for ${intent.kind} yet; retaining intent ${intent.id} for a later replay`);
-				continue;
-			}
-			//Re-check the LIVE uid between awaits. It was captured once at call
-			//time, so a sign-out or account switch mid-replay left the loop
-			//committing the old account's intents under new auth — earning
-			//permission-denied, which is classified permanent, which DISCARDED
-			//them. Reads and reading-list writes have no preflight to save
-			//them, unlike stars.
-			if (currentUid && currentUid() !== uid) break;
-			//This tab already has an attempt out for this intent that timed out
-			//without settling. Give it a bounded chance to land NOW — a replay
-			//is usually triggered by the very `online` event that lets the SDK
-			//flush it — rather than immediately committing a rival copy.
-			const unsettled = unsettledAttempts.get(intent.id);
-			if (unsettled) {
-				await Promise.race([
-					unsettled.catch(() => undefined),
-					new Promise<void>(resolve => setTimeout(resolve, settleGraceMs())),
-				]);
-				//It landed (or failed permanently and was discarded) while we
-				//waited: there is nothing left to replay.
-				if (!readPendingAuxWrites().some(pending => pending.id === intent.id)) continue;
-			}
-			//Claim it in shared storage as a secondary marker (the Web Lock
-			//above is what actually serializes tabs). If another tab holds a
-			//live claim on this intent we must STOP, not skip: replay order is
-			//load-bearing per uid, and skipping ahead let a `star-remove`
-			//execute while the matching `star-add` was still owned elsewhere —
-			//the remove no-ops against an absent star, the add then lands, and
-			//the card ends up starred, the opposite of the user's last action.
-			//The same inversion applies to read and reading-list pairs.
-			if (!claimIntent(intent.id)) break;
-			try {
+					console.warn(`[aux-write] no executor for ${intent.kind} yet; retaining intent ${intent.id} for a later replay`);
+					continue;
+				}
+				//Re-check the LIVE uid between awaits. It was captured once at call
+				//time, so a sign-out or account switch mid-replay left the loop
+				//committing the old account's intents under new auth — earning
+				//permission-denied, which is classified permanent, which DISCARDED
+				//them. Reads and reading-list writes have no preflight to save
+				//them, unlike stars.
+				if (currentUid && currentUid() !== uid) break;
+				//This tab already has an attempt out for this intent that timed out
+				//without settling. Give it a bounded chance to land NOW — a replay
+				//is usually triggered by the very `online` event that lets the SDK
+				//flush it — rather than immediately committing a rival copy.
+				const unsettled = unsettledAttempts.get(intent.id);
+				if (unsettled) {
+					await Promise.race([
+						unsettled.catch(() => undefined),
+						new Promise<void>(resolve => setTimeout(resolve, settleGraceMs())),
+					]);
+					//It landed (or failed permanently and was discarded) while we
+					//waited: there is nothing left to replay.
+					if (!readPendingAuxWrites().some(pending => pending.id === intent.id)) continue;
+				}
+				//Claim it in shared storage as a secondary marker (the Web Lock
+				//above is what actually serializes tabs). If another tab holds a
+				//live claim on this intent we must STOP, not skip: replay order is
+				//load-bearing per uid, and skipping ahead let a `star-remove`
+				//execute while the matching `star-add` was still owned elsewhere —
+				//the remove no-ops against an absent star, the add then lands, and
+				//the card ends up starred, the opposite of the user's last action.
+				//The same inversion applies to read and reading-list pairs.
+				if (!claimIntent(intent.id)) break;
+				try {
 				//BOUND THE REPLAY ATTEMPT, for the same reason the first attempt
 				//is bounded and then some. A Firestore commit on a memory-only
 				//cache neither resolves nor rejects while offline, so a bare
@@ -1191,40 +1213,40 @@ export const replayPendingAuxWrites = async (uid : Uid) : Promise<void> => {
 				//The rejection carries no `code`, so it is classified transient:
 				//the intent is retained and retried, which is correct — we do
 				//not know that it failed, only that it did not answer in time.
-				const attempt = executor(intent, true);
-				//The original promise stays live, so a later replay must not
-				//race a rival copy of the same write against it. Reuse the same
-				//bookkeeping the first-attempt timeout uses; the loop above
-				//already waits on anything recorded here.
-				unsettledAttempts.set(intent.id, attempt.then(() => 'committed' as AuxWriteOutcome, () => 'queued' as AuxWriteOutcome));
-				void attempt.catch(() => undefined).finally(() => unsettledAttempts.delete(intent.id));
-				await Promise.race([
-					attempt,
-					new Promise<never>((_, reject) => setTimeout(
-						() => reject(new Error(`no response within ${attemptTimeoutMs}ms`)), attemptTimeoutMs))
-				]);
-				unsettledAttempts.delete(intent.id);
-				clearFailures(intent.id);
-				removeIntent(intent.id);
-			} catch (error) {
-				if (permanentFailure(error)) {
-					console.error(`Aux write ${intent.kind} for ${intent.cardID} failed permanently on replay and was DISCARDED:`, error);
+					const attempt = executor(intent, true);
+					//The original promise stays live, so a later replay must not
+					//race a rival copy of the same write against it. Reuse the same
+					//bookkeeping the first-attempt timeout uses; the loop above
+					//already waits on anything recorded here.
+					unsettledAttempts.set(intent.id, attempt.then(() => 'committed' as AuxWriteOutcome, () => 'queued' as AuxWriteOutcome));
+					void attempt.catch(() => undefined).finally(() => unsettledAttempts.delete(intent.id));
+					await Promise.race([
+						attempt,
+						new Promise<never>((_, reject) => setTimeout(
+							() => reject(new Error(`no response within ${attemptTimeoutMs}ms`)), attemptTimeoutMs))
+					]);
+					unsettledAttempts.delete(intent.id);
+					clearFailures(intent.id);
 					removeIntent(intent.id);
-					reportDiscardedIntent(intent, error);
-					continue;
+				} catch (error) {
+					if (permanentFailure(error)) {
+						console.error(`Aux write ${intent.kind} for ${intent.cardID} failed permanently on replay and was DISCARDED:`, error);
+						removeIntent(intent.id);
+						reportDiscardedIntent(intent, error);
+						continue;
+					}
+					//Transient (likely offline): keep this and everything after
+					//it, in order, for the next replay trigger. Release the claim
+					//so another tab (or a later replay here) may take it.
+					//LOGGED: this used to break silently, which made a replay that
+					//ran and failed indistinguishable from one that never ran at
+					//all — the queue just sat there with no explanation anywhere.
+					console.warn(`Aux write ${intent.kind} for ${intent.cardID} did not confirm on replay; retained for the next trigger:`, error);
+					recordFailure(intent, error);
+					releaseClaim(intent.id);
+					break;
 				}
-				//Transient (likely offline): keep this and everything after
-				//it, in order, for the next replay trigger. Release the claim
-				//so another tab (or a later replay here) may take it.
-				//LOGGED: this used to break silently, which made a replay that
-				//ran and failed indistinguishable from one that never ran at
-				//all — the queue just sat there with no explanation anywhere.
-				console.warn(`Aux write ${intent.kind} for ${intent.cardID} did not confirm on replay; retained for the next trigger:`, error);
-				recordFailure(intent, error);
-				releaseClaim(intent.id);
-				break;
 			}
-		}
 		});
 	} finally {
 		replayRunning = false;

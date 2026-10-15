@@ -238,14 +238,22 @@ describe('editor sessions around a parked save (real thunks)', function() {
 		store.dispatch(editingFinish());
 	});
 
-	it('a refused third save does not drop a pending card\'s face', async () => {
+	it('a third save parks behind the parked one, keeps A\'s face, and lands after it', async () => {
+		//Was "a refused third save does not drop a pending card's face": the
+		//park held one save and refused the next. With the editor opening on
+		//a creation's persisted intent, a third save in a rapid flow is
+		//ordinary, so it parks too, in order.
 		const {a, release, xSave, aSave} = await parkASaveBehindX();
 		const c = await seed('C');
-		store.dispatch(modifyCard(c, {title: 'C2'}));
+		const cSave = store.dispatch(modifyCard(c, {title: 'C2'}));
 		await settle(50);
-		assert.strictEqual(faces()[a.id]?.title, 'A2', 'A\'s face survives the refusal of C');
+		assert.strictEqual(faces()[a.id]?.title, 'A2', 'A\'s face survives C\'s arrival');
+		assert.strictEqual(durableCardMutationPendingForCard(c.id), true, 'C reads as pending while parked');
 		release();
-		await Promise.all([xSave, aSave]);
+		await Promise.all([xSave, aSave, cSave]);
+		assert.strictEqual((await serverCard(a.id)).title, 'A2');
+		assert.strictEqual((await serverCard(c.id)).title, 'C2', 'the third save landed after the second');
+		assert.ok(!warnings.some(w => w.includes('already queued')), 'C was not mistaken for a re-press of A');
 	});
 
 	it('cancelling another card\'s editor does not drop a pending card\'s face', async () => {

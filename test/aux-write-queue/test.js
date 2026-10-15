@@ -1,4 +1,4 @@
-/*eslint-env node*/
+/*eslint-env node, es2022*/
 
 //Behavioral tests for the durable auxiliary-write queue. It started as
 //stars/reads/reading-list offline durability, and that is now the smaller half
@@ -158,7 +158,7 @@ describe('aux write queue', () => {
 		await queue.runDurableAuxWrite(queue.makeAuxWriteIntent('u1', 'read-add', 'first')).catch(() => {});
 		failFirst = true;
 		// simulate: both failed initially
-		queue.registerAuxWriteExecutor('read-add', async (intent) => { throw new Error('offline'); });
+		queue.registerAuxWriteExecutor('read-add', async () => { throw new Error('offline'); });
 		await queue.runDurableAuxWrite(queue.makeAuxWriteIntent('u1', 'read-add', 'second'));
 		// now first fails on replay, second must NOT run
 		queue.registerAuxWriteExecutor('read-add', async (intent) => {
@@ -265,6 +265,36 @@ describe('aux write queue', () => {
 		//A discarded creation must NOT look like a committed one: the caller
 		//goes on to wait for the card to exist and chase an auto-slug.
 		assert.equal(await queue.runDurableAuxWrite(queue.makeAuxWriteIntent('u1', 'card-create', 'c3', '', payload)), 'discarded');
+	});
+
+	it('persistDurableAuxWrite makes the intent durable before the attempt starts, starts it once, and refuses synchronously', async () => {
+		//Card creation opens the editor on the persisted intent and runs the
+		//commit underneath; the split is what makes "durable" true at that
+		//instant and keeps a refusal from showing a card that is not.
+		let executions = 0;
+		let release;
+		queue.registerAuxWriteExecutor('card-create', () => new Promise(resolve => { executions++; release = resolve; }));
+		const payload = {kind: 'card-create', card: {id: 'p1'}, section: '', sectionUpdateKey: ''};
+		const intent = queue.makeAuxWriteIntent('u1', 'card-create', 'p1', '', payload);
+		const start = queue.persistDurableAuxWrite(intent);
+		assert.ok(queue.readPendingAuxWrites().some(pending => pending.id === intent.id), 'persisted before any attempt');
+		assert.equal(executions, 0, 'nothing attempted until start() is called');
+		const first = start();
+		const second = start();
+		assert.strictEqual(first, second, 'start() hands back the one attempt');
+		assert.equal(executions, 1);
+		release();
+		assert.equal(await first, 'committed');
+		assert.deepEqual(queue.readPendingAuxWrites(), []);
+
+		const realSet = globalThis.localStorage.setItem;
+		globalThis.localStorage.setItem = () => { throw new Error('QuotaExceededError'); };
+		try {
+			assert.throws(() => queue.persistDurableAuxWrite(queue.makeAuxWriteIntent('u1', 'card-create', 'p2', '', payload)), /could not be saved locally/);
+		} finally {
+			globalThis.localStorage.setItem = realSet;
+		}
+		assert.throws(() => queue.persistDurableAuxWrite(queue.makeAuxWriteIntent('u1', 'comment-delete', 'p3', '', {kind: 'comment-delete', cardID: 'p3', messageID: 'm', threadID: 't'})), /No executor/);
 	});
 
 	it('replays survivors when a late-loading module registers their executor', async () => {

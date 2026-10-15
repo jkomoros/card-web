@@ -35,6 +35,7 @@ import {
 
 import {
 	createCardsDiffSelector,
+	CardsDelta,
 	sharedDiffCards,
 	anyCardMatches,
 	anyChangedCardDiffers,
@@ -54,6 +55,7 @@ import {
 import {
 	computeDefaultSet,
 	makeEverythingSetFromCards,
+	updateEverythingSet,
 	existingCardsOnly
 } from './set-projections.js';
 
@@ -1879,13 +1881,24 @@ export const selectDefaultSet = createSelector(
 const everythingSetCardsDiffer = (prev : Card, next : Card) : boolean =>
 	prev.sort_order !== next.sort_order;
 
+//Carry the ordering forward over the delta (see updateEverythingSet): a
+//single-card save or creation used to re-sort all 40k ids here, twice.
+const updateEverythingSetForDelta = (previous : CardID[], cards : Cards, delta : CardsDelta) : CardID[] => {
+	const upserted : CardID[] = delta.added.map(card => card.id);
+	for (const [prev, next] of delta.changed) {
+		if (everythingSetCardsDiffer(prev, next)) upserted.push(next.id);
+	}
+	return updateEverythingSet(previous, cards, {upserted, removed: delta.removed.map(card => card.id)});
+};
+
 //Note; other selectors depend on this being sorted based on descending sort_order
 export const selectEverythingSet = createSelector(
 	selectRawCards,
 	createCardsDiffSelector({
 		name: 'everythingSet',
 		needsRecompute: delta => anyChangedCardDiffers(delta, everythingSetCardsDiffer),
-		compute: makeEverythingSetFromCards
+		compute: makeEverythingSetFromCards,
+		update: updateEverythingSetForDelta,
 	})
 );
 
@@ -1894,7 +1907,8 @@ const selectEverythingSetSnapshot = createSelector(
 	createCardsDiffSelector({
 		name: 'everythingSetSnapshot',
 		needsRecompute: delta => anyChangedCardDiffers(delta, everythingSetCardsDiffer),
-		compute: makeEverythingSetFromCards
+		compute: makeEverythingSetFromCards,
+		update: updateEverythingSetForDelta,
 	})
 );
 

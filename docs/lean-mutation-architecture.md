@@ -251,6 +251,29 @@ same fixture, plus "no regression" on anything the journey measures.
 > is open; the branch loops 4–5× faster because each run is cheaper — not
 > reproducible outside the emulator, unverified on prod.
 
+> **Save→New under one second (Oct 15, owner directive).** Creation is
+> intent-first: `createCard` persists the intent, echoes the card the
+> executor will write (real id, revision 1, client-clock stamps) and lets
+> navigation and the editor proceed while the commit runs underneath;
+> `pendingCardCreates` makes a save on the just-created card wait for the
+> commit instead of reading its absence as a deletion, an absent card
+> whose create intent is still queued is transient, and a discard anywhere
+> (first attempt or replay) withdraws the echo after confirming the server
+> does not hold the card. The everything set is carried forward
+> incrementally on both threads (`updateEverythingSet`; ≤256 touched ids
+> merge, more re-sort) instead of three full 40k sorts per creation. The
+> save park is a FIFO: a third save arriving while one runs and one waits
+> used to be refused with its editor left open — which the rapid flow now
+> produces routinely. Measured on the cut-over DEV export in the journey
+> harness: Save → new editor 477/436/391 ms rapid after a 1525 ms first
+> cycle (the one-time tag-suggestion build), 406/419 ms with 20 s gaps,
+> versus 2217 ms and 1783–2813 ms before. Remaining on that path: the
+> worker's ~2 s tag-suggestion build on the first editor open after boot,
+> and the a4f185da worker-title regressions the J6 re-measure found
+> (first-boot working-notes tab paint 3.6–4.4 s; titles not persisted
+> after the warm-up so the second boot recomputes ~33 s of them; a 2.4 s
+> worker task on a rapid save; worker heap +60–80 MB) — open, unfixed.
+
 Verified by reading or by synthetic measurement at 47k cards, unless marked.
 
 | Symptom | Mechanism on master | Evidence | Status |

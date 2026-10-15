@@ -35,6 +35,9 @@ import {
 import {
 	AuxWriteOutcome,
 	makeAuxWriteIntent,
+	onAuxWriteDiscarded,
+	persistDurableAuxWrite,
+	readPendingAuxWrites,
 	registerAuxWriteExecutor,
 	runDurableAuxWrite,
 	runDurableAuxWrites
@@ -279,6 +282,7 @@ import {cardFilterDomainMatches} from '../card-filter-domain.js';
 import {
 	COMMITTED_PENDING_FILTERS_WHEN_FULLY_LOADED,
 	EXPECTED_NEW_CARD_FAILED,
+	EDITING_FINISH,
 	EXPECT_CARD_DELETIONS,
 	EXPECT_NEW_CARD,
 	EXPECT_FETCHED_CARDS,
@@ -437,6 +441,57 @@ export const durableCardMutationPending = () : boolean => {
 		return false;
 	}
 };
+
+//--- Creations the server has not answered yet ------------------------------
+//createCard echoes the new card and opens its editor as soon as the create
+//intent is persisted (intent first), so a save on that card can start before
+//its creation has committed. The save's authoritative reread would then find
+//no document and classify the card as DELETED — skipping the edit and telling
+//the user the card no longer exists, for a card created two seconds ago.
+//Each in-flight creation is recorded here until its commit is answered (the
+//executor settles it right after the commit, before its own reread, so the
+//executor cannot wait on itself); any outcome settles it as a fallback.
+//authoritativeCardsAfterFailedCommit waits on these before reading.
+type PendingCardCreate = {settled : Promise<void>, settle : () => void};
+const pendingCardCreates : Map<CardID, PendingCardCreate> = new Map();
+
+const trackPendingCardCreate = (cardID : CardID) : (() => void) => {
+	let resolve = () => { /* replaced below */ };
+	const settled = new Promise<void>(r => { resolve = r; });
+	const entry : PendingCardCreate = {
+		settled,
+		settle: () => {
+			if (pendingCardCreates.get(cardID) === entry) pendingCardCreates.delete(cardID);
+			resolve();
+		},
+	};
+	pendingCardCreates.set(cardID, entry);
+	return entry.settle;
+};
+
+const settlePendingCardCreate = (cardID : CardID) : void => {
+	pendingCardCreates.get(cardID)?.settle();
+};
+
+//For tests and the readiness UI: whether a creation is still unanswered.
+export const cardCreatePendingForCard = (cardID : CardID) : boolean => pendingCardCreates.has(cardID);
+
+//A card the server does not hold but whose creation is still queued for
+//replay (offline, or a commit that outlived its attempt window) is not
+//deleted: it is not there YET. Consulted only for absent cards, so the
+//storage read is off every ordinary path.
+const queuedCardCreateIDs = () : Set<CardID> => {
+	try {
+		return new Set(readPendingAuxWrites().filter(intent => intent.kind === 'card-create').map(intent => intent.cardID));
+	} catch {
+		return new Set();
+	}
+};
+
+//Copy for a save that reached a card whose creation is still queued: not a
+//load failure and not a deletion. The record pauses and resumes when the
+//creation commits (the card-create executor resumes it).
+const CARD_STILL_BEING_CREATED = 'That card is still being created. The edit will be saved once it exists.';
 
 //Parsed-targetIDs cache for durableCardMutationPendingForCard, keyed by the
 //raw stored string. card-view consults the per-card check on every
@@ -718,6 +773,7 @@ export const modifyCardsWithDurableTagOperation = (cards : Card[], tag : TagID, 
 			if (selectUid(currentState) !== operation.uid) throw new Error('Account changed while the bulk-label operation was running');
 			const rawCards = selectRawCards(currentState);
 			const authoritative = await authoritativeCardsAfterFailedCommit(chunkIDs);
+			if (authoritative.creatingIDs.length) throw new Error(CARD_STILL_BEING_CREATED);
 			if (authoritative.failedIDs.length) throw new Error(`Could not load ${authoritative.failedIDs.length} target cards from the server`);
 			const skippedCount = authoritative.removedIDs.length;
 			const chunkCards = chunkIDs
@@ -1014,9 +1070,16 @@ let durableMultiEditRunning = false;
 //per-card).
 let durableMultiEditRunSettled : Promise<void> | null = null;
 let durableMultiEditRunSettledResolve : (() => void) | null = null;
-//The identity of the one parked save, so an impatient re-press of the same
-//save drops silently while a genuinely different save still refuses.
-let durableMultiEditParkedKey : string | null = null;
+//The identities of the parked saves, so an impatient re-press of a save
+//already waiting drops silently. More than one save may wait: with the
+//editor opening on a creation's persisted intent, the next card's save
+//arrives before the previous card's commit has been answered as a matter of
+//course, and a third while the second is parked — the old single slot
+//refused that third save ("Another saved card operation is already
+//running") and left its editor open, in exactly the rapid note-taking flow
+//the early open exists for. Parked saves run in arrival order: each waits
+//for the run in progress, and re-waits if another parked save took the turn.
+const durableMultiEditParkedKeys : Set<string> = new Set();
 
 const readDurableMultiEdit = () : DurableMultiEdit | null => {
 	if (typeof localStorage === 'undefined') return null;
@@ -1133,12 +1196,8 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 			dispatch(modifyCardFailure(new Error('Another saved card operation is already running. Wait for it to finish or stop it before starting another.'), undefined, []));
 			return;
 		}
-		if (durableMultiEditParkedKey !== null) {
-			if (durableMultiEditParkedKey === parkedKey) {
-				console.warn('This save is already queued behind the running operation.');
-				return;
-			}
-			dispatch(modifyCardFailure(new Error('Another saved card operation is already running. Wait for it to finish or stop it before starting another.'), undefined, []));
+		if (durableMultiEditParkedKeys.has(parkedKey)) {
+			console.warn('This save is already queued behind the running operation.');
 			return;
 		}
 		//Release the editor BEFORE waiting, not after. Parking with the
@@ -1161,11 +1220,16 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 		const parkedIDs = cards.map(card => card.id);
 		for (const id of parkedIDs) parkedCardIDs.add(id);
 		const releaseParked = () => { for (const id of parkedIDs) parkedCardIDs.delete(id); };
-		durableMultiEditParkedKey = parkedKey;
+		durableMultiEditParkedKeys.add(parkedKey);
 		try {
-			await durableMultiEditRunSettled;
+			//Reactions to one settle promise run in arrival order, and a
+			//parked save that proceeds marks the runner busy synchronously, so
+			//a later one re-waits on the new run instead of racing it.
+			while ((durableMultiEditRunning || bulkTagOperationRunning) && durableMultiEditRunSettled) {
+				await durableMultiEditRunSettled;
+			}
 		} finally {
-			durableMultiEditParkedKey = null;
+			durableMultiEditParkedKeys.delete(parkedKey);
 		}
 		//A parked save that cannot proceed had a face: clear it, and only it.
 		//Its editor was released at the park and its draft stamped, so the
@@ -1184,7 +1248,7 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 			return;
 		}
 		if (durableMultiEditRunning || bulkTagOperationRunning) {
-			//Another run started in the turn the previous one settled.
+			//A bulk-tag run with no settle promise to wait on.
 			refuseParked('Another saved card operation is already running.');
 			return;
 		}
@@ -1336,6 +1400,7 @@ export const modifyCardsWithDurableMultiEdit = (cards : Card[], update : CardDif
 			while (candidateSize >= 1) {
 				chunkIDs = operation.targetIDs.slice(operation.nextIndex, operation.nextIndex + candidateSize);
 				const authoritative = await authoritativeCardsAfterFailedCommit(chunkIDs);
+				if (authoritative.creatingIDs.length) throw new Error(CARD_STILL_BEING_CREATED);
 				if (authoritative.failedIDs.length) throw new Error(`Could not load ${authoritative.failedIDs.length} target cards from the server`);
 				skippedCount = authoritative.removedIDs.length;
 				skippedIDs = authoritative.removedIDs;
@@ -1656,6 +1721,15 @@ const authoritativeCardsAfterFailedCommit = async (cardIDs: CardID[]) => {
 	const cards: Cards = {};
 	const removedIDs: CardID[] = [];
 	const failedIDs: CardID[] = [];
+	//Absent on the server but still queued for creation: listed here AND in
+	//failedIDs (transient), so callers can say what is actually happening.
+	const creatingIDs: CardID[] = [];
+	//A card whose creation is still unanswered is not on the server yet; wait
+	//for the answer rather than reading its absence as a deletion.
+	const pending = cardIDs.map(id => pendingCardCreates.get(id)?.settled).filter(Boolean);
+	if (pending.length) await Promise.all(pending);
+	//One storage read per call, and only once an absent card makes it matter.
+	let queuedCreates : Set<CardID> | null = null;
 	for (let index = 0; index < cardIDs.length; index += FAILED_COMMIT_RECONCILIATION_CONCURRENCY) {
 		const ids = cardIDs.slice(index, index + FAILED_COMMIT_RECONCILIATION_CONCURRENCY);
 		const results = await Promise.allSettled(ids.map(id => getDocFromServer(doc(db, CARDS_COLLECTION, id))));
@@ -1666,7 +1740,16 @@ const authoritativeCardsAfterFailedCommit = async (cardIDs: CardID[]) => {
 				return;
 			}
 			if (!result.value.exists()) {
-				removedIDs.push(id);
+				//Queued for creation (offline, or a commit that outlived its
+				//attempt window) is transient, not deleted: the caller retries
+				//later instead of skipping the edit as "no longer exists".
+				if (!queuedCreates) queuedCreates = queuedCardCreateIDs();
+				if (queuedCreates.has(id)) {
+					failedIDs.push(id);
+					creatingIDs.push(id);
+				} else {
+					removedIDs.push(id);
+				}
 				return;
 			}
 			//Keep the complete server document for the worker reconciliation.
@@ -1675,7 +1758,7 @@ const authoritativeCardsAfterFailedCommit = async (cardIDs: CardID[]) => {
 			cards[id] = {...result.value.data({serverTimestamps: 'estimate'}), id} as Card;
 		});
 	}
-	return {cards, removedIDs, failedIDs};
+	return {cards, removedIDs, failedIDs, creatingIDs};
 };
 
 export const modifyCardsIndividually = (cards : Card[], updates : {[id : CardID] : CardDiff}, substantive = false, failOnError = false) : ThunkSomeAction => async (dispatch, getState) => {
@@ -2897,6 +2980,46 @@ export const bulkCreateWorkingNotes = (bodies : string[], flags? : CardFlags) : 
 
 };
 
+//A creation the queue DISCARDED (a permanent failure: rules refused it, or
+//the plan was invalid) was already echoed into the store and the worker,
+//and its editor may be open. Remove the image everywhere — the server never
+//had it, so no listener will — and close the editor while keeping its draft:
+//the discard report has told the user what happened, and the text they typed
+//is the one thing this path must not lose.
+const withdrawDiscardedCreation = (cardID : CardID) : ThunkSomeAction => async (dispatch, getState) => {
+	if (!selectRawCards(getState())[cardID]) return;
+	//A discard does not prove the card is absent: a replay's repair of the
+	//fanout can fail permanently AFTER the card batch landed (an oversized
+	//group commits in parts), and so can a first attempt's split group. Only
+	//a card the server does not hold is withdrawn; an unanswerable read keeps
+	//it, since the live listener is authoritative for a card that exists.
+	try {
+		if ((await getDocFromServer(doc(db, CARDS_COLLECTION, cardID))).exists()) return;
+	} catch {
+		return;
+	}
+	if (!selectRawCards(getState())[cardID]) return;
+	if (selectIsEditing(getState()) && selectEditingCard(getState())?.id === cardID) {
+		const {preserveEditDraftThroughTeardown} = await import('../edit-draft.js');
+		preserveEditDraftThroughTeardown();
+		dispatch({type: EDITING_FINISH});
+	}
+	awaitingServerTimestampIDs.delete(cardID);
+	//The worker drops the card through the same reconciliation message the
+	//failed-commit path uses for a card the server no longer holds.
+	dispatch({type: RECONCILE_CARDS_AFTER_FAILED_COMMIT, cards: {}, removedIDs: [cardID]});
+	dispatch({type: REMOVE_CARDS, cardIDs: [cardID]});
+};
+
+//Every discard of a creation, not only a first attempt's: a creation that
+//came back 'queued' keeps its echo, and if the replay then discards it the
+//withdrawal has to happen from the queue's own report, or the card lingers
+//as a phantom the user is told did not go through.
+onAuxWriteDiscarded(intent => {
+	if (intent.kind !== 'card-create') return;
+	void store.dispatch(withdrawDiscardedCreation(intent.cardID));
+});
+
 //createCard creates an inserts a new card. see also createWorkingNotesCard
 //which is similar but simpler.
 //Valid arguments of opts:
@@ -3047,6 +3170,16 @@ registerAuxWriteExecutor('card-create', async (intent, isReplay) => {
 	batch.endAtomicGroup();
 	if (!scopeStillCurrent()) throw new Error('Card creation paused after account permissions changed.');
 	await batch.commit();
+	//The server holds the card now: release any save waiting on it BEFORE the
+	//reread below, which itself waits on pending creations.
+	settlePendingCardCreate(intent.cardID);
+	//An edit made on the echoed card while its creation was still queued
+	//paused its durable record (CARD_STILL_BEING_CREATED). Nothing else ties
+	//that record to this commit — the readiness and `online` edges that
+	//normally resume it may have passed long ago — so resume it from here,
+	//after the echo below has installed the server's image.
+	const pausedEdit = readDurableMultiEdit();
+	const resumePausedEdit = Boolean(pausedEdit && pausedEdit.lastError && pausedEdit.lastError.includes(CARD_STILL_BEING_CREATED) && pausedEdit.targetIDs.includes(intent.cardID));
 
 	//Confirm every creation path, including replay, from current server
 	//documents. Echoing the original payload can erase a later body or tags.
@@ -3071,6 +3204,10 @@ registerAuxWriteExecutor('card-create', async (intent, isReplay) => {
 			console.warn('Could not confirm the created card’s section:', err);
 		}
 	}
+	//force: this pause is not an overwrite conflict (the only thing force
+	//would ask about), and the record must not wait for a readiness edge
+	//that may already have passed.
+	if (resumePausedEdit && scopeStillCurrent()) void store.dispatch(resumePendingDurableMultiEdit(true));
 });
 
 export const createCard = (opts : CreateCardOpts) : ThunkSomeAction => async (dispatch, getState) => {
@@ -3279,18 +3416,57 @@ export const createCard = (opts : CreateCardOpts) : ThunkSomeAction => async (di
 		serverTimestampFields: serverTimestampFieldsOf(obj),
 	});
 
-	//The queue resolves for all three outcomes; only 'committed' means the
-	//server has the card. Proceeding on 'queued' would wait forever for a card
-	//that is not there yet, and proceeding on 'discarded' would wait forever
-	//for one that never will be.
-	let outcome : AuxWriteOutcome;
+	//Intent first. The editor used to open only when the server answered the
+	//commit — at production latency the whole Save→New gap, and on the
+	//emulator 1.3s of a 1.8s journey — even though the creation was already
+	//durable (persisted, claimed, replayable) a few milliseconds in. Persist
+	//the intent, echo the card the executor will write, and let navigation
+	//and the editor proceed on that; the commit runs underneath. A refusal to
+	//persist is synchronous, so nothing is shown for a card that is not
+	//durable. This is the creation-side twin of the editor's own save
+	//(02-editor-session-and-queue.md §1.4).
+	let startCreateAttempt : () => Promise<AuxWriteOutcome>;
 	try {
-		outcome = await runDurableAuxWrite(intent);
+		startCreateAttempt = persistDurableAuxWrite(intent);
 	} catch (err) {
 		console.warn(err);
 		dispatch({type: EXPECTED_NEW_CARD_FAILED});
 		return;
 	}
+	const settleCreate = trackPendingCardCreate(id);
+	const attempt = startCreateAttempt();
+	//Any outcome settles the record; the executor settles it earlier, right
+	//after the commit, on the committed path. (attempt never rejects — the
+	//queue maps every failure to an outcome — so this cannot go unhandled.)
+	attempt.then(settleCreate, settleCreate);
+
+	//The optimistic image is exactly what the executor restores from the
+	//intent: the same JSON round trip, client-clock stamps in the sentinels'
+	//place (the worker and receiveCards both treat echoed ids as awaiting the
+	//server's stamps), the real id in the placeholder's place, and revision 1
+	//— what MultiBatch.set stamps on a created card — so the server's own
+	//image of the same creation is admitted as an equal, not refused as
+	//older. Nothing touches `obj` itself: a finisher may have put a sentinel
+	//on it that the intent's field list depends on.
+	const optimistic : Card = {...restoredPersistedCard(persistableCard(obj)), id, revision: 1};
+	await dispatch(echoLocalCardModifications({[id]: optimistic}, {uid: user.uid, mayViewUnpublished: selectUserMayViewUnpublished(state)}));
+
+	//For an orphaned card the arrival gate is satisfied by the echo above. A
+	//SECTIONED card's arrival additionally waits for the section's own
+	//listener delivery, which nothing latency-compensates — and if that
+	//delivery never comes (a split batch's section half failing, a wedged
+	//Listen stream), the pending expectation would latch pendingReorder and
+	//hold corpus status at 'pending', refusing every subsequent save. The
+	//backstop clears the expectation instead: the creation IS durable; only
+	//this tab's navigation gives up on it.
+	scheduleNewCardArrivalBackstop(dispatch, getState, id);
+
+	//Only 'committed' means the server has the card. 'queued' means it will:
+	//the intent replays on its own and the echoed card is what it will
+	//create, so the card stays, and a save on it waits for the creation (see
+	//pendingCardCreates). 'discarded' means it never will, and the echo has
+	//to be withdrawn.
+	const outcome = await attempt;
 	if (outcome !== 'committed') {
 		if (outcome === 'queued') {
 			console.warn(`Card ${id} could not be created right now; it is queued and will be created automatically when the connection recovers.`);
@@ -3299,21 +3475,14 @@ export const createCard = (opts : CreateCardOpts) : ThunkSomeAction => async (di
 			//led with "could not be created" read as loss.
 			dispatch(showSnackbar('That card is saved and will be created automatically when the connection recovers. Nothing is lost.', {kind: 'queued'}));
 		}
-		//The 'discarded' case already alerted from inside the queue.
-		dispatch({type: EXPECTED_NEW_CARD_FAILED});
+		//'discarded': the queue reported it, and the onAuxWriteDiscarded
+		//listener above has already begun withdrawing the echo — the same
+		//path a discard on replay takes.
+		//Navigation normally consumed the expectation long ago; clear it only
+		//if it is still this card's, never a later creation's.
+		if (selectPendingNewCardIDToNavigateTo(getState()) === id) dispatch({type: EXPECTED_NEW_CARD_FAILED});
 		return;
 	}
-
-	//The card-create executor above echoed the committed card into the store
-	//and the worker, so for an orphaned card the arrival gate is already (or
-	//imminently) satisfied. A SECTIONED card's arrival additionally waits for
-	//the section's own listener delivery, which nothing latency-compensates —
-	//and if that delivery never comes (a split batch's section half failing,
-	//a wedged Listen stream), the pending expectation would latch
-	//pendingReorder and hold corpus status at 'pending', refusing every
-	//subsequent save. The backstop clears the expectation instead: the card
-	//IS committed; only this tab's navigation gives up on it.
-	scheduleNewCardArrivalBackstop(dispatch, getState, id);
 
 	//updateSections will be called and update the current view. card-view's
 	//updated will call navigateToNewCard once the pending card (and, for a

@@ -67,6 +67,8 @@ import {
 import {
 	computeDefaultSet,
 	makeEverythingSetFromCards,
+	updateEverythingSet,
+	INCREMENTAL_EVERYTHING_SET_MAX_TOUCHED,
 	existingCardsOnly
 } from '../set-projections.js';
 
@@ -154,6 +156,17 @@ export class QueryEngine {
 	_cardsVersion : number;
 	//Bumped only when a change could alter the default/everything sets.
 	_setsVersion : number;
+	//The everything set carried forward incrementally by updateCards (see
+	//updateEverythingSet): a full re-sort of the corpus per card save was
+	//the worker's largest fixed cost on the Save→New path. Valid only while
+	//_everythingSetVersion === _setsVersion; _ensureEverythingSet rebuilds
+	//otherwise (first use, or a delta too large to carry).
+	_everythingSet : CardID[] | null;
+	_everythingSetVersion : number;
+	//Full rebuilds so far (test/query-engine pins that a small batch carries
+	//instead of rebuilding; a lazily rebuilt set would pass every result
+	//check while paying the sort).
+	_everythingSetRebuilds : number;
 	_collectionState : CollectionState;
 	_sections : Sections;
 	_tags : Tags;
@@ -180,6 +193,9 @@ export class QueryEngine {
 		this._cards = {};
 		this._cardsVersion = 0;
 		this._setsVersion = 0;
+		this._everythingSet = null;
+		this._everythingSetVersion = -1;
+		this._everythingSetRebuilds = 0;
 		this._collectionState = INITIAL_STATE;
 		this._sections = {};
 		this._tags = {};
@@ -279,10 +295,14 @@ export class QueryEngine {
 		//separately from content change.
 		let setsChanged = false;
 		let conceptsChanged = false;
+		//The everything set's own delta: membership and sort_order only (a
+		//section change moves a card in the main set, not here).
+		const everythingDelta = {upserted: [] as CardID[], removed: [] as CardID[]};
 		for (const [id, card] of Object.entries(cards)) {
 			const previous = this._cards[id];
 			if (previous === card) continue;
 			if (previous?.card_type === 'concept' || card.card_type === 'concept') conceptsChanged = true;
+			if (!previous || previous.sort_order !== card.sort_order) everythingDelta.upserted.push(id);
 			if (!previous || previous.sort_order !== card.sort_order || previous.section !== card.section) setsChanged = true;
 			this._cards[id] = card;
 			this._markTagsDirtyForCard(id);
@@ -297,13 +317,29 @@ export class QueryEngine {
 			delete this._cards[id];
 			changed = true;
 			setsChanged = true;
+			everythingDelta.removed.push(id);
 		}
 		if (changed) this._cardsVersion++;
 		//Preserve corpus iteration order: duplicate titles use the last card.
 		//Appending a newly promoted concept to an incremental subset would
 		//change that winner compared with a fresh load of the same corpus.
 		if (conceptsChanged) this._conceptCards = Object.fromEntries(Object.entries(this._cards).filter(([, card]) => card.card_type === 'concept'));
-		if (setsChanged) this._setsVersion++;
+		if (setsChanged) {
+			//Carry the everything set across this batch while it is current
+			//and the batch is small. A big batch (a cold-sweep page) leaves it
+			//stale to be rebuilt lazily on the next use, as before — carrying
+			//eagerly would sort the corpus per page whether or not a
+			//collection runs in between.
+			const touched = everythingDelta.upserted.length + everythingDelta.removed.length;
+			const carried = this._everythingSet && this._everythingSetVersion === this._setsVersion && touched <= INCREMENTAL_EVERYTHING_SET_MAX_TOUCHED
+				? updateEverythingSet(this._everythingSet, this._cards, everythingDelta)
+				: null;
+			this._setsVersion++;
+			if (carried) {
+				this._everythingSet = carried;
+				this._everythingSetVersion = this._setsVersion;
+			}
+		}
 		this._collectionState = collectionReducer(this._collectionState, {type: UPDATE_CARDS, cards, fetchType: 'published'});
 		if (removedIDs.length) {
 			this._collectionState = collectionReducer(this._collectionState, {type: REMOVE_CARDS, cardIDs: removedIDs});
@@ -326,11 +362,19 @@ export class QueryEngine {
 		return this._processedCards;
 	}
 
+	_ensureEverythingSet() : CardID[] {
+		if (this._everythingSet && this._everythingSetVersion === this._setsVersion) return this._everythingSet;
+		this._everythingSetRebuilds++;
+		this._everythingSet = makeEverythingSetFromCards(this._cards);
+		this._everythingSetVersion = this._setsVersion;
+		return this._everythingSet;
+	}
+
 	_ensureSets() {
 		if (this._sets && this._setsForCards === this._setsVersion && this._setsForSections === this._sections && this._setsForReadingList === this._readingList) return this._sets;
 		this._sets = {
 			main: computeDefaultSet(this._sections, this._cards),
-			everything: makeEverythingSetFromCards(this._cards),
+			everything: this._ensureEverythingSet(),
 			//Gated like the other sets (#752): a stored reading-list entry
 			//can outlive its card, and counting it while rendering drops it
 			//made /c/reading-list/ claim more cards than it shows.
