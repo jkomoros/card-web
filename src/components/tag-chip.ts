@@ -29,11 +29,12 @@ import {
 import { store } from '../store.js';
 
 import {
-	selectCards
+	selectCards,
+	selectCardMetas
 } from '../selectors.js';
 
 import {
-	displayTitle,
+	displayTitleWithMeta,
 	selectDisplayTitleInputs
 } from '../working-notes-display-title.js';
 
@@ -418,7 +419,7 @@ class TagChip  extends LitElement {
 		if (info.previewCard) {
 			const state = store.getState() as State;
 			const card = selectCards(state)[info.previewCard];
-			if (card && card.card_type === 'working-notes') return displayTitle(card, selectDisplayTitleInputs(state)) || this.tagName;
+			if (card && card.card_type === 'working-notes') return displayTitleWithMeta(card, selectCardMetas(state), selectDisplayTitleInputs(state)) || this.tagName;
 		}
 		return this.tagName;
 	}

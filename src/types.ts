@@ -885,6 +885,11 @@ export type CardMeta = {
 	sort_order: number,
 	author: Uid,
 	collaborators: Uid[],
+	//The worker-computed working-notes display title (title-kernel), frozen
+	//to the card's substantive-update time and persisted with the worker's
+	//snapshot, for a working-notes card with no authored title. Absent until
+	//the worker has computed it; the main thread then computes a fallback.
+	displayTitle?: string,
 };
 
 export type CardMetas = {[id : CardID]: CardMeta};

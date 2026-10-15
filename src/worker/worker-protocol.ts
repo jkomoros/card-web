@@ -72,6 +72,10 @@ export const metaForCard = (card : Card) : CardMeta => ({
 	id: card.id,
 	name: card.name,
 	title: card.title || '',
+	//Attached by the worker from its frozen title cache for a working-notes
+	//card with no authored title; absent until computed (see
+	//corpus-worker displayTitleFor), and the main thread then falls back.
+	...(undefined as {displayTitle? : string} | undefined),
 	card_type: card.card_type,
 	section: card.section,
 	tags: card.tags || [],
@@ -83,7 +87,7 @@ export const metaForCard = (card : Card) : CardMeta => ({
 });
 
 export const metasEquivalent = (a : CardMeta, b : CardMeta) : boolean => {
-	if (a.name !== b.name || a.title !== b.title || a.card_type !== b.card_type || a.section !== b.section || a.published !== b.published || a.sort_order !== b.sort_order || a.author !== b.author) return false;
+	if (a.name !== b.name || a.title !== b.title || a.displayTitle !== b.displayTitle || a.card_type !== b.card_type || a.section !== b.section || a.published !== b.published || a.sort_order !== b.sort_order || a.author !== b.author) return false;
 	if (a.tags.length !== b.tags.length || a.tags.some((tag, i) => tag !== b.tags[i])) return false;
 	if (a.slugs.length !== b.slugs.length || a.slugs.some((slug, i) => slug !== b.slugs[i])) return false;
 	if (a.collaborators.length !== b.collaborators.length || a.collaborators.some((uid, i) => uid !== b.collaborators[i])) return false;

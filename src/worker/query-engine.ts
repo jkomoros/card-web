@@ -94,6 +94,10 @@ import {
 	CollectionStateHydration
 } from './worker-protocol.js';
 
+import {
+	generatedWorkingNotesTitle
+} from '../working-notes-title-kernel.js';
+
 import {deepEqual} from '../util.js';
 import {perfCount} from '../perf.js';
 
@@ -489,6 +493,16 @@ export class QueryEngine {
 	//exists to remove.
 	_effectiveIDFMap() : IDFMap {
 		return this._idfMap || PENDING_IDF_MAP;
+	}
+
+	//The working-notes display title for one card, over the same enriched
+	//generator (corpus IDF, concepts, synonyms) tag suggestions use — the
+	//viewer's own inputs, since this worker's corpus is the viewer's. Null
+	//for anything but an untitled working-notes card.
+	generatedDisplayTitle(id : CardID) : string | null {
+		const card = this._ensureProcessedCards()[id];
+		if (!card || card.card_type !== 'working-notes' || card.title) return null;
+		return generatedWorkingNotesTitle(card, this._ensureSuggestGenerator());
 	}
 
 	//Memoized fingerprint machinery for tag suggestions. The generator is

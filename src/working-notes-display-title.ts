@@ -23,23 +23,26 @@ import {
 } from './nlp.js';
 
 import {
+	displayTitleDate,
+	displayTitleDateLabel,
+	displayTitleKey,
+	generatedWorkingNotesTitle as kernelTitle
+} from './working-notes-title-kernel.js';
+
+export {displayTitleDate, displayTitleDateLabel, displayTitleKey};
+
+import {
 	selectConcepts,
 	selectFingerprintGenerator,
 	selectSynonymMap,
 	selectWorkerIDFMap,
 } from './selectors.js';
 
-import {
-	timestampToMillis
-} from './util.js';
-
 import type {
-	Card,
+	CardMetas,
 	ProcessedCard,
 	State
 } from './types.js';
-
-const NUM_TERMS = 8;
 
 //The generator is the memo key: one object per (idfMap, concepts, synonyms)
 //identity. In worker modes the IDF map is the worker's per-epoch map (or
@@ -68,53 +71,17 @@ export type DisplayTitleInputs = FingerprintGenerator;
 
 export const selectDisplayTitleInputs = (state : State) : DisplayTitleInputs => displayTitleGeneratorSelector()(state) || selectFingerprintGenerator(state);
 
-//The date the finisher used was `updated`, which no longer survives: every
-//inbound-link write bumps it and the cutover script bumps it once more, so
-//every legacy note would show the cutover date. updated_substantive is the
-//last content save (the drawer's "last activity"); created is the fallback
-//for a never-saved card, and now for a card with neither.
-export const displayTitleDate = (card : Card) : Date => {
-	const millis = timestampToMillis(card.updated_substantive, NaN);
-	if (Number.isFinite(millis)) return new Date(millis);
-	const created = timestampToMillis(card.created, NaN);
-	if (Number.isFinite(created)) return new Date(created);
-	return new Date();
-};
+//FROZEN per card object: a title, once computed, is never recomputed for
+//an IDF epoch or a concept edit — only a new image of the card (a new
+//object, after a save) gets a new one. That is what the owner asked for
+//(titles should change very rarely; stale is fine), and it is also what
+//the worker's cache does, keyed on the card's substantive-update time. This
+//main-thread path is the fallback for a card whose meta carries no title
+//yet; the worker's title wins whenever present (displayTitleWithMeta).
+const memo = new WeakMap<ProcessedCard, string>();
 
-//One formatter, hoisted: toLocaleDateString constructs one per call (~35µs),
-//and a cold drawer window renders ~250 date placeholders per pass.
-const DATE_FORMAT = new Intl.DateTimeFormat('en-US', {month: 'numeric', day: 'numeric', year: '2-digit'});
-export const displayTitleDateLabel = (card : Card) : string => DATE_FORMAT.format(displayTitleDate(card));
-
-//The projection itself, uncached. The card must be the processed card (its
-//normalized text, backported reference text and concept enrichment are what
-//the finisher computed inline before fingerprinting).
-export const generatedWorkingNotesTitle = (card : ProcessedCard, inputs : DisplayTitleInputs) : string => {
-	const pretty = inputs.fingerprintForCardObj(card, ['body']).dedupedPrettyItemsFromCard();
-	const terms = pretty.split(' ').filter(Boolean).slice(0, NUM_TERMS).join(' ');
-	const date = displayTitleDateLabel(card);
-	return terms ? `${date} ${terms}` : date;
-};
-
-//Inputs objects carry no clock, so "older" is: the entry's inputs are the
-//ones most recently handed out by the selector (seen later than the queued
-//ones). The queue records the order inputs were first seen.
-const inputsOrder = new WeakMap<DisplayTitleInputs, number>();
-let inputsSeen = 0;
-const noteInputs = (inputs : DisplayTitleInputs) => {
-	if (!inputsOrder.has(inputs)) inputsOrder.set(inputs, ++inputsSeen);
-};
-const queuedInputsIsOlder = (entryInputs : DisplayTitleInputs, queuedInputs : DisplayTitleInputs) : boolean =>
-	(inputsOrder.get(entryInputs) || 0) > (inputsOrder.get(queuedInputs) || 0);
-
-const memo = new WeakMap<ProcessedCard, {inputs : DisplayTitleInputs, title : string}>();
-
-//Stale-while-revalidate for the budgeted variant: when the INPUTS change (an
-//IDF epoch, or any concept/synonym edit — and in a corpus that is mostly
-//notes, a concept edit used to revert ~90% of the visible drawer to bare
-//dates for half a second), the previous title is still the best thing to
-//show until the new one is computed. Only a card with no title at all shows
-//the date placeholder.
+//The projection itself, uncached, over the main thread's inputs.
+export const generatedWorkingNotesTitle = (card : ProcessedCard, inputs : DisplayTitleInputs) : string => kernelTitle(card, inputs);
 
 //An authored title wins; a non-working-notes card without one has no
 //display title (the drawer's own full-bleed fallback applies there).
@@ -122,11 +89,20 @@ export const displayTitle = (card : ProcessedCard, inputs : DisplayTitleInputs) 
 	if (card.title) return card.title;
 	if (card.card_type !== 'working-notes') return '';
 	const hit = memo.get(card);
-	if (hit && hit.inputs === inputs) return hit.title;
-	noteInputs(inputs);
+	if (hit !== undefined) return hit;
 	const title = generatedWorkingNotesTitle(card, inputs);
-	memo.set(card, {inputs, title});
+	memo.set(card, title);
 	return title;
+};
+
+//What every consumer should call: the worker's frozen title from the compact
+//meta when it has one, else the main-thread fallback.
+export const displayTitleWithMeta = (card : ProcessedCard, metas : CardMetas | null | undefined, inputs : DisplayTitleInputs) : string => {
+	if (card.title) return card.title;
+	if (card.card_type !== 'working-notes') return '';
+	const meta = metas ? metas[card.id] : undefined;
+	if (meta && meta.displayTitle) return meta.displayTitle;
+	return displayTitle(card, inputs);
 };
 
 //A cold drawer window (250 rows at 47k, ~1.5ms each) would be a ~350ms
@@ -156,14 +132,9 @@ const scheduleDrain = () => {
 		while (queue.length && performance.now() < deadline) {
 			const {card, inputs} = queue.shift() as {card : ProcessedCard, inputs : DisplayTitleInputs};
 			queued.delete(card);
-			//A card computed since it was queued under THESE inputs (within a
-			//later render's budget) keeps that entry; one memoized under older
-			//inputs is what the stale-while-revalidate branch is showing, and
-			//is recomputed here. Recomputing under inputs newer than the
-			//queued ones would evict the newer entry, so skip those too.
-			const current = memo.get(card);
-			if (current && current.inputs === inputs) continue;
-			if (current && current.inputs !== inputs && queuedInputsIsOlder(current.inputs, inputs)) continue;
+			//Computed since it was queued (within a later render's budget):
+			//the frozen entry stands.
+			if (memo.has(card)) continue;
 			displayTitle(card, inputs);
 		}
 		for (const listener of listeners) listener();
@@ -171,20 +142,20 @@ const scheduleDrain = () => {
 	}, 0);
 };
 
-export const displayTitleBudgeted = (card : ProcessedCard, inputs : DisplayTitleInputs) : string => {
+export const displayTitleBudgeted = (card : ProcessedCard, inputs : DisplayTitleInputs, metas? : CardMetas | null) : string => {
 	if (card.title) return card.title;
 	if (card.card_type !== 'working-notes') return '';
+	const meta = metas ? metas[card.id] : undefined;
+	if (meta && meta.displayTitle) return meta.displayTitle;
 	const hit = memo.get(card);
-	if (hit && hit.inputs === inputs) return hit.title;
-	noteInputs(inputs);
+	if (hit !== undefined) return hit;
 	if (performance.now() < budgetDeadline) return displayTitle(card, inputs);
 	if (!queued.has(card)) {
-		noteInputs(inputs);
 		queued.add(card);
 		queue.push({card, inputs});
 		scheduleDrain();
 	}
-	return hit ? hit.title : displayTitleDateLabel(card);
+	return displayTitleDateLabel(card);
 };
 
 //Subscribers are re-rendered after each drained slice. Returns the

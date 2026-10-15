@@ -77,10 +77,11 @@ import {
 	selectIsEditing,
 	selectFindRenderOffset,
 	selectFindDialogOpen,
+	selectCardMetas,
 } from '../selectors.js';
 
 import {
-	displayTitle,
+	displayTitleWithMeta,
 	selectDisplayTitleInputs,
 	DisplayTitleInputs
 } from '../working-notes-display-title.js';
@@ -350,7 +351,7 @@ class FindDialog extends connect(store)(DialogElement) {
 		const index = cards.findIndex(card => card.id === this._highlightedCardID);
 		if (index < 0) return '';
 		const card = cards[index];
-		const shown = card.title || (card.card_type === 'working-notes' && this._displayTitleInputs ? displayTitle(card, this._displayTitleInputs) : '');
+		const shown = this._displayTitleInputs ? displayTitleWithMeta(card, selectCardMetas(store.getState() as State), this._displayTitleInputs) : card.title;
 		return `${shown || card.name || card.id}, ${index + 1} of ${cards.length}`;
 	}
 

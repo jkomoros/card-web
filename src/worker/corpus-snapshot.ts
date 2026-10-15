@@ -48,6 +48,9 @@ export type CorpusSnapshotV2 = CorpusSnapshotBase & {
 	//value simply means "nothing persisted yet", exactly as before.
 	sections? : {[id : string] : unknown},
 	tags? : {[id : string] : unknown},
+	//Frozen working-notes display titles, [key, title] per card id (see
+	//corpus-worker displayTitleFor). Optional: an older record loads without.
+	displayTitles? : {[id : string] : [string, string]},
 };
 
 export type CorpusSnapshot = CorpusSnapshotV1 | CorpusSnapshotV2;
@@ -102,7 +105,9 @@ export const validCorpusSnapshot = (value : unknown) : value is CorpusSnapshot =
 	const v2 = snapshot as Partial<CorpusSnapshotV2>;
 	return Array.isArray(v2.processedTombstoneIDs) &&
 		(v2.tombstoneCursor === null || validWireTimestamp(v2.tombstoneCursor)) &&
-		(v2.watermarkClamp === null || validWireTimestamp(v2.watermarkClamp));
+		(v2.watermarkClamp === null || validWireTimestamp(v2.watermarkClamp)) &&
+		(v2.displayTitles === undefined || (typeof v2.displayTitles === 'object' && v2.displayTitles !== null && !Array.isArray(v2.displayTitles) &&
+			Object.values(v2.displayTitles).every(entry => Array.isArray(entry) && entry.length === 2 && typeof entry[0] === 'string' && typeof entry[1] === 'string')));
 };
 
 //The key for a scope's snapshot. A PUBLISHED-only record deliberately carries
@@ -216,7 +221,7 @@ export class CorpusSnapshotStore {
 	//A single-record put gives generation-pointer semantics for free: a crash
 	//before transaction completion leaves the previous complete snapshot, never
 	//a half-updated corpus.
-	async save(cards : {[id : string] : unknown}, clientClockCardIDs : string[], processedTombstoneIDs : string[], tombstoneCursor : WireTimestamp | null, watermarkClamp : WireTimestamp | null, supplemental? : {sections : {[id : string] : unknown}, tags : {[id : string] : unknown}}) : Promise<void> {
+	async save(cards : {[id : string] : unknown}, clientClockCardIDs : string[], processedTombstoneIDs : string[], tombstoneCursor : WireTimestamp | null, watermarkClamp : WireTimestamp | null, supplemental? : {sections : {[id : string] : unknown}, tags : {[id : string] : unknown}}, displayTitles? : {[id : string] : [string, string]}) : Promise<void> {
 		const snapshot : CorpusSnapshotV2 = {
 			schemaVersion: SCHEMA_VERSION,
 			cards,
@@ -225,7 +230,8 @@ export class CorpusSnapshotStore {
 			tombstoneCursor: tombstoneCursor ? {...tombstoneCursor} : null,
 			watermarkClamp: watermarkClamp ? {...watermarkClamp} : null,
 			savedAt: Date.now(),
-			...(supplemental ? {sections: supplemental.sections, tags: supplemental.tags} : {})
+			...(supplemental ? {sections: supplemental.sections, tags: supplemental.tags} : {}),
+			...(displayTitles ? {displayTitles} : {}),
 		};
 		const database = await this._database();
 		await new Promise<void>((resolve, reject) => {

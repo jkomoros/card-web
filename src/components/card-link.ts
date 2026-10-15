@@ -203,6 +203,9 @@ class CardLink extends connect(store)(LitElement) {
 			const cardType = meta ? meta.card_type : full ? full.card_type : null;
 			const title = meta ? meta.title : full ? full.title : '';
 			if (cardType === 'working-notes' && !title) {
+				//The worker's frozen title on the meta first; the fallback
+				//needs the full card (the meta carries no body).
+				if (meta && meta.displayTitle) return meta.displayTitle;
 				return full && this._displayTitleInputs ? displayTitle(full, this._displayTitleInputs) : '';
 			}
 			if (meta) return meta.title;

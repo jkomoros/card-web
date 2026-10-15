@@ -169,6 +169,14 @@ import {
 } from './forwarded-action-scope.js';
 
 import {
+	displayTitleKey
+} from '../working-notes-title-kernel.js';
+
+import {
+	timestampToMillis
+} from '../util.js';
+
+import {
 	setURLDiagnosticsListener
 } from '../../shared/url-diagnostics.js';
 
@@ -286,6 +294,10 @@ const subscriptions = new SubscriptionManager(engine, push => {
 		loggedSubscriptionFirstPush.add(push.subscriptionID);
 		status(`collection subscription ${push.subscriptionID}: first result ${push.numCards} cards in ${push.ms}ms`);
 	}
+	//Titles for the result's first window, within a budget, BEFORE the
+	//result goes out: the drawer then paints them rather than dates.
+	const titled = fillDisplayTitlesForWindow(push.ids);
+	if (titled.length) sendDisplayTitleMetas(titled);
 	send({
 		type: 'collectionResult',
 		generation,
@@ -494,6 +506,8 @@ const publishIDFMap = () => {
 	});
 	status(`idf epoch ${idfIndex.epoch}: ${termCount} terms over ${idfIndex.publishedCardCount} body cards, materialized in ${(performance.now() - startedAt).toFixed(1)}ms`);
 	scheduleFingerprintWarmup();
+	//Only MISSING titles: an epoch never re-titles what the viewer has seen.
+	scheduleDisplayTitleWarmup();
 };
 
 //Build the per-card fingerprints (similar-cards fallback) and the per-tag
@@ -806,7 +820,8 @@ const saveCorpusSnapshot = async () : Promise<void> => {
 	const watermarkClamp = syncMetaState?.watermarkClamp ? {...syncMetaState.watermarkClamp} : null;
 	try {
 		await corpusSnapshotStore.save(cards, contaminatedIDs, processedTombstoneIDs, tombstoneCursor, watermarkClamp,
-			(latestSections || latestTags) ? {sections: latestSections || {}, tags: latestTags || {}} : undefined);
+			(latestSections || latestTags) ? {sections: latestSections || {}, tags: latestTags || {}} : undefined,
+			displayTitles.size ? Object.fromEntries([...displayTitles].map(([id, {key, title}]) => [id, [key, title] as [string, string]])) : undefined);
 		consecutiveSnapshotSaveFailures = 0;
 		status(`compact snapshot saved: ${Object.keys(cards).length} cards in ${(performance.now() - startedAt).toFixed(0)}ms`);
 	} catch (e) {
@@ -1023,10 +1038,122 @@ const updateLocalState = (incoming : Cards, removedIDs : CardID[], suppressMetaS
 //changed entries are re-pushed.
 const pushedMetas : CardMetas = {};
 
+//Working-notes display titles, computed here over the viewer's corpus and
+//FROZEN to each card's substantive-update time (title-kernel
+//displayTitleKey): an IDF epoch or a concept edit never changes a title the
+//viewer has already seen, and a card's title changes only when its content
+//was saved. Shipped on the compact meta, persisted with the snapshot so the
+//next boot has every title before first paint. The main thread computes a
+//title itself only while this cache has none for a card.
+const displayTitles : Map<CardID, {key : string, title : string}> = new Map();
+let displayTitleWarmupToken = 0;
+
+//The cached title for a card if it is current, else undefined (never computes).
+const cachedDisplayTitle = (card : Card) : string | undefined => {
+	if (card.card_type !== 'working-notes' || card.title) return undefined;
+	const hit = displayTitles.get(card.id);
+	return hit && hit.key === displayTitleKey(card) ? hit.title : undefined;
+};
+
+//Computes and caches the title for one card when the cache has none or the
+//card's content changed since. Returns whether a NEW title was cached.
+const ensureDisplayTitle = (id : CardID) : boolean => {
+	const card = corpus.get(id);
+	if (!card || card.card_type !== 'working-notes' || card.title) {
+		displayTitles.delete(id);
+		return false;
+	}
+	const key = displayTitleKey(card);
+	const hit = displayTitles.get(id);
+	if (hit && hit.key === key) return false;
+	const title = engine.generatedDisplayTitle(id);
+	if (title === null) return false;
+	displayTitles.set(id, {key, title});
+	return true;
+};
+
+//Sends the meta for ids whose title was just computed, so the main thread
+//replaces its own fallback with the frozen title.
+const sendDisplayTitleMetas = (ids : CardID[]) => {
+	const metas : CardMetas = {};
+	for (const id of ids) {
+		const card = corpus.get(id);
+		if (!card) continue;
+		const meta = metaForCard(card);
+		const title = cachedDisplayTitle(card);
+		if (title !== undefined) meta.displayTitle = title;
+		pushedMetas[id] = meta;
+		metas[id] = meta;
+	}
+	if (Object.keys(metas).length) send({type: 'cardMeta', generation, metas, removedIDs: []});
+};
+
+//Fills titles for a collection result's first window within a budget, so
+//the drawer's first paint after a fresh install carries titles rather than
+//dates (with a persisted cache this is a no-op). The rest fill in the idle
+//warm-up.
+const DISPLAY_TITLE_PUSH_BUDGET_MS = 40;
+const DISPLAY_TITLE_WINDOW = 250;
+const fillDisplayTitlesForWindow = (ids : CardID[]) : CardID[] => {
+	const computed : CardID[] = [];
+	const deadline = performance.now() + DISPLAY_TITLE_PUSH_BUDGET_MS;
+	for (const id of ids.slice(0, DISPLAY_TITLE_WINDOW)) {
+		const card = corpus.get(id);
+		if (!card || card.card_type !== 'working-notes' || card.title || cachedDisplayTitle(card) !== undefined) continue;
+		if (performance.now() >= deadline) break;
+		if (ensureDisplayTitle(id)) computed.push(id);
+	}
+	return computed;
+};
+
+//Every untitled note's title, newest substantive update first (the drawer's
+//default order), in idle slices after the IDF index first publishes and
+//after a snapshot prime; only missing or stale entries are computed.
+const DISPLAY_TITLE_SLICE_MS = 8;
+const scheduleDisplayTitleWarmup = () => {
+	const myToken = ++displayTitleWarmupToken;
+	if (!currentUid) return;
+	const myConnectionGeneration = connectionGeneration;
+	const shouldContinue = () => myConnectionGeneration === connectionGeneration && myToken === displayTitleWarmupToken;
+	void (async () => {
+		try {
+			await yieldToWorkerQueue();
+			if (!shouldContinue()) return;
+			const startedAt = performance.now();
+			const ids = [...corpus.values()]
+				.filter(card => card.card_type === 'working-notes' && !card.title && cachedDisplayTitle(card) === undefined)
+				.sort((a, b) => timestampToMillis(b.updated_substantive, 0) - timestampToMillis(a.updated_substantive, 0))
+				.map(card => card.id);
+			let computedTotal = 0;
+			let batch : CardID[] = [];
+			let sliceStart = performance.now();
+			for (const id of ids) {
+				if (ensureDisplayTitle(id)) batch.push(id);
+				if (performance.now() - sliceStart >= DISPLAY_TITLE_SLICE_MS) {
+					if (batch.length) { sendDisplayTitleMetas(batch); computedTotal += batch.length; batch = []; }
+					if (initialLoadPending) await new Promise<void>(resolve => setTimeout(resolve, SEARCH_RECALL_BOOT_GAP_MS));
+					await yieldToWorkerQueue();
+					if (!shouldContinue()) return;
+					sliceStart = performance.now();
+				}
+			}
+			if (batch.length) { sendDisplayTitleMetas(batch); computedTotal += batch.length; }
+			if (computedTotal) status(`display titles warm: ${computedTotal} computed in ${(performance.now() - startedAt).toFixed(0)}ms wall (chunked)`);
+		} catch (e) {
+			status(`display title warm-up failed (${String(e)})`);
+		}
+	})();
+};
+
 const pushMetaDeltas = (cards : Cards, removedIDs : CardID[], suppressSend = false) => {
 	const changed : CardMetas = {};
 	for (const [id, card] of Object.entries(cards)) {
 		const meta = metaForCard(card);
+		//A changed card whose content moved on drops its frozen title (the
+		//warm-up recomputes it); an unchanged one keeps it on the meta.
+		const title = cachedDisplayTitle(card);
+		if (title !== undefined) meta.displayTitle = title;
+		else if (displayTitles.has(id)) displayTitles.delete(id);
 		const previous = pushedMetas[id];
 		if (previous && metasEquivalent(previous, meta)) continue;
 		pushedMetas[id] = meta;
@@ -1034,6 +1161,7 @@ const pushMetaDeltas = (cards : Cards, removedIDs : CardID[], suppressSend = fal
 	}
 	const removed : CardID[] = [];
 	for (const id of removedIDs) {
+		displayTitles.delete(id);
 		if (!pushedMetas[id]) continue;
 		delete pushedMetas[id];
 		if (!suppressSend) removed.push(id);
@@ -1194,6 +1322,9 @@ const listenerError = (fetchType : CardFetchType, context : string, errorComplet
 
 const teardownListeners = () => {
 	connectionGeneration++;
+	//Titles are the viewer's; the next connection's viewer computes their own.
+	displayTitles.clear();
+	displayTitleWarmupToken++;
 	//Per-connection repair bookkeeping; a genuine reconnect should be allowed
 	//to repair the same partitions again.
 	lastRepairSignature = '';
@@ -1573,6 +1704,12 @@ const connectPublishedFromSnapshot = async () => {
 	//rather than sitting behind a stuck "Loading…". The listeners overwrite
 	//these the moment the network answers.
 	if (compactSnapshot && compactSnapshot.schemaVersion === 2) {
+		//Frozen titles from the last session: attached to metas as cards
+		//arrive, so the first paint has them; stale keys recompute in the
+		//warm-up.
+		if (compactSnapshot.displayTitles) {
+			for (const [id, [key, title]] of Object.entries(compactSnapshot.displayTitles)) displayTitles.set(id, {key, title});
+		}
 		if (compactSnapshot.sections && Object.keys(compactSnapshot.sections).length) {
 			latestSections = compactSnapshot.sections;
 			send({type: 'sections', generation, sections: compactSnapshot.sections});

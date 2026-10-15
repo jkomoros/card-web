@@ -26,7 +26,7 @@ const {cardWithNormalizedTextProperties, FingerprintGenerator} = await import('.
 const {backportFallbackTextMapForCard} = await import('../../lib/src/util.js');
 const {selectCards, selectConcepts, selectSynonymMap, getSemanticFingerprintForCard} = await import('../../lib/src/selectors.js');
 const {
-	displayTitle, displayTitleBudgeted, beginDisplayTitleBudget, generatedWorkingNotesTitle,
+	displayTitle, displayTitleBudgeted, displayTitleWithMeta, beginDisplayTitleBudget, generatedWorkingNotesTitle,
 	selectDisplayTitleInputs, subscribeDisplayTitles, pendingDisplayTitleCount, displayTitleDateLabel,
 } = await import('../../lib/src/working-notes-display-title.js');
 
@@ -91,7 +91,7 @@ describe('working-notes display title', () => {
 		assert.ok(displayTitle(processed.undated, inputs).startsWith(new Date(1_577_880_000 * 1000).toLocaleDateString('en-US', {month: 'numeric', day: 'numeric', year: '2-digit'})));
 	});
 
-	it('memoizes on the card object and the inputs: an unrelated save recomputes nothing', () => {
+	it('memoizes on the card object: an unrelated save or an inputs change recomputes nothing; a new image does', () => {
 		const cards = corpus();
 		const state = stateFor(cards);
 		const inputs = selectDisplayTitleInputs(state);
@@ -114,10 +114,12 @@ describe('working-notes display title', () => {
 			const edited = stateFor({...cards, note: {...cards.note, body: NOTE_BODY + '<p>more</p>'}});
 			displayTitle(selectCards(edited).note, selectDisplayTitleInputs(edited));
 			assert.strictEqual(computed, 2);
-			//New inputs (an IDF epoch) recompute.
+			//New inputs (an IDF epoch, a concept edit) do NOT recompute: a
+			//title is frozen to the card object, as the owner asked (titles
+			//change very rarely; stale is fine). Only a new image does.
 			const epoch = stateFor(cards, {idf: {truth: 3}, maxIDF: 3});
-			displayTitle(selectCards(epoch).note, selectDisplayTitleInputs(epoch));
-			assert.strictEqual(computed, 3);
+			assert.strictEqual(displayTitle(selectCards(epoch).note, selectDisplayTitleInputs(epoch)), first);
+			assert.strictEqual(computed, 2, 'an inputs change is a hit');
 		} finally {
 			FingerprintGenerator.prototype.fingerprintForCardObj = original;
 		}
@@ -278,37 +280,38 @@ describe('working-notes display title consumers', () => {
 		assert.strictEqual(link._autoValue, expected, 'without a meta (warm-boot prime, off mode)');
 		link._cardMetas = {note: {id: 'note', title: 'Authored', card_type: 'working-notes', published: false}};
 		assert.strictEqual(link._autoValue, 'Authored');
+		link._cardMetas = {note: {id: 'note', title: '', card_type: 'working-notes', published: false, displayTitle: '11/4/20 Worker Title'}};
+		assert.strictEqual(link._autoValue, '11/4/20 Worker Title', 'the worker\'s frozen title wins');
 	});
 
-	it('on an inputs change the budgeted title shows the previous title, not the date, until recomputed', async () => {
-		//A concept edit changes the inputs identity for every note at once;
-		//in a corpus that is mostly notes that used to revert the visible
-		//drawer to bare dates until the slices caught up.
+	it('the budgeted title is frozen across an inputs change, and a meta title wins over both', async () => {
 		const cards = corpus();
-		cards.s = baseCard('s', {card_type: 'working-notes', body: NOTE_BODY + '<p>stale while revalidate</p>', published: false});
+		cards.s = baseCard('s', {card_type: 'working-notes', body: NOTE_BODY + '<p>frozen</p>', published: false});
 		const stateA = stateFor(cards);
 		const card = selectCards(stateA).s;
 		const inputsA = selectDisplayTitleInputs(stateA);
 		beginDisplayTitleBudget();
 		const first = displayTitleBudgeted(card, inputsA);
 		assert.match(first, new RegExp(`^${escapeRegExp(NOTE_DATE)} \\S+`));
-		//New inputs, budget spent: the old title stays on screen and the
-		//recompute is queued.
-		const stateB = stateFor(cards, {idf: {revalidate: 7, stale: 7}, maxIDF: 7});
+		const stateB = stateFor(cards, {idf: {frozen: 7}, maxIDF: 7});
 		const inputsB = selectDisplayTitleInputs(stateB);
 		beginDisplayTitleBudget(performance.now() - 1000);
-		assert.strictEqual(displayTitleBudgeted(card, inputsB), first, 'the previous title is shown, not the date');
-		assert.strictEqual(pendingDisplayTitleCount(), 1);
-		await new Promise(resolve => setTimeout(resolve, 30));
+		assert.strictEqual(displayTitleBudgeted(card, inputsB), first, 'no recompute, no placeholder, no queue');
 		assert.strictEqual(pendingDisplayTitleCount(), 0);
-		beginDisplayTitleBudget(performance.now() - 1000);
-		const revalidated = displayTitleBudgeted(card, inputsB);
-		assert.strictEqual(revalidated, displayTitle(card, inputsB), 'the drain recomputed under the new inputs');
-		//A card never computed still shows the date.
+		//The worker's frozen title on the compact meta is preferred to the
+		//main-thread fallback — and needs no computation at all.
+		const metas = {s: {id: 's', title: '', card_type: 'working-notes', displayTitle: '11/4/20 From The Worker'}};
+		assert.strictEqual(displayTitleBudgeted(card, inputsB, metas), '11/4/20 From The Worker');
+		assert.strictEqual(displayTitleWithMeta(card, metas, inputsB), '11/4/20 From The Worker');
+		assert.strictEqual(displayTitleWithMeta({...card, title: 'Authored'}, metas, inputsB), 'Authored', 'an authored title still wins');
+		//A card never computed and without a meta title shows the date.
 		cards.fresh = baseCard('fresh', {card_type: 'working-notes', body: '<p>never seen</p>', published: false});
 		const stateC = stateFor(cards);
 		beginDisplayTitleBudget(performance.now() - 1000);
-		assert.strictEqual(displayTitleBudgeted(selectCards(stateC).fresh, selectDisplayTitleInputs(stateC)), NOTE_DATE);
+		assert.strictEqual(displayTitleBudgeted(selectCards(stateC).fresh, selectDisplayTitleInputs(stateC), {}), NOTE_DATE);
+		//Let its slice drain so the queue is empty for the next test.
+		await new Promise(resolve => setTimeout(resolve, 30));
+		assert.strictEqual(pendingDisplayTitleCount(), 0);
 	});
 
 	it('an idle-slice drain does not evict a title computed since the card was queued', async () => {
@@ -328,5 +331,42 @@ describe('working-notes display title consumers', () => {
 		assert.strictEqual(pendingDisplayTitleCount(), 0);
 		beginDisplayTitleBudget(performance.now() - 1000);
 		assert.strictEqual(displayTitleBudgeted(card, inputsB), under, 'the newer entry survived the drain');
+	});
+});
+
+
+//The worker side: the engine computes the same title the main-thread kernel
+//does over the same inputs; the compact meta carries it and compares it;
+//the snapshot record validates it.
+describe('worker-side display titles', () => {
+	it('the engine\'s generatedDisplayTitle equals the main-thread kernel over the same corpus', async () => {
+		const {QueryEngine} = await import('../../lib/src/worker/query-engine.js');
+		const cards = corpus();
+		const engine = new QueryEngine();
+		engine.updateCards(cards, []);
+		const state = stateFor(cards);
+		//Both sides before the first IDF epoch: the pending sentinel.
+		assert.strictEqual(engine.generatedDisplayTitle('note'), displayTitle(selectCards(state).note, selectDisplayTitleInputs(state)));
+		assert.strictEqual(engine.generatedDisplayTitle('02af83'), null, 'not a working-notes card');
+		//A new image is a new object (the engine's processed-card cache is
+		//keyed on identity, as everywhere else).
+		engine.updateCards({note: {...cards.note, title: 'Mine'}}, []);
+		assert.strictEqual(engine.generatedDisplayTitle('note'), null, 'an authored title needs no projection');
+	});
+
+	it('metas carry and compare the display title; the snapshot record validates it', async () => {
+		const {metaForCard, metasEquivalent} = await import('../../lib/src/worker/worker-protocol.js');
+		const {validCorpusSnapshot} = await import('../../lib/src/worker/corpus-snapshot.js');
+		const card = baseCard('n', {card_type: 'working-notes', published: false});
+		const a = metaForCard(card);
+		const b = {...metaForCard(card), displayTitle: '11/4/20 Frozen'};
+		assert.strictEqual(a.displayTitle, undefined, 'metaForCard never computes one');
+		assert.strictEqual(metasEquivalent(a, b), false, 'a title arriving is a change the main thread must see');
+		assert.strictEqual(metasEquivalent(b, {...b}), true);
+		const base = {schemaVersion: 2, cards: {}, clientClockCardIDs: [], processedTombstoneIDs: [], tombstoneCursor: null, watermarkClamp: null, savedAt: 1};
+		assert.strictEqual(validCorpusSnapshot({...base, displayTitles: {n: ['s1604500000000', '11/4/20 Frozen']}}), true);
+		assert.strictEqual(validCorpusSnapshot({...base, displayTitles: {n: ['s1604500000000']}}), false, 'a malformed entry rejects the record');
+		assert.strictEqual(validCorpusSnapshot({...base, displayTitles: []}), false);
+		assert.strictEqual(validCorpusSnapshot(base), true, 'absent is fine (older records)');
 	});
 });

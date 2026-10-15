@@ -26,6 +26,7 @@ import { cancelHoverTimeout } from '../actions/app.js';
 
 import {
 	selectBadgeMap,
+	selectCardMetas,
 	selectCardsSelected
 	//Extension REQUIRED. rollup and web-dev-server both resolve the bare
 	//specifier, so the app builds and runs; plain Node ESM does not, and this
@@ -51,6 +52,7 @@ import { ButtonSharedStyles } from './button-shared-styles.js';
 import {
 	BadgeMap,
 	CardBooleanMap,
+	CardMetas,
 	CardID,
 	State,
 	ProcessedCard
@@ -156,6 +158,10 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 	//re-renders like any other derived state.
 	@state()
 		_displayTitleInputs : DisplayTitleInputs | null = null;
+
+	//The worker's frozen titles ride on the compact metas; a title there wins.
+	@state()
+		_cardMetas : CardMetas | null = null;
 	_unsubscribeDisplayTitles : (() => void) | null = null;
 
 	_selectionAnchor = new CardSelectionAnchor();
@@ -500,7 +506,7 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 
 	_titleForCard(card : ProcessedCard) : string {
 		if (card.title) return card.title;
-		if (card.card_type === 'working-notes') return displayTitleBudgeted(card, this._displayTitleInputs || selectDisplayTitleInputs(store.getState() as State));
+		if (card.card_type === 'working-notes') return displayTitleBudgeted(card, this._displayTitleInputs || selectDisplayTitleInputs(store.getState() as State), this._cardMetas);
 		//It' sonly legal to not have a title if you're full-bleed;
 		if (!card.full_bleed) return '';
 		if (!card.body) return '';
@@ -699,6 +705,7 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 	override stateChanged(state : State) {
 		this._badgeMap = selectBadgeMap(state);
 		this._displayTitleInputs = selectDisplayTitleInputs(state);
+		this._cardMetas = selectCardMetas(state);
 		const cardsSelected = selectCardsSelected(state);
 		if (this._cardsSelected && !cardsSelected) this._selectionAnchor.reset();
 		this._cardsSelected = cardsSelected;

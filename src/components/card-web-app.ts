@@ -56,6 +56,7 @@ import {
 
 import {
 	selectActiveCard,
+	selectCardMetas,
 	selectCardModificationError,
 	selectChatComposingMessage,
 	selectComposeOpen,
@@ -68,7 +69,7 @@ import {
 } from '../selectors.js';
 
 import {
-	displayTitle,
+	displayTitleWithMeta,
 	selectDisplayTitleInputs,
 	DisplayTitleInputs
 } from '../working-notes-display-title.js';
@@ -863,7 +864,7 @@ class CardWebApp extends connect(store)(LitElement) {
 		if ((changedProps.has('_card') || changedProps.has('_displayTitleInputs')) && this._card) {
 			//A working-notes card without an authored title shows its dated
 			//display title here, as it does in the drawer.
-			const shownTitle = this._card.title || (this._card.card_type === 'working-notes' && this._displayTitleInputs ? displayTitle(this._card, this._displayTitleInputs) : '');
+			const shownTitle = this._displayTitleInputs ? displayTitleWithMeta(this._card, selectCardMetas(store.getState() as State), this._displayTitleInputs) : this._card.title;
 			const pageTitle = (shownTitle ? shownTitle + ' - ' : '') + this.appTitle ;
 			updateMetadata({
 				title: pageTitle,
