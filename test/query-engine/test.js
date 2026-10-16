@@ -262,6 +262,26 @@ describe('QueryEngine', () => {
 	});
 
 
+	describe('shared per-card fingerprint cache', () => {
+		it('survives the similarity generator and a card save: the suggestion generator keeps its cache', async () => {
+			//The cache was one slot per IDF map; the similarity generator
+			//(no concepts) and the suggestion generator (concepts) evicted
+			//each other on every rebuild, so after the similarity warm-up a
+			//save made the tag combine recompute every member card's
+			//fingerprint — a ~2.1s worker task on the real corpus with the
+			//tag cache reporting nothing dirty.
+			const engine = makeEngine();
+			engine.applyAction({type: UPDATE_TAGS, tags: {t1: {id: 't1', cards: ['a', 'b']}}, complete: true});
+			await engine.warmTagFingerprints(async () => {}, () => true, 0);
+			const cacheBefore = engine._ensureSuggestGenerator()._fingerprintCache;
+			await engine.warmSimilarityFingerprints(async () => {}, () => true, 0);
+			engine.updateCards({c: card('c', {title: 'An unrelated save'})}, []);
+			const cacheAfter = engine._ensureSuggestGenerator()._fingerprintCache;
+			assert.strictEqual(cacheAfter, cacheBefore, 'the suggestion generator was rebuilt onto the cache it had, not a fresh one');
+			assert.strictEqual(engine._similarityGenerator()._fingerprintCache !== cacheBefore, true, 'the similarity generator keeps its own (different concepts)');
+		});
+	});
+
 	describe('similarity fingerprints', () => {
 		//The similar-cards fallback used to re-enumerate every card through
 		//the lazy Proxy and rebuild a corpus-sized map on each corpus change.

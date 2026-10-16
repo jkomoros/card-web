@@ -354,6 +354,41 @@ describe('worker-side display titles', () => {
 		assert.strictEqual(engine.generatedDisplayTitle('note'), null, 'an authored title needs no projection');
 	});
 
+	it('the worker warms titles AFTER the tag build and BEFORE similarity, and persists them (source pin)', () => {
+		//The worker body has no unit harness. The J6 re-measure found the
+		//title pass running concurrently with the fingerprint warm-up, which
+		//pushed the tag build past the first editor open (a 2.5s synchronous
+		//worker task) and nothing persisted the warmed titles, so the next
+		//boot recomputed all ~38k of them. Pin the order and the save.
+		//Comments stripped first: a pin that matched a `//TODO call()` would
+		//pass with the call gone (the review's mutant M4).
+		const source = readFileSync(path.resolve('src/worker/corpus-worker.ts'), 'utf8').replace(/\/\/[^\n]*/g, '');
+		const warmup = source.indexOf('const scheduleFingerprintWarmup = ');
+		assert.ok(warmup > 0);
+		const body = source.slice(warmup, source.indexOf('const scheduleIDFBuild', warmup));
+		const tags = body.indexOf('await engine.warmTagFingerprints(');
+		const similar = body.indexOf('await engine.warmSimilarityFingerprints(');
+		//AWAITED, not fired: `void runDisplayTitleWarmup(` would put the
+		//concurrent pass back (mutant M5).
+		const titles = body.indexOf('await runDisplayTitleWarmup(');
+		assert.ok(tags > 0 && similar > tags && titles > similar, `tags → similarity → titles, each awaited, got ${tags}/${similar}/${titles}`);
+		assert.ok(!/scheduleDisplayTitleWarmup\(/.test(source), 'no concurrent title warm-up at epoch publication');
+		const titlePass = source.slice(source.indexOf('const runDisplayTitleWarmup'), source.indexOf('const pushMetaDeltas'));
+		//The pass body must itself be awaited (mutant M7: `void (async` makes
+		//the function resolve at once, and the chain runs it concurrently).
+		assert.ok(/await \(async \(\) =>/.test(titlePass) && !/void \(async/.test(titlePass), 'the title pass awaits its own body');
+		assert.ok((titlePass.match(/scheduleCorpusSnapshotSave\(\)/g) || []).length >= 2, 'the title pass schedules the snapshot save as it goes and at the end');
+		//Both prime paths restore them. The signed-in watermark prime (the
+		//only path that holds working notes) did not, so every warm boot
+		//recomputed all ~38k titles while the snapshot carried them.
+		const readerPrime = source.slice(source.indexOf('const connectPublishedFromSnapshot'), source.indexOf('const connectCards'));
+		const watermarkStart = source.indexOf('compactTombstoneIDs = compactSnapshot.processedTombstoneIDs');
+		const watermarkPrime = source.slice(watermarkStart, source.indexOf('watermark prime handoff starting', watermarkStart));
+		assert.ok(watermarkStart > 0 && watermarkPrime.length > 0, 'found the watermark prime');
+		assert.ok(/restoreDisplayTitles\(compactSnapshot\)/.test(readerPrime), 'the reader prime restores persisted titles');
+		assert.ok(/restoreDisplayTitles\(compactSnapshot\)/.test(watermarkPrime), 'the signed-in watermark prime restores persisted titles');
+	});
+
 	it('metas carry and compare the display title; the snapshot record validates it', async () => {
 		const {metaForCard, metasEquivalent} = await import('../../lib/src/worker/worker-protocol.js');
 		const {validCorpusSnapshot} = await import('../../lib/src/worker/corpus-snapshot.js');

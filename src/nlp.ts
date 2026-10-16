@@ -1625,7 +1625,19 @@ type SharedFingerprintCacheEntry = {
 	ngramSize : number,
 	cache : WeakMap<ProcessedCard, Fingerprint>
 };
-const sharedFingerprintCaches : WeakMap<IDFMap, SharedFingerprintCacheEntry> = new WeakMap();
+//Several entries per IDF map, not one: the worker holds TWO generators over
+//the same epoch map — the similarity generator (no concepts) and the
+//suggestion/title generator (with concepts) — and a single slot made each
+//one's construction evict the other's cache. Every card delivery rebuilds
+//the suggestion generator, so after the similarity warm-up the per-card
+//fingerprints under the tag combine were cold again: the first save after
+//boot recomputed 9k of them in one ~2.1s worker task, with the tag cache
+//reporting nothing dirty. Bounded, oldest-out, so a parade of distinct
+//auxiliary inputs cannot pin an unbounded number of caches to one map.
+const SHARED_FINGERPRINT_CACHES_PER_MAP = 4;
+const EMPTY_CONCEPTS : StringCardMap = Object.freeze({}) as StringCardMap;
+const EMPTY_SYNONYMS : SynonymMap = Object.freeze({}) as SynonymMap;
+const sharedFingerprintCaches : WeakMap<IDFMap, SharedFingerprintCacheEntry[]> = new WeakMap();
 
 export class FingerprintGenerator {
 
@@ -1641,8 +1653,11 @@ export class FingerprintGenerator {
 	constructor(cards? : ProcessedCards, optFingerprintSize : number = SEMANTIC_FINGERPRINT_SIZE, optNgramSize : number = MAX_N_GRAM_FOR_FINGERPRINT, optIDFMap?: IDFMap | null, concepts? : StringCardMap, synonyms? : SynonymMap) {
 		this._cards = cards || {};
 		this._ngramSize = optNgramSize;
-		this._concepts = concepts || {};
-		this._synonyms = synonyms || {};
+		//Shared empties, not fresh literals: the per-card fingerprint cache
+		//below is keyed on these identities, and a fresh `{}` per
+		//construction gave every bare generator its own cache entry.
+		this._concepts = concepts || EMPTY_CONCEPTS;
+		this._synonyms = synonyms || EMPTY_SYNONYMS;
 
 		//Use the injected IDF map if provided and valid — in worker modes this
 		//is the worker-computed per-epoch map (possibly PENDING_IDF_MAP while
@@ -1658,18 +1673,24 @@ export class FingerprintGenerator {
 
 		this._fingerprintSize = optFingerprintSize;
 
-		const shared = sharedFingerprintCaches.get(this._idfMap);
-		if (shared && shared.concepts === this._concepts && shared.synonyms === this._synonyms && shared.fingerprintSize === this._fingerprintSize && shared.ngramSize === this._ngramSize) {
+		let entries = sharedFingerprintCaches.get(this._idfMap);
+		if (!entries) {
+			entries = [];
+			sharedFingerprintCaches.set(this._idfMap, entries);
+		}
+		const shared = entries.find(entry => entry.concepts === this._concepts && entry.synonyms === this._synonyms && entry.fingerprintSize === this._fingerprintSize && entry.ngramSize === this._ngramSize);
+		if (shared) {
 			this._fingerprintCache = shared.cache;
 		} else {
 			this._fingerprintCache = new WeakMap();
-			sharedFingerprintCaches.set(this._idfMap, {
+			entries.push({
 				concepts: this._concepts,
 				synonyms: this._synonyms,
 				fingerprintSize: this._fingerprintSize,
 				ngramSize: this._ngramSize,
 				cache: this._fingerprintCache
 			});
+			if (entries.length > SHARED_FINGERPRINT_CACHES_PER_MAP) entries.shift();
 		}
 	}
 

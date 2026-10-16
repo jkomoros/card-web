@@ -506,8 +506,6 @@ const publishIDFMap = () => {
 	});
 	status(`idf epoch ${idfIndex.epoch}: ${termCount} terms over ${idfIndex.publishedCardCount} body cards, materialized in ${(performance.now() - startedAt).toFixed(1)}ms`);
 	scheduleFingerprintWarmup();
-	//Only MISSING titles: an epoch never re-titles what the viewer has seen.
-	scheduleDisplayTitleWarmup();
 };
 
 //Build the per-card fingerprints (similar-cards fallback) and the per-tag
@@ -536,11 +534,30 @@ const scheduleFingerprintWarmup = () => {
 			await yieldFn();
 			if (!shouldContinue()) return;
 			const startedAt = performance.now();
-			const similar = await engine.warmSimilarityFingerprints(yieldFn, shouldContinue);
-			if (!similar) return;
+			//Order: tags, similarity, titles. The first editor open after boot
+			//pays the whole tag build synchronously (~2.5s on the real corpus)
+			//if it is not warm; a similar-cards request pays the whole
+			//similarity build (~4.3s, blocking every collection push behind
+			//it) if that is not warm; the titles have a per-window fill on
+			//push and a main-thread fallback, and on a fresh install they are
+			//~26s of sliced work (only MISSING ones: an epoch never re-titles
+			//what the viewer has seen; a warm boot restores them from the
+			//snapshot and the pass finds nothing to do). They used to run
+			//concurrently with this chain, which pushed the tag build past
+			//the first editor open. Each step is guarded on its own so a
+			//throw in one does not skip the rest.
 			const tags = await engine.warmTagFingerprints(yieldFn, shouldContinue);
 			if (!tags) return;
-			status(`fingerprints warm: similarity and tags in ${(performance.now() - startedAt).toFixed(0)}ms wall (chunked)`);
+			let similar = false;
+			try {
+				similar = await engine.warmSimilarityFingerprints(yieldFn, shouldContinue);
+			} catch (e) {
+				status(`similarity warm-up failed (${String(e)})`);
+			}
+			if (!shouldContinue()) return;
+			await runDisplayTitleWarmup(shouldContinue);
+			if (!shouldContinue()) return;
+			status(`fingerprints warm: tags${similar ? ', similarity' : ''} and titles in ${(performance.now() - startedAt).toFixed(0)}ms wall (chunked)`);
 		} catch (e) {
 			//Background work: a failure must not become an unhandled
 			//rejection; the request path still builds lazily.
@@ -1048,6 +1065,18 @@ const pushedMetas : CardMetas = {};
 const displayTitles : Map<CardID, {key : string, title : string}> = new Map();
 let displayTitleWarmupToken = 0;
 
+//Frozen titles from the last session's snapshot: attached to metas as cards
+//arrive, so the first paint has them; stale keys recompute in the warm-up.
+//Called from BOTH prime paths (the reader's published snapshot and the
+//signed-in watermark prime): the J6 re-measure found the signed-in path —
+//the only one that holds working notes — never restored them, so every
+//warm boot recomputed all ~38k titles (~26s of worker time) and reached
+//live ~19s later, which the first slice's own verification missed.
+const restoreDisplayTitles = (compactSnapshot : CorpusSnapshot | null) : void => {
+	if (!compactSnapshot || compactSnapshot.schemaVersion !== 2 || !compactSnapshot.displayTitles) return;
+	for (const [id, [key, title]] of Object.entries(compactSnapshot.displayTitles)) displayTitles.set(id, {key, title});
+};
+
 //The cached title for a card if it is current, else undefined (never computes).
 const cachedDisplayTitle = (card : Card) : string | undefined => {
 	if (card.card_type !== 'working-notes' || card.title) return undefined;
@@ -1091,8 +1120,12 @@ const sendDisplayTitleMetas = (ids : CardID[]) => {
 //Fills titles for a collection result's first window within a budget, so
 //the drawer's first paint after a fresh install carries titles rather than
 //dates (with a persisted cache this is a no-op). The rest fill in the idle
-//warm-up.
-const DISPLAY_TITLE_PUSH_BUDGET_MS = 40;
+//warm-up. Sized to the whole window on the real corpus (~0.7ms a title in
+//Node, 250 rows): the owner asked for no date flash. The cost is per PUSH
+//whose first window still holds untitled notes — on a fresh install, every
+//new working-notes window the user opens during the pass — never per boot
+//with a persisted cache, and nothing for a window without untitled notes.
+const DISPLAY_TITLE_PUSH_BUDGET_MS = 200;
 const DISPLAY_TITLE_WINDOW = 250;
 const fillDisplayTitlesForWindow = (ids : CardID[]) : CardID[] => {
 	const computed : CardID[] = [];
@@ -1107,15 +1140,21 @@ const fillDisplayTitlesForWindow = (ids : CardID[]) : CardID[] => {
 };
 
 //Every untitled note's title, newest substantive update first (the drawer's
-//default order), in idle slices after the IDF index first publishes and
-//after a snapshot prime; only missing or stale entries are computed.
+//default order), in idle slices, run by the fingerprint warm-up after each
+//epoch publication (between the tag build and the similarity build); only
+//missing or stale entries are computed. Resolves when the pass ends or is
+//superseded. The pass schedules a snapshot save as it goes (the scheduler's
+//max-wait turns that into a save every ~90s while it runs, and one at the
+//end): the titles live only in this map, and a boot that restores none
+//recomputes all of them (~26s of worker time on the real corpus, and ~19s
+//later to live), so a tab closed mid-pass must not lose the whole pass.
 const DISPLAY_TITLE_SLICE_MS = 8;
-const scheduleDisplayTitleWarmup = () => {
+const runDisplayTitleWarmup = async (outerShouldContinue : () => boolean) : Promise<void> => {
 	const myToken = ++displayTitleWarmupToken;
 	if (!currentUid) return;
 	const myConnectionGeneration = connectionGeneration;
-	const shouldContinue = () => myConnectionGeneration === connectionGeneration && myToken === displayTitleWarmupToken;
-	void (async () => {
+	const shouldContinue = () => outerShouldContinue() && myConnectionGeneration === connectionGeneration && myToken === displayTitleWarmupToken;
+	await (async () => {
 		try {
 			await yieldToWorkerQueue();
 			if (!shouldContinue()) return;
@@ -1130,7 +1169,7 @@ const scheduleDisplayTitleWarmup = () => {
 			for (const id of ids) {
 				if (ensureDisplayTitle(id)) batch.push(id);
 				if (performance.now() - sliceStart >= DISPLAY_TITLE_SLICE_MS) {
-					if (batch.length) { sendDisplayTitleMetas(batch); computedTotal += batch.length; batch = []; }
+					if (batch.length) { sendDisplayTitleMetas(batch); computedTotal += batch.length; batch = []; scheduleCorpusSnapshotSave(); }
 					if (initialLoadPending) await new Promise<void>(resolve => setTimeout(resolve, SEARCH_RECALL_BOOT_GAP_MS));
 					await yieldToWorkerQueue();
 					if (!shouldContinue()) return;
@@ -1138,7 +1177,10 @@ const scheduleDisplayTitleWarmup = () => {
 				}
 			}
 			if (batch.length) { sendDisplayTitleMetas(batch); computedTotal += batch.length; }
-			if (computedTotal) status(`display titles warm: ${computedTotal} computed in ${(performance.now() - startedAt).toFixed(0)}ms wall (chunked)`);
+			if (computedTotal) {
+				status(`display titles warm: ${computedTotal} computed in ${(performance.now() - startedAt).toFixed(0)}ms wall (chunked)`);
+				scheduleCorpusSnapshotSave();
+			}
 		} catch (e) {
 			status(`display title warm-up failed (${String(e)})`);
 		}
@@ -1703,13 +1745,8 @@ const connectPublishedFromSnapshot = async () => {
 	//Serve sections and tags from the record too, so navigation exists offline
 	//rather than sitting behind a stuck "Loading…". The listeners overwrite
 	//these the moment the network answers.
+	restoreDisplayTitles(compactSnapshot);
 	if (compactSnapshot && compactSnapshot.schemaVersion === 2) {
-		//Frozen titles from the last session: attached to metas as cards
-		//arrive, so the first paint has them; stale keys recompute in the
-		//warm-up.
-		if (compactSnapshot.displayTitles) {
-			for (const [id, [key, title]] of Object.entries(compactSnapshot.displayTitles)) displayTitles.set(id, {key, title});
-		}
 		if (compactSnapshot.sections && Object.keys(compactSnapshot.sections).length) {
 			latestSections = compactSnapshot.sections;
 			send({type: 'sections', generation, sections: compactSnapshot.sections});
@@ -3057,6 +3094,9 @@ const connectUnpublishedWatermark = async (deferPublishedUntilAfterPrime = false
 			}
 			const restored = fromWire(compactSnapshot.cards as import('./wire-format.js').Wire<Cards>,
 				(seconds, nanoseconds) => new Timestamp(seconds, nanoseconds)) as Cards;
+			//Before the primed cards are forwarded, so their metas carry the
+			//titles and pushMetaDeltas does not drop entries as stale.
+			restoreDisplayTitles(compactSnapshot);
 			//A published cache listener may have won the race while IndexedDB
 			//loaded. Never overwrite fresher listener data with the saved base.
 			for (const [id, card] of Object.entries(restored)) {

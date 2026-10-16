@@ -267,12 +267,34 @@ same fixture, plus "no regression" on anything the journey measures.
 > produces routinely. Measured on the cut-over DEV export in the journey
 > harness: Save → new editor 477/436/391 ms rapid after a 1525 ms first
 > cycle (the one-time tag-suggestion build), 406/419 ms with 20 s gaps,
-> versus 2217 ms and 1783–2813 ms before. Remaining on that path: the
-> worker's ~2 s tag-suggestion build on the first editor open after boot,
-> and the a4f185da worker-title regressions the J6 re-measure found
-> (first-boot working-notes tab paint 3.6–4.4 s; titles not persisted
-> after the warm-up so the second boot recomputes ~33 s of them; a 2.4 s
-> worker task on a rapid save; worker heap +60–80 MB) — open, unfixed.
+> versus 2217 ms and 1783–2813 ms before.
+
+> **Worker-title follow-ups (Oct 15), from a worker CPU profile.** The
+> ~2.1 s task on the first save after boot was the per-card fingerprint
+> cache: one shared slot per IDF map, evicted alternately by the
+> similarity generator (no concepts) and the suggestion/title generator
+> (concepts) — now a bounded list keyed on those inputs, and bare
+> generators share frozen empties (post-save tag combine: 9,232 misses →
+> 1, leaving the ~300 ms combine of a 9k-card tag whose member was
+> saved, as before the titles). Titles are persisted as the pass runs
+> (snapshot save scheduled per slice and at the end), and the warm-up
+> order is tags → similarity → titles, each step guarded, so the first
+> editor open finds tags warm and a similar-cards request does not pay
+> the ~4.3 s cold build for ~26 s longer. First-window fill budget 200 ms
+> per push whose top 250 still holds untitled notes (fresh install only).
+> The signed-in watermark prime never restored persisted titles (only
+> the reader's prime did); both prime paths now restore through one
+> helper. Measured: warm boot computes no titles (was 38,111 in 26.5 s)
+> and reaches live in 35.1 s (was 54.6 s); warm tab open paints 250/250
+> titled at 10 ms. Open and pre-existing: on a fresh install the
+> working-notes tab's first request waits ~3–4.5 s behind a cold
+> similarity build that a similar-cards filter triggers synchronously
+> before the warm-up reaches it (the "0.3 s before" figure was a warm
+> boot, so its age is unknown); and a concept TITLE edit legitimately
+> invalidates every enriched fingerprint, so the next tag suggestion pays
+> a ~2.3 s worker task (the journey's "save task": it edits a concept
+> title right before the save cycle) — a background re-warm after a
+> concept change would hide it.
 
 Verified by reading or by synthetic measurement at 47k cards, unless marked.
 
