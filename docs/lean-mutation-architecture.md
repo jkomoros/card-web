@@ -298,6 +298,23 @@ same fixture, plus "no regression" on anything the journey measures.
 > worker task (was 1.7–2.0 s / 2.2–2.5 s). Live subscriptions with a
 > similar filter still build synchronously; none exist in the product.
 
+> **Final whole-branch review (Oct 16, real Rules via a mock user token
+> in the harness).** No blocking findings. Every product content write
+> in the executor and multi-edit suites passes the revision gate; an
+> old client's content writes (no `revision`) are denied, its counter,
+> user-doc and tombstone-delete writes allowed; a late revision-1 image
+> after two parked saves is refused on the main thread; snapshots load
+> in both directions (V2 `displayTitles` optional); engine steady-state
+> heap on the DEV export 870 MB → 689 MB. Recorded, not fixed: a draft
+> typed into a card whose queued creation is later refused survives
+> only in localStorage (Recover needs the card to exist) — rare with the
+> new build, candidate issue; a non-admin editor's content save already
+> hits the Rules' 1000-expression limit on master; the compact snapshot
+> is ~121 MiB serialized at 40k (master ~117), with no known Chromium
+> per-value cliff verified either way. Runbook step 7 (a post-reopen
+> script pass) and the restore note on clearing IndexedDB come from this
+> review.
+
 Verified by reading or by synthetic measurement at 47k cards, unless marked.
 
 | Symptom | Mechanism on master | Evidence | Status |

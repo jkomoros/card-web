@@ -204,13 +204,14 @@ The Rules' content gate is `revision == get('revision',0)+1` (`01-revision-and-a
    2. `--prod --write --confirm-project=complexity-compendium`.
    3. Dry run again. Expect `unchanged == total` (`clean` excludes ambiguous cards, which stay reported on every run).
 5. **[OWNER]** On each of the ~3 clients:
-   1. **Do not clear site data**: localStorage holds stamped edit drafts and any paused durable record, and the new build replays them. If the worker's persisted snapshot must go (a restore, not this cutover), clear only IndexedDB.
+   1. **Do not clear site data**: localStorage holds stamped edit drafts and any paused durable record, and the new build replays them. If the worker's persisted snapshot must go (a restore, not this cutover), clear only IndexedDB. **After any backup RESTORE, clearing IndexedDB on every client is a required step, not an aside**: a client whose persisted snapshot holds a card at a higher `revision` than the restored server copy refuses every server image of that card indefinitely (the admission rule working as designed against a server that went backwards).
    2. Close all tabs and reopen (the service worker updates on reload).
    3. Sign in and wait for syncState `live`; resolve any recovery banner or paused save it shows.
 6. **[OWNER]** Verify:
    - the Working notes tab shows dated titles;
    - a newly created note has `title == ''` in Firestore;
    - the console shows no `ignoring unusable stored nlp_tokens`.
+7. **[OWNER]** Run the script once more (dry run; `--write` if it reports anything; dry run). The old build ran the working-notes finisher BEFORE persisting a create intent, so a creation it left queued is replayed by the new build with its generated title, which then reads as authored; this pass clears it (the title matches the generator's prefix). Verified in the final review by replaying a master-shaped intent under the real Rules.
 
 If quiescing is impossible, run hosting → close-and-reopen everywhere → script → rules. That order is safe by T5.
 
