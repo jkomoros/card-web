@@ -387,6 +387,12 @@ describe('worker-side display titles', () => {
 		assert.ok(watermarkStart > 0 && watermarkPrime.length > 0, 'found the watermark prime');
 		assert.ok(/restoreDisplayTitles\(compactSnapshot\)/.test(readerPrime), 'the reader prime restores persisted titles');
 		assert.ok(/restoreDisplayTitles\(compactSnapshot\)/.test(watermarkPrime), 'the signed-in watermark prime restores persisted titles');
+		//And they are persisted ONLY into the per-uid privileged record. The
+		//shared published record is written by signed-in non-privileged
+		//authors too; a real-browser review found their private notes' titles
+		//in it, surviving to the next anonymous visitor.
+		const save = source.slice(source.indexOf('const saveCorpusSnapshot = '), source.indexOf('const scheduleCorpusSnapshotSave'));
+		assert.ok(/scope === 'privileged' && displayTitles\.size \?/.test(save), 'titles are saved only for the privileged scope');
 	});
 
 	it('metas carry and compare the display title; the snapshot record validates it', async () => {

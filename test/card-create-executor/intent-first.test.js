@@ -91,6 +91,14 @@ describe('intent-first card creation (real thunks)', function() {
 		store.dispatch({type: 'UPDATE_USER_PERMISSIONS', permissions: previousPermissions});
 		writeCorpusWorkerMode(previousMode);
 		clearAuxQueue();
+		//Drafts and paused records this file leaves behind (the discarded
+		//creation keeps its draft on purpose) bleed into other suites run in
+		//the same process: the multi-edit loop's "pending save owns its
+		//draft" cases failed when this file ran first.
+		for (const key of Object.keys(localStorage)) {
+			if (key.startsWith(EDIT_DRAFT_STORAGE_PREFIX)) localStorage.removeItem(key);
+		}
+		localStorage.removeItem('card-web-pending-multi-edit-v1');
 	});
 
 	it('echoes the card and satisfies the arrival gate before the server answers; the server image then lands as an equal', async () => {

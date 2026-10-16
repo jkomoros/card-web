@@ -934,7 +934,15 @@ const saveCorpusSnapshot = async () : Promise<void> => {
 	try {
 		await corpusSnapshotStore.save(cards, contaminatedIDs, processedTombstoneIDs, tombstoneCursor, watermarkClamp,
 			(latestSections || latestTags) ? {sections: latestSections || {}, tags: latestTags || {}} : undefined,
-			displayTitles.size ? Object.fromEntries([...displayTitles].map(([id, {key, title}]) => [id, [key, title] as [string, string]])) : undefined);
+			//Titles are viewer-specific twice over — computed for the viewer's
+			//own unpublished notes, and ranked by IDF over the viewer's whole
+			//corpus even for published ones — so they go only into the
+			//per-uid privileged record, never the SHARED published one. A
+			//signed-in non-privileged author writes the published record, and
+			//the final review showed 115 of their private notes' titles landing
+			//in it and surviving to the next anonymous visitor on the device.
+			//Readers recompute the few titles they can see.
+			scope === 'privileged' && displayTitles.size ? Object.fromEntries([...displayTitles].map(([id, {key, title}]) => [id, [key, title] as [string, string]])) : undefined);
 		consecutiveSnapshotSaveFailures = 0;
 		status(`compact snapshot saved: ${Object.keys(cards).length} cards in ${(performance.now() - startedAt).toFixed(0)}ms`);
 	} catch (e) {

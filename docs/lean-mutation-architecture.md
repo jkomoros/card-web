@@ -313,7 +313,20 @@ same fixture, plus "no regression" on anything the journey measures.
 > is ~121 MiB serialized at 40k (master ~117), with no known Chromium
 > per-value cliff verified either way. Runbook step 7 (a post-reopen
 > script pass) and the restore note on clearing IndexedDB come from this
-> review.
+> review. A further "not ready" pass in a real browser with the real
+> worker and Rules found one blocker, fixed: a signed-in non-privileged
+> author's title map (115 of their private notes' titles, and published
+> titles ranked over their private corpus) was written into the SHARED
+> published snapshot and survived to the next anonymous visitor —
+> titles now persist only into the per-uid privileged record. It also
+> moved the cutover script ahead of the deploy in the runbook (the
+> deploy-end embedding reindex would otherwise re-embed all ~38k notes
+> and could race the script), restored master's post-commit start of
+> the 15s arrival backstop in off mode, and fixed a localStorage leak
+> between test suites run in one process. Its cutover-script injection
+> runs on the 40k emulator corpus (mid-run edits, a thrown page, a
+> concurrent editor, a double run) all behaved as designed: ~131s per
+> pass, pages atomic, exit 2 on a raced page, idempotent.
 
 Verified by reading or by synthetic measurement at 47k cards, unless marked.
 

@@ -3458,8 +3458,12 @@ export const createCard = (opts : CreateCardOpts) : ThunkSomeAction => async (di
 	//Listen stream), the pending expectation would latch pendingReorder and
 	//hold corpus status at 'pending', refusing every subsequent save. The
 	//backstop clears the expectation instead: the creation IS durable; only
-	//this tab's navigation gives up on it.
-	scheduleNewCardArrivalBackstop(dispatch, getState, id);
+	//this tab's navigation gives up on it. Off mode has no echo (the card
+	//arrives only by listener, after the commit), so there the clock starts
+	//after the commit as it always did: started here, a 16s commit made the
+	//backstop give up on a card that then arrived.
+	const echoed = corpusWorkerOwnsCardIngestion();
+	if (echoed) scheduleNewCardArrivalBackstop(dispatch, getState, id);
 
 	//Only 'committed' means the server has the card. 'queued' means it will:
 	//the intent replays on its own and the echoed card is what it will
@@ -3483,6 +3487,7 @@ export const createCard = (opts : CreateCardOpts) : ThunkSomeAction => async (di
 		if (selectPendingNewCardIDToNavigateTo(getState()) === id) dispatch({type: EXPECTED_NEW_CARD_FAILED});
 		return;
 	}
+	if (!echoed) scheduleNewCardArrivalBackstop(dispatch, getState, id);
 
 	//updateSections will be called and update the current view. card-view's
 	//updated will call navigateToNewCard once the pending card (and, for a

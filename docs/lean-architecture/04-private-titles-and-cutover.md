@@ -198,11 +198,23 @@ The Rules' content gate is `revision == get('revision',0)+1` (`01-revision-and-a
    - the DEV `deploy-stamp.json` equals HEAD.
 1. **[OWNER] Close every app instance on every device.** An old client's finisher would rewrite titles, and an old client does not write `revision` — after the deploy its content writes are DENIED: its queued creates/forks/imports are discarded as permanent failures, and its single saves pause with their durable record. **Before closing, check each client's save pill is idle and no recovery banner is up**; a paused save left behind is recoverable by the new build (same record key), but only if site data is NOT cleared (step 5).
 2. **[OWNER]** `npm run backup`. It calls `gcloudEnsureProd()` itself. Verify that the export completes.
-3. **[OWNER]** Run `npm test`, then `npm run deploy`. The deploy runs no tests, which is why the suite runs first. It ships rules, indexes, hosting and functions together; with no clients open, their order doesn't matter. Then check that `deploy-stamp.json` equals HEAD and that `dirty` is false.
-4. **[OWNER]** Run the script:
+3. **[OWNER]** Run the script FIRST, with the clients closed (build the branch locally first: `npm run build:shared`; the script refuses to run against a build that still derives the title):
    1. `--prod` dry run. Review the counts; `ambiguous` should be 0.
    2. `--prod --write --confirm-project=complexity-compendium`.
    3. Dry run again. Expect `unchanged == total` (`clean` excludes ambiguous cards, which stay reported on every run).
+
+   Script before deploy, not after: `npm run deploy` ends by calling the
+   newly deployed `reindexCardEmbeddings`, and the new function embeds the
+   title for every card type. With the generated titles still stored, that
+   reindex would re-embed all ~38k notes (every one differs), and the
+   script clearing titles underneath its snapshot could leave title-bearing
+   vectors for cards whose title is now empty until their next edit. With
+   the titles already cleared, the reindex finds nothing to change. The
+   script's own writes fire the OLD functions' triggers; their embedding
+   text for a note excludes the title, so those are payload-only updates.
+   This order is safe only because the clients are closed (step 1): an open
+   old client would rewrite titles on its next save.
+4. **[OWNER]** Run `npm test`, then `npm run deploy`. The deploy runs no tests, which is why the suite runs first. It ships rules, indexes, hosting and functions in one sequential CLI call; with no clients open, the order within it doesn't matter. Then check that `deploy-stamp.json` equals HEAD (a manual check; nothing compares it) and that `dirty` is false.
 5. **[OWNER]** On each of the ~3 clients:
    1. **Do not clear site data**: localStorage holds stamped edit drafts and any paused durable record, and the new build replays them. If the worker's persisted snapshot must go (a restore, not this cutover), clear only IndexedDB. **After any backup RESTORE, clearing IndexedDB on every client is a required step, not an aside**: a client whose persisted snapshot holds a card at a higher `revision` than the restored server copy refuses every server image of that card indefinitely (the admission rule working as designed against a server that went backwards).
    2. Close all tabs and reopen (the service worker updates on reload).
@@ -213,14 +225,14 @@ The Rules' content gate is `revision == get('revision',0)+1` (`01-revision-and-a
    - the console shows no `ignoring unusable stored nlp_tokens`.
 7. **[OWNER]** Run the script once more (dry run; `--write` if it reports anything; dry run). The old build ran the working-notes finisher BEFORE persisting a create intent, so a creation it left queued is replayed by the new build with its generated title, which then reads as authored; this pass clears it (the title matches the generator's prefix). Verified in the final review by replaying a master-shaped intent under the real Rules.
 
-If quiescing is impossible, run hosting → close-and-reopen everywhere → script → rules. That order is safe by T5.
+If quiescing is impossible, run hosting → close-and-reopen everywhere → script → rules + functions, as separate `firebase deploy --only` calls, so the functions' deploy-end reindex sees cleared titles. That order is safe by T5.
 
 **DEV rehearsal:**
 
 1. **[OWNER]** Delete the parked branch's DEV functions (§4.4).
 2. **[OWNER]** `npm run backup`, then `npm run reset-dev`. This wipes DEV Firestore and imports the latest backup, giving DEV a prod-shaped corpus (`cli.ts:387-393`). **Afterwards gcloud is left pointing at DEV.**
-3. **[AGENT]** `npm run deploy:dev`. This also replaces any rules the branch left on DEV; which rules DEV runs now is UNVERIFIED.
-4. **[AGENT]** Run steps 4–6 against DEV. Record:
+3. **[AGENT]** The script against DEV (dry run, write, dry run), THEN `npm run deploy:dev`. The deploy also replaces any rules the branch left on DEV; which rules DEV runs now is UNVERIFIED.
+4. **[AGENT]** Run steps 3–7 against DEV in the same order (script, then `deploy:dev`, then verify, then the second pass). Record:
    - the card counts;
    - the script's wall time and its function invocation count;
    - cold and warm boot times before and after.
