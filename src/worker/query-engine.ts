@@ -107,8 +107,24 @@ export type RunCollectionOptions = {
 	keyCardID? : CardID,
 	uid? : Uid,
 	randomSalt? : string,
-	cardSimilarity? : CardSimilarityMap
+	cardSimilarity? : CardSimilarityMap,
+	//Throw SimilarityColdError instead of building the whole similarity map
+	//synchronously when a filter actually reaches the fingerprint fallback
+	//on a cold map. Only the filter knows whether it will fall back (embedding
+	//results for the key card answer without fingerprints), so the decision
+	//is made where the provider is invoked, never from the description text.
+	deferWhenSimilarityCold? : boolean,
 };
+
+//Thrown by runCollection (with deferWhenSimilarityCold) when a filter asked
+//for the similarity map while it is cold; the caller warms it in slices and
+//runs again.
+export class SimilarityColdError extends Error {
+	constructor() {
+		super('similarity fingerprints are cold');
+		this.name = 'SimilarityColdError';
+	}
+}
 
 //Tokenize a query string into the same space as nlp_search_tokens (stemmed,
 //stop-word-free unigrams plus bigrams). Used for search-recall narrowing and
@@ -605,6 +621,13 @@ export class QueryEngine {
 	_similarityRemoved : Set<CardID> = new Set();
 	//Stable identity: filter memos key on it.
 	_fingerprintsProvider = () : {[id : string] : Fingerprint} => this._ensureSimilarityFingerprints();
+	//The deferring variant (see RunCollectionOptions.deferWhenSimilarityCold):
+	//also a stable identity, so deferred-capable runs memoize among
+	//themselves. Throws only when the fallback is reached on a cold map.
+	_fingerprintsProviderOrCold = () : {[id : string] : Fingerprint} => {
+		if (this.similarityFingerprintsCold()) throw new SimilarityColdError();
+		return this._ensureSimilarityFingerprints();
+	};
 
 	_noteSimilarityCardChanged(id : CardID, removed : boolean) : void {
 		if (!this._similarityFingerprints) return;
@@ -661,6 +684,34 @@ export class QueryEngine {
 			if ((++n & 63) === 0 && performance.now() - start >= budgetMs) return this._similarityPending.size === 0;
 		}
 		return true;
+	}
+
+	//True while the similarity map still has more than `threshold` cards to
+	//fingerprint: a similar-cards request now would build them synchronously
+	//in one task (~4.3s on the real corpus), blocking every collection push
+	//behind it — on a fresh install that is the working-notes tab's first
+	//paint. The worker waits for the sliced warm-up instead when this holds.
+	similarityFingerprintsCold(threshold = 500) : boolean {
+		this._resetSimilarityFingerprintsIfStale();
+		return this._similarityPending.size > threshold;
+	}
+
+	//True when a concept card change moved the enriched generator's inputs
+	//(concepts or synonyms) away from what the fingerprint caches were built
+	//with: the next tag suggestion or title would re-fingerprint every card
+	//synchronously (~2.3s on the real corpus after a concept TITLE edit).
+	//Cheap: concept extraction is memoized and identity-preserving on equal
+	//output, so an ordinary concept body edit answers false without work.
+	suggestInputsStale() : boolean {
+		if (this._suggestConceptCards === this._conceptCards) return false;
+		//A generator never built (a reader) has nothing to go stale.
+		if (!this._suggestGenerator) return false;
+		if (getConceptsFromConceptCards(this._conceptCards) !== this._suggestConcepts) return true;
+		if (!deepEqual(synonymMap(this._conceptCards), this._suggestSynonyms)) return true;
+		//Equal inputs: adopt the new concept-card map so the next call is an
+		//identity compare, not a synonym rebuild per delivery.
+		this._suggestConceptCards = this._conceptCards;
+		return false;
 	}
 
 	_ensureSimilarityFingerprints() : {[id : string] : Fingerprint} {
@@ -901,7 +952,7 @@ export class QueryEngine {
 			//the epoch rolled). A narrowed universe keeps the old path: it
 			//fingerprints only the restricted map, built fresh per run, and a
 			//whole-corpus map would cost more there, not less.
-			fingerprintsProvider: universe ? null : this._fingerprintsProvider
+			fingerprintsProvider: universe ? null : (options.deferWhenSimilarityCold ? this._fingerprintsProviderOrCold : this._fingerprintsProvider)
 		} as CollectionConstructorArguments;
 		const collection = description.collection(args);
 		return {

@@ -286,15 +286,17 @@ same fixture, plus "no regression" on anything the journey measures.
 > the reader's prime did); both prime paths now restore through one
 > helper. Measured: warm boot computes no titles (was 38,111 in 26.5 s)
 > and reaches live in 35.1 s (was 54.6 s); warm tab open paints 250/250
-> titled at 10 ms. Open and pre-existing: on a fresh install the
-> working-notes tab's first request waits ~3–4.5 s behind a cold
-> similarity build that a similar-cards filter triggers synchronously
-> before the warm-up reaches it (the "0.3 s before" figure was a warm
-> boot, so its age is unknown); and a concept TITLE edit legitimately
-> invalidates every enriched fingerprint, so the next tag suggestion pays
-> a ~2.3 s worker task (the journey's "save task": it edits a concept
-> title right before the save cycle) — a background re-warm after a
-> concept change would hide it.
+> titled at 10 ms. Two pre-existing stalls closed afterwards: a
+> similar-cards request that reaches the fingerprint fallback on a cold
+> map now makes the engine throw a cold sentinel (only then — embedding
+> answers never reach it), the worker finishes the sliced build and
+> answers after, chaining same-block requests to keep answer order, so a
+> fresh install's working-notes tab paints at 469 ms (was 3.8–4.5 s);
+> and a concept TITLE change (the one edit that legitimately invalidates
+> every enriched fingerprint) schedules a coalesced background re-warm,
+> so the next editor open after one costs 387 ms with a 147 ms worst
+> worker task (was 1.7–2.0 s / 2.2–2.5 s). Live subscriptions with a
+> similar filter still build synchronously; none exist in the product.
 
 Verified by reading or by synthetic measurement at 47k cards, unless marked.
 

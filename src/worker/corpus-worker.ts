@@ -157,6 +157,7 @@ import {
 
 import {
 	QueryEngine,
+	SimilarityColdError,
 	queryTokensForText
 } from './query-engine.js';
 
@@ -334,6 +335,87 @@ let indexBuildMs = 0;
 const unsubscribes : (() => void)[] = [];
 
 const send = (message : WorkerToMainMessage) => workerScope.postMessage(message);
+
+//One collection request. With deferCold, a filter that reaches the
+//similarity fallback on a cold map makes this return 'cold' instead of
+//building the whole map inside the request (see handleRunCollection);
+//otherwise it answers, by result or by error reply.
+const runCollectionRequest = (message : Extract<MainToWorkerMessage, {type : 'runCollection'}>, deferCold : boolean) : 'answered' | 'cold' => {
+	const start = performance.now();
+	try {
+		const result = engine.runCollection(message.description, {
+			keyCardID: message.keyCardID,
+			uid: message.uid,
+			randomSalt: message.randomSalt,
+			cardSimilarity: message.cardSimilarity,
+			deferWhenSimilarityCold: deferCold,
+		});
+		recordWorkerPerf('runCollection', performance.now() - start);
+		send({
+			type: 'runCollectionResult',
+			generation,
+			id: message.id,
+			ids: result.ids,
+			labels: result.labels,
+			numCards: result.numCards,
+			numStartCards: result.numStartCards,
+			isFallback: result.isFallback,
+			preview: result.preview,
+			partialMatches: result.partialMatches,
+			ms: Math.round((performance.now() - start) * 10) / 10
+		});
+	} catch (e) {
+		if (e instanceof SimilarityColdError) return 'cold';
+		send({type: 'error', generation, message: `runCollection(${message.description}): ${String(e)}`});
+		//The failure reply MUST carry the request id: an error without it
+		//left the bridge's pending promise unresolved forever, freezing
+		//reference blocks on the previous card's results and leaking a
+		//Map entry per state change while a throwing description stayed
+		//active.
+		send({type: 'runCollectionResult', generation, id: message.id, ids: [], labels: [], numCards: 0, numStartCards: 0, isFallback: false, preview: false, partialMatches: {}, ms: 0, failed: true});
+	}
+	return 'answered';
+};
+
+//A request whose filter reached the similarity fallback on a cold map used
+//to build the whole map synchronously inside that one task — ~4.3s in Node
+//and several times that in the worker — with every other request, the
+//working-notes tab's first collection among them on a fresh install,
+//queued behind it. Finish the build in slices first (the same delta the
+//background warm-up applies, so the two cannot disagree or double the
+//work) and answer afterwards; other messages interleave meanwhile. A
+//request whose key card already has embedding results never reaches the
+//fallback and is answered at once, which a description-text gate got
+//wrong. Later requests for the SAME description and key card chain behind
+//the deferred one so answers keep arrival order: card-view commits
+//whichever expansion resolves last, and a deferred fallback result landing
+//after a newer embedding result would replace it. Unrelated requests are
+//not held. If the sliced build is superseded (a new epoch, a reconnect)
+//the rerun takes the synchronous path, so a request always answers within
+//the bridge's timeout bound it had before.
+const deferredRunCollections : Map<string, Promise<void>> = new Map();
+const handleRunCollection = (message : Extract<MainToWorkerMessage, {type : 'runCollection'}>) : void => {
+	const key = message.description + '|' + message.keyCardID;
+	const prior = deferredRunCollections.get(key);
+	if (prior) {
+		void prior.then(() => handleRunCollection(message));
+		return;
+	}
+	if (runCollectionRequest(message, true) === 'answered') return;
+	const requestGeneration = generation;
+	const requestConnection = connectionGeneration;
+	const deferred = (async () => {
+		try {
+			await engine.warmSimilarityFingerprints(yieldToWorkerQueue, () => requestGeneration === generation && requestConnection === connectionGeneration);
+		} catch (e) {
+			status(`similarity warm-up for a request failed (${String(e)})`);
+		}
+		if (requestGeneration !== generation || requestConnection !== connectionGeneration) return;
+		runCollectionRequest(message, false);
+	})().finally(() => { deferredRunCollections.delete(key); });
+	deferredRunCollections.set(key, deferred);
+};
+
 
 //--- Search recall (find narrowing) -----------------------------------------
 
@@ -564,6 +646,20 @@ const scheduleFingerprintWarmup = () => {
 			status(`fingerprint warm-up failed (${String(e)})`);
 		}
 	})();
+};
+
+//Coalesced: a paste of fifty concept renames arrives as fifty deliveries,
+//and restarting the (sliced, but whole-corpus) warm-up per delivery wasted
+//~5-15s of CPU in a replay. One re-warm, a couple of seconds after the
+//last stale delivery, and only if the inputs are still stale then.
+const CONCEPT_REWARM_DELAY_MS = 2000;
+let conceptRewarmTimer : ReturnType<typeof setTimeout> | null = null;
+const scheduleConceptRewarm = () => {
+	if (conceptRewarmTimer) clearTimeout(conceptRewarmTimer);
+	conceptRewarmTimer = setTimeout(() => {
+		conceptRewarmTimer = null;
+		if (currentUid && engine.suggestInputsStale()) scheduleFingerprintWarmup();
+	}, CONCEPT_REWARM_DELAY_MS);
 };
 
 const scheduleIDFBuild = () => {
@@ -1043,6 +1139,11 @@ const updateLocalState = (incoming : Cards, removedIDs : CardID[], suppressMetaS
 		for (const id of removedIDs) idfDirtyIDs.add(id);
 	}
 	subscriptions.markDirty();
+	//A concept TITLE (or alternates) change moves the enriched generator's
+	//inputs, which invalidates every tag fingerprint; the next editor open
+	//would rebuild them all in one ~2.3s task. Re-warm in slices now instead
+	//(tags, similarity, titles — the latter two find nothing to do).
+	if (!initialLoadPending && currentUid && engine.suggestInputsStale()) scheduleConceptRewarm();
 	pushMetaDeltas(cards, removedIDs, suppressMetaSend);
 	const indexElapsed = performance.now() - indexStart;
 	indexBuildMs += indexElapsed;
@@ -3679,40 +3780,9 @@ workerScope.addEventListener('message', event => {
 		if (engine.setEditingCard(editingCard, message.similarity)) subscriptions.markDirty('editing');
 		break;
 	}
-	case 'runCollection': {
-		const start = performance.now();
-		try {
-			const result = engine.runCollection(message.description, {
-				keyCardID: message.keyCardID,
-				uid: message.uid,
-				randomSalt: message.randomSalt,
-				cardSimilarity: message.cardSimilarity
-			});
-			recordWorkerPerf('runCollection', performance.now() - start);
-			send({
-				type: 'runCollectionResult',
-				generation,
-				id: message.id,
-				ids: result.ids,
-				labels: result.labels,
-				numCards: result.numCards,
-				numStartCards: result.numStartCards,
-				isFallback: result.isFallback,
-				preview: result.preview,
-				partialMatches: result.partialMatches,
-				ms: Math.round((performance.now() - start) * 10) / 10
-			});
-		} catch (e) {
-			send({type: 'error', generation, message: `runCollection(${message.description}): ${String(e)}`});
-			//The failure reply MUST carry the request id: an error without it
-			//left the bridge's pending promise unresolved forever, freezing
-			//reference blocks on the previous card's results and leaking a
-			//Map entry per state change while a throwing description stayed
-			//active.
-			send({type: 'runCollectionResult', generation, id: message.id, ids: [], labels: [], numCards: 0, numStartCards: 0, isFallback: false, preview: false, partialMatches: {}, ms: 0, failed: true});
-		}
+	case 'runCollection':
+		handleRunCollection(message);
 		break;
-	}
 	case 'requestCorpusIDs':
 		send({type: 'corpusIDs', generation, ids: [...corpus.keys()]});
 		break;
