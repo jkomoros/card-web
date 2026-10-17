@@ -242,6 +242,56 @@ If quiescing is impossible, run hosting → close-and-reopen everywhere → scri
    - the script's wall time and its function invocation count;
    - cold and warm boot times before and after.
 
+**DEV rehearsal record (Oct 17, 2026; DEV reset from backup
+`deploy-2026-09-29-05-52`: 46,565 cards, 44,696 working notes, 5
+sections, 52 tags).**
+
+- Parked functions deleted. Script against DEV: dry run 44,696 to clear,
+  0 ambiguous (281 s); `--write` cleared 44,696 with 0 precondition
+  failures while the owner's old-build tab was open and syncing (630 s);
+  dry run after: `unchanged == total` (270 s). Second pass (step 7) after
+  the rehearsal's own saves: 44,704 notes, all clean, `unchanged == total`
+  (265 s) — the new build's creations store empty titles, as required.
+- Old client (August build) left open through script and rules: its saves
+  were refused with a banner and its creates reported as not going
+  through; reload came up on the new build with nothing lost (owner's
+  check).
+- Deploying DEV needed two detours worth knowing for prod: the first two
+  `npm run deploy:dev` attempts failed on the storage/functions targets
+  with "Your project is being set up. Please wait a minute" (right after
+  the function deletions); and the installed Firebase CLI 12.9 cannot
+  deploy the current functions SDK ("Unexpected key extensions") — use a
+  current CLI (`npx -y firebase-tools@latest`) for functions and storage.
+  Hosting and `--only firestore:rules` work with either. A hosting-only
+  deploy without the cli's `writeDeployStamp` leaves no
+  `deploy-stamp.json`, which the host then rewrites to index.html.
+- Anonymous probe of the deployed build: cold 6.2 s / warm 5.6 s to live
+  on 1,241 published cards, shared record 0 titles, no console errors.
+- Signed in (owner's account, driven from the app's browser pane; a
+  Google popup is swallowed there, so sign-in went through the redirect
+  flow on the `firebaseapp.com` auth domain): fresh-install load of
+  46.5k cards to live 5.5 min; shortcut-press → new editor open
+  313–435 ms over nine creations, every new card saved at revision 2
+  with an empty stored title and a worker-computed display title; no
+  banners, nothing queued or paused.
+- FOUND AND FIXED: the privileged compact snapshot never persisted —
+  Chromium refuses a single IndexedDB value above ~127 MiB and the
+  snapshot was 157 MB at this corpus size; the worker mislabeled it
+  "ownership changed". The store now writes the cards in parts (measured
+  at 3,000 cards a part, 16 parts at 46.5k; landed at 2,000 a part after
+  review, for a wider margin on hub cards). After the fix: save 5.0 s then 1.2 s; warm boot primes from the
+  snapshot in ~5 s (usable), live at 50 s (33 s of that is the tombstone
+  catch-up on real Firestore), no title recomputation; Working notes
+  tab after the warm boot shows 250 of 250 rows titled.
+- Concept rename: titles unchanged on screen; the background re-warm
+  ran; the next shortcut → editor took 435 ms.
+- Observed once in nine: a creation whose navigation fell back to
+  "Your card was created, but its collection could not be loaded. Use
+  Find to open it." The card existed and was reachable; the repeat
+  worked (347 ms). The refresh RPC's false branches do not say which
+  condition failed — a diagnostic to add.
+- Not rehearsed: offline create + reconnect, a second device.
+
 ### 4.4 Parked branch DEV functions (decision 5: delete now)
 
 The branch's `functions/src/index.ts` adds no exports. The functions were deployed as three separate codebases (`tools/stage-isolated-mutation-functions.cjs:146-150`), and the branch's handoff confirms all three are live on DEV in us-central1 (`CONTINUATION-HANDOFF.md:846-848`):

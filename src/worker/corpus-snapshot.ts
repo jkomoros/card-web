@@ -55,9 +55,44 @@ export type CorpusSnapshotV2 = CorpusSnapshotBase & {
 
 export type CorpusSnapshot = CorpusSnapshotV1 | CorpusSnapshotV2;
 
+//On disk the cards are split across part records. Chromium refuses a single
+//IndexedDB value above ~127 MiB ("The serialized keys and/or value are too
+//large"), and the privileged snapshot of the real corpus crossed it at
+//46.5k cards (157 MB serialized): every save failed, and because a failing
+//put's error event reaches the transaction before transaction.error is set,
+//the failure read as "ownership changed" for a whole rehearsal. The manifest
+//at `key` carries everything but the cards plus the part count; parts live at
+//`key:cards:<i>`. One readwrite transaction writes manifest and parts (and
+//deletes a previous save's surplus parts), so a crash still leaves the
+//previous complete snapshot, exactly as the single record did. load()
+//reassembles a V2-shaped snapshot, so nothing above this store changes.
+export type CorpusSnapshotManifest = Omit<CorpusSnapshotV2, 'cards' | 'schemaVersion'> & {
+	schemaVersion : 3,
+	cardsParts : number,
+	cardsCount : number,
+};
+
+//Cards per part. Measured on the DEV export: the mean card serializes to
+//~3 KB, the fattest (a hub with 130 KB of inbound-reference mirrors) to
+//137 KB, and the 3,000 fattest together to 27 MB. At 2,000 a part the
+//realistic ceiling is a ~66 KB AVERAGE within one part before the ~127 MiB
+//value limit; the fattest 2,000 real cards are ~18 MB. Cheap count-based
+//chunking rather than byte-budgeting, because budgeting would serialize
+//every card once more per save. test/corpus-snapshot pins the part size
+//against a byte budget on a realistic corpus.
+export const SNAPSHOT_CARDS_PER_PART = 2000;
+//A manifest claiming more parts than this is corrupt, not large.
+const MAX_SNAPSHOT_PARTS = 10000;
+
 const DB_NAME = 'corpus-worker-snapshot';
 const STORE_NAME = 'snapshots';
 const SCHEMA_VERSION = 2;
+const MANIFEST_SCHEMA_VERSION = 3;
+const partKey = (key : string, index : number) : string => `${key}:cards:${index}`;
+//Every part of a key, whatever the manifest says: cleanup must not depend on
+//a manifest that an older build (which knows nothing of parts) may have
+//overwritten with a single record, or that a sign-out purge found absent.
+const partsRange = (key : string) : IDBKeyRange => IDBKeyRange.bound(`${key}:cards:`, `${key}:cards:\uffff`);
 
 type OwnershipToken = {ownerID : string, epoch : number};
 
@@ -110,6 +145,19 @@ export const validCorpusSnapshot = (value : unknown) : value is CorpusSnapshot =
 			Object.values(v2.displayTitles).every(entry => Array.isArray(entry) && entry.length === 2 && typeof entry[0] === 'string' && typeof entry[1] === 'string')));
 };
 
+const validManifest = (value : unknown) : value is CorpusSnapshotManifest => {
+	if (!value || typeof value !== 'object') return false;
+	const manifest = value as Partial<CorpusSnapshotManifest>;
+	if (manifest.schemaVersion !== MANIFEST_SCHEMA_VERSION) return false;
+	if (!Number.isInteger(manifest.cardsParts) || (manifest.cardsParts as number) < 0 || (manifest.cardsParts as number) > MAX_SNAPSHOT_PARTS) return false;
+	if (!Number.isInteger(manifest.cardsCount) || (manifest.cardsCount as number) < 0) return false;
+	//Everything else is validated on the assembled snapshot.
+	return true;
+};
+
+const validCardsPart = (value : unknown) : value is {[id : string] : unknown} =>
+	Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+
 //The key for a scope's snapshot. A PUBLISHED-only record deliberately carries
 //no uid: published content is identical for every viewer, so one record serves
 //them all, is shared between anonymous visits, and survives the anonymous uid
@@ -126,6 +174,8 @@ export type SnapshotScope = 'published' | 'privileged';
 //the filter from a separately-computed boolean.
 export const snapshotScopeForSession = (mayViewUnpublished : boolean) : SnapshotScope =>
 	mayViewUnpublished ? 'privileged' : 'published';
+
+const describeOwnership = (token : OwnershipToken) : string => `{${token.ownerID ? token.ownerID.slice(0, 8) : '(none)'}, epoch ${token.epoch}}`;
 
 export const corpusSnapshotKey = (projectID : string, uid : string, scope : SnapshotScope) : string =>
 	scope === 'published' ? `${projectID}:published` : `${projectID}:${uid}:privileged`;
@@ -209,9 +259,38 @@ export class CorpusSnapshotStore {
 		try {
 			const database = await this._database();
 			return await new Promise<CorpusSnapshot | null>((resolve) => {
-				const request = database.transaction(STORE_NAME, 'readonly').objectStore(STORE_NAME).get(this._key);
-				request.onsuccess = () => resolve(validCorpusSnapshot(request.result) ? request.result : null);
+				const store = database.transaction(STORE_NAME, 'readonly').objectStore(STORE_NAME);
+				const request = store.get(this._key);
 				request.onerror = () => resolve(null);
+				request.onsuccess = () => {
+					const record = request.result as unknown;
+					//A record written before the parts split is complete in itself.
+					if (validCorpusSnapshot(record)) { resolve(record); return; }
+					if (!validManifest(record)) { resolve(null); return; }
+					const manifest = record;
+					const cards : {[id : string] : unknown} = {};
+					let remaining = manifest.cardsParts;
+					let failed = false;
+					const finish = () => {
+						if (failed) { resolve(null); return; }
+						const {cardsParts, cardsCount, ...rest} = manifest;
+						void cardsParts;
+						const assembled = {...rest, schemaVersion: SCHEMA_VERSION, cards} as CorpusSnapshotV2;
+						//A missing or truncated part is a damaged snapshot, not a
+						//smaller one: the count pins what the manifest promised.
+						resolve(Object.keys(cards).length === cardsCount && validCorpusSnapshot(assembled) ? assembled : null);
+					};
+					if (remaining === 0) { finish(); return; }
+					for (let index = 0; index < manifest.cardsParts; index++) {
+						const partRequest = store.get(partKey(this._key, index));
+						partRequest.onerror = () => { failed = true; if (--remaining === 0) finish(); };
+						partRequest.onsuccess = () => {
+							if (validCardsPart(partRequest.result)) Object.assign(cards, partRequest.result);
+							else failed = true;
+							if (--remaining === 0) finish();
+						};
+					}
+				};
 			});
 		} catch {
 			return null;
@@ -222,9 +301,17 @@ export class CorpusSnapshotStore {
 	//before transaction completion leaves the previous complete snapshot, never
 	//a half-updated corpus.
 	async save(cards : {[id : string] : unknown}, clientClockCardIDs : string[], processedTombstoneIDs : string[], tombstoneCursor : WireTimestamp | null, watermarkClamp : WireTimestamp | null, supplemental? : {sections : {[id : string] : unknown}, tags : {[id : string] : unknown}}, displayTitles? : {[id : string] : [string, string]}) : Promise<void> {
-		const snapshot : CorpusSnapshotV2 = {
-			schemaVersion: SCHEMA_VERSION,
-			cards,
+		const ids = Object.keys(cards);
+		const parts : {[id : string] : unknown}[] = [];
+		for (let start = 0; start < ids.length; start += SNAPSHOT_CARDS_PER_PART) {
+			const part : {[id : string] : unknown} = {};
+			for (const id of ids.slice(start, start + SNAPSHOT_CARDS_PER_PART)) part[id] = cards[id];
+			parts.push(part);
+		}
+		const manifest : CorpusSnapshotManifest = {
+			schemaVersion: MANIFEST_SCHEMA_VERSION,
+			cardsParts: parts.length,
+			cardsCount: ids.length,
 			clientClockCardIDs: [...clientClockCardIDs],
 			processedTombstoneIDs: [...processedTombstoneIDs],
 			tombstoneCursor: tombstoneCursor ? {...tombstoneCursor} : null,
@@ -238,17 +325,49 @@ export class CorpusSnapshotStore {
 			const transaction = database.transaction(STORE_NAME, 'readwrite');
 			const store = transaction.objectStore(STORE_NAME);
 			const ownerRequest = store.get(`${this._key}:owner`);
+			//Name the failure. The DEV rehearsal spent an hour on saves that
+			//reported only "ownership changed during the write" while the
+			//ownership record matched: a failing put request's error event
+			//bubbles to the transaction BEFORE the transaction has aborted,
+			//when transaction.error is still null, so rejecting with
+			//transaction.error there reads exactly like the deliberate
+			//abort of the mismatch branch. Keep the put request's own error,
+			//keep a synchronous throw from put (serialization, size), and
+			//describe a real mismatch with both tokens; reject once, on abort.
+			//First failure wins: once one request fails, IndexedDB fires an
+			//AbortError at every request still pending, and recording those
+			//would bury the cause (the review showed a mid-part failure
+			//reported as a bare AbortError). On abort, transaction.error is
+			//also set by then; prefer it when what we hold is only a bystander.
+			let failure : unknown = null;
+			const noteFailure = (request : IDBRequest) => {
+				request.onerror = () => { if (!failure) failure = request.error || new Error('snapshot request failed without an error'); };
+			};
 			ownerRequest.onsuccess = () => {
 				const owner = ownerRequest.result as OwnershipToken | undefined;
 				if (owner && owner.ownerID === this._ownership.ownerID && owner.epoch === this._ownership.epoch) {
-					store.put(snapshot, this._key);
+					try {
+						//Every previous part, whatever the manifest said: a
+						//legacy single record at `key` is simply overwritten.
+						noteFailure(store.delete(partsRange(this._key)));
+						parts.forEach((part, index) => noteFailure(store.put(part, partKey(this._key, index))));
+						noteFailure(store.put(manifest, this._key));
+					} catch (err) {
+						failure = err instanceof Error ? err : new Error(String(err));
+						transaction.abort();
+					}
 				} else {
+					failure = new Error(`snapshot ownership mismatch for ${this._key}: held ${describeOwnership(this._ownership)}, record ${owner ? describeOwnership(owner) : 'absent'}`);
 					transaction.abort();
 				}
 			};
+			noteFailure(ownerRequest);
 			transaction.oncomplete = () => resolve();
-			transaction.onerror = () => reject(transaction.error);
-			transaction.onabort = () => reject(transaction.error);
+			transaction.onerror = () => { /* the abort that follows carries the cause */ };
+			transaction.onabort = () => {
+				const bystander = Boolean(failure) && (failure as {name? : string}).name === 'AbortError';
+				reject((bystander && transaction.error) || failure || transaction.error || new Error('snapshot transaction aborted'));
+			};
 		});
 	}
 
@@ -258,6 +377,10 @@ export class CorpusSnapshotStore {
 			await new Promise<void>((resolve, reject) => {
 				const transaction = database.transaction(STORE_NAME, 'readwrite');
 				const store = transaction.objectStore(STORE_NAME);
+				//Parts by range, not by the manifest's count: an older build may
+				//have replaced the manifest with a single record, and these parts
+				//hold the signed-out account's unpublished cards (C11).
+				store.delete(partsRange(this._key));
 				store.delete(this._key);
 				//Also drop the ownership token. Leaving it behind kept a record
 				//keyed to the signed-out account, and a stale epoch there can

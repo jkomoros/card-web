@@ -946,9 +946,10 @@ const saveCorpusSnapshot = async () : Promise<void> => {
 		consecutiveSnapshotSaveFailures = 0;
 		status(`compact snapshot saved: ${Object.keys(cards).length} cards in ${(performance.now() - startedAt).toFixed(0)}ms`);
 	} catch (e) {
-		//`transaction.error` is null on a deliberate abort, so String(e) can
-		//read literally "null"; name the case instead.
-		const reason = String(e) === 'null' ? 'ownership changed during the write' : String(e);
+		//The store names its failures now (an oversized value, an ownership
+		//mismatch with both tokens); a bare null would only mean an abort
+		//with no recorded cause.
+		const reason = e === null ? 'the write was aborted without a cause' : String(e);
 		consecutiveSnapshotSaveFailures++;
 		status(`compact snapshot save unavailable (${reason})`);
 		if (consecutiveSnapshotSaveFailures >= MAX_SNAPSHOT_SAVE_FAILURES) {
