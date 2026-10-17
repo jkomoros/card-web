@@ -256,13 +256,18 @@ sections, 52 tags).**
   were refused with a banner and its creates reported as not going
   through; reload came up on the new build with nothing lost (owner's
   check).
-- Deploying DEV needed two detours worth knowing for prod: the first two
-  `npm run deploy:dev` attempts failed on the storage/functions targets
-  with "Your project is being set up. Please wait a minute" (right after
-  the function deletions); and the installed Firebase CLI 12.9 cannot
-  deploy the current functions SDK ("Unexpected key extensions") — use a
-  current CLI (`npx -y firebase-tools@latest`) for functions and storage.
-  Hosting and `--only firestore:rules` work with either. A hosting-only
+- Deploying DEV needed a detour worth knowing for prod: every
+  `npm run deploy:dev` attempt (four, over several hours, so not a
+  transient) failed at the Firebase deploy step with "Your project is
+  being set up. Please wait a minute", and the installed Firebase CLI
+  12.9 also cannot deploy the current functions SDK ("Unexpected key
+  extensions"). The build, config injection and deploy stamp that
+  precede that step all succeed, so the recipe is `npm run deploy:dev`
+  for those, then the same `firebase deploy --only …` line it printed,
+  run through a current CLI (`npx -y firebase-tools@latest deploy
+  --project … --only …`), which deployed hosting, storage, rules,
+  indexes and all eleven functions cleanly. Hosting-only and `--only
+  firestore:rules` work with either CLI. A hosting-only
   deploy without the cli's `writeDeployStamp` leaves no
   `deploy-stamp.json`, which the host then rewrites to index.html.
 - Anonymous probe of the deployed build: cold 6.2 s / warm 5.6 s to live
