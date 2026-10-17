@@ -211,7 +211,12 @@ const gcloudRestore = (): void => {
 	}
 	// Need to use shell for the subcommand
 	console.log('Running gcloud restore...');
-	const result = spawnSync('bash', ['-c', 'gcloud beta firestore import $(gsutil ls gs://' + BACKUP_BUCKET_NAME + ' | tail -n 1)'], {
+	//`gsutil ls | tail -n 1` is ALPHABETICAL: a manually named export sorting
+	//after "deploy-" (the bucket held dev-enterprise-migration-2026-04-12)
+	//would be restored instead of the newest backup. Backups are named by
+	//RELEASE_TAG, which starts with "deploy-" and embeds the date, so the
+	//last "deploy-" entry is the newest.
+	const result = spawnSync('bash', ['-c', 'gcloud beta firestore import $(gsutil ls gs://' + BACKUP_BUCKET_NAME + ' | grep "/deploy-" | tail -n 1)'], {
 		stdio: 'inherit'
 	});
 	if (result.error) throw result.error;

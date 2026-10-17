@@ -232,7 +232,12 @@ If quiescing is impossible, run hosting → close-and-reopen everywhere → scri
 1. **[OWNER]** Delete the parked branch's DEV functions (§4.4).
 2. **[OWNER]** `npm run backup`, then `npm run reset-dev`. This wipes DEV Firestore and imports the latest backup, giving DEV a prod-shaped corpus (`cli.ts:387-393`). **Afterwards gcloud is left pointing at DEV.**
 3. **[AGENT]** The script against DEV (dry run, write, dry run), THEN `npm run deploy:dev`. The deploy also replaces any rules the branch left on DEV; which rules DEV runs now is UNVERIFIED.
-4. **[AGENT]** Run steps 3–7 against DEV in the same order (script, then `deploy:dev`, then verify, then the second pass). Record:
+4. **[AGENT]** Run steps 3–7 against DEV in the same order (script, then `deploy:dev`, then verify, then the second pass). Automation (`tools/rehearsal/`):
+   - `node tools/rehearsal/dev-probe.mjs --out <file>` — anonymous Playwright boot of the deployed build, cold then warm: time-to-live, counts, console errors, the deploy stamp, and the persisted snapshot records (the shared `:published` record must carry no `displayTitles`). Exit code 2 when a verdict fails. Run before and after the deploy.
+   - `node tools/cutover-working-notes-titles.mjs` (DEV, dry run by default; `--write`) — the script itself reports the counts; the final dry run must say `unchanged == total`.
+   - `tools/rehearsal/owner-probe.mjs` — in the OWNER's signed-in session run `DEBUG_PERF.enable()`, reload, then paste it into the console; it observes the store and the DOM (writes nothing) and `await REHEARSAL.report()` prints a JSON block to paste back: Save→new-editor cycle times, Working notes rows that still show a bare date, the privileged snapshot's title count, every snackbar and banner seen, and any paused record or queued intent.
+   - `npm run reset-dev` restores the newest `deploy-*` backup (it used to take the alphabetically last object in the bucket, which was a stale manual export).
+   Record:
    - the card counts;
    - the script's wall time and its function invocation count;
    - cold and warm boot times before and after.
