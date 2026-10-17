@@ -867,22 +867,38 @@ const handleCollectionResult = (message : {subscriptionID : number, ids : string
 //its answer can be installed before a caller decides whether a card belongs
 //to the active collection. A failed or superseded run is unknown, never an
 //authoritative empty collection.
+//
+//Every refusal says why. The DEV rehearsal saw one creation in nine fall
+//back to "its collection could not be loaded" with nothing in the console to
+//say which of these conditions it was, and the fallback is otherwise
+//unreproducible after the fact.
+const refuseRefresh = (reason : string) : false => {
+	console.warn(`[corpus-worker] active-collection refresh skipped: ${reason}`);
+	return false;
+};
+
 export const corpusWorkerRefreshActiveCollection = async () : Promise<boolean> => {
-	if (readMode() !== 'on' || !corpusWorkerCanRunCollections()) return false;
+	if (readMode() !== 'on') return refuseRefresh('worker collections are not on');
+	if (!corpusWorkerCanRunCollections()) return refuseRefresh('the worker cannot run collections yet');
 	const active = bridgeSubscriptions.active;
 	const description = selectActiveCollectionDescription(store.getState() as State).serialize();
-	if (!active.id || active.descriptionSerialized !== description) return false;
+	if (!active.id) return refuseRefresh('no active subscription');
+	if (active.descriptionSerialized !== description) return refuseRefresh('the active subscription does not match the current collection description');
 	const requestGeneration = generation;
 	const requestID = active.id;
 	const requestKey = active.key;
 	//The active subscription uses an empty key card. A card ID here would change
 	//the meaning of filters containing `self`.
 	const request = corpusWorkerRunCollection(description, '');
-	if (!request) return false;
+	if (!request) return refuseRefresh('the worker did not accept the request');
 	const result = await request;
-	if (!result || requestGeneration !== generation || !corpusWorkerCanRunCollections()) return false;
-	if (active.id !== requestID || active.key !== requestKey || active.descriptionSerialized !== description) return false;
-	if (selectActiveCollectionDescription(store.getState() as State).serialize() !== description) return false;
+	//Generation first: a bump flushes every pending request with null, and
+	//that is better named as the bump than as a failed run.
+	if (requestGeneration !== generation) return refuseRefresh('the worker generation changed during the request');
+	if (!result) return refuseRefresh('the worker run failed or timed out (a timeout logs its own warning above)');
+	if (!corpusWorkerCanRunCollections()) return refuseRefresh('the worker stopped serving collections during the request');
+	if (active.id !== requestID || active.key !== requestKey || active.descriptionSerialized !== description) return refuseRefresh('the active subscription changed during the request');
+	if (selectActiveCollectionDescription(store.getState() as State).serialize() !== description) return refuseRefresh('the collection description changed during the request');
 	handleCollectionResult({subscriptionID: requestID, ...result});
 	return true;
 };

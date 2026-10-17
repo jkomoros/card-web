@@ -109,11 +109,22 @@ describe('new card navigation waits for the real worker answer', () => {
 		assert.strictEqual(window.location.pathname, '/c/new-note');
 	});
 
-	it('does not route from a failed worker run', async () => {
-		const navigation = store.dispatch(navigateToNewCard());
-		answer([], true);
-		await navigation;
+	it('does not route from a failed worker run, and says why in the console', async () => {
+		//The DEV rehearsal saw this fallback once with nothing in the console
+		//to say which refusal it was; every refusal now names itself.
+		const warnings = [];
+		const originalWarn = console.warn;
+		console.warn = (...args) => { warnings.push(args.join(' ')); };
+		try {
+			const navigation = store.dispatch(navigateToNewCard());
+			answer([], true);
+			await navigation;
+		} finally {
+			console.warn = originalWarn;
+		}
 		assert.strictEqual(window.location.pathname, oldPath);
+		const refusals = warnings.filter(line => line.includes('active-collection refresh skipped: the worker run failed'));
+		assert.strictEqual(refusals.length, 1, `expected one refusal warning, got: ${JSON.stringify(warnings)}`);
 	});
 
 	it('cancels when the collection changes while the card stays selected', async () => {
