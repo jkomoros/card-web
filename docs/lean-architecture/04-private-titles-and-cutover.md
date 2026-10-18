@@ -374,8 +374,8 @@ Fits the ~250 budget; removals are half the estimate (the bulk "title loop" is o
 
 - **Q1.** Date source: `updated_substantive ?? created` (recommended, T2) or `created`? Master's "date of last save" has no field that survives the `updated` bumps.
 - **Q2.** Should the full card's h1 show the private title when the authored title is empty? Master shows nothing.
-- **Q3.** Graph labels: display title (possibly hundreds of cards) or authored-or-id?
+- **Q3.** Graph labels: display title (possibly hundreds of cards) or authored-or-id? **Decided Oct 17, 2026: display title**, budgeted like the list, rendered as a child SVG `<title>` (477202cd).
 - **Q4.** Accept a quiesced deploy-everything in place of §4.8's rules → script → hosting order (T5)?
 - **Q5.** A maintenance task through `modifyCardWithBatch` would get revision/`updated`/NLP/fingerprint right by construction (`data.ts:1985-2004`), but runs in a browser. Script specified as asked.
 - **Q6.** `tools/migrate-nlp-tokens.mjs` defaults to **PROD** with no flags. Fix it in slice 8?
-- **Q7.** Display titles can shift when the IDF epoch rolls (10% drift), whereas master's were frozen at save. Is that acceptable?
+- **Q7.** Display titles can shift when the IDF epoch rolls (10% drift), whereas master's were frozen at save. Is that acceptable? **Decided Oct 17, 2026: yes.** Rollout: the quiesced runbook (§4.3), no grace rule. §8 items 13 and 14 deferred to #776 and #777.
