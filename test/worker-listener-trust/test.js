@@ -3,7 +3,7 @@
 import assert from 'assert';
 import fs from 'fs';
 
-import {listenerDocumentTrusted} from '../../lib/src/worker/listener-trust.js';
+import {listenerDocumentTrusted, serverConfirmedIDs} from '../../lib/src/worker/listener-trust.js';
 
 describe('worker listener watermark trust', () => {
 	it('trusts only server-confirmed documents', () => {
@@ -22,7 +22,7 @@ describe('worker listener watermark trust', () => {
 		assert.match(listener, /listenerDocumentTrusted\([\s\S]*snapshot\.metadata\.fromCache[\s\S]*change\.doc\.metadata\.hasPendingWrites/,
 			'tombstone listener must reject both cached snapshots and pending documents');
 		assert.ok(
-			listener.indexOf('listenerDocumentTrusted(') < listener.indexOf("data({serverTimestamps: 'estimate'})"),
+			listener.indexOf('listenerDocumentTrusted(') < listener.indexOf('data({serverTimestamps: \'estimate\'})'),
 			'the pending-write check must happen before reading a client-estimated timestamp',
 		);
 	});
@@ -62,7 +62,7 @@ describe('one-shot server-read watermark trust (review R2-2)', () => {
 	it('tombstone catch-up defers pending tombstone writes to their server acknowledgement', () => {
 		const catchUp = between('const catchUpTombstones', 'const retryPendingLaunders');
 		assert.ok(
-			catchUp.indexOf('docSnapshot.metadata.hasPendingWrites') < catchUp.indexOf("data({serverTimestamps: 'estimate'})"),
+			catchUp.indexOf('docSnapshot.metadata.hasPendingWrites') < catchUp.indexOf('data({serverTimestamps: \'estimate\'})'),
 			'catchUpTombstones must skip pending docs before reading estimated timestamps',
 		);
 	});
@@ -71,6 +71,30 @@ describe('one-shot server-read watermark trust (review R2-2)', () => {
 		const launder = between('const processTombstones', 'const catchUpTombstones');
 		assert.match(launder, /snapshot\.metadata\.hasPendingWrites\) clientClockCardIDs\.add\(card\.id\)/,
 			'launder re-ingest must not un-contaminate a pending overlay');
+	});
+
+	it('a server-confirmed snapshot vouches for a marked doc only when the held `updated` is the server\'s, changed or not', () => {
+		//#785: the cache-first delivery marks the whole window; the
+		//confirming snapshot carries no changes when the cache matched.
+		const stamp = (seconds) => ({seconds, nanoseconds: 0});
+		const doc = (id, updated, hasPendingWrites = false) => ({id, metadata: {hasPendingWrites}, get: (field) => (field === 'updated' ? updated : undefined)});
+		const held = {a: stamp(10), b: stamp(10), c: stamp(10), echo: stamp(99)};
+		const heldUpdated = (id) => held[id];
+		const marked = new Set(['a', 'b', 'c', 'echo']);
+		assert.deepStrictEqual(serverConfirmedIDs({metadata: {fromCache: true}, docs: [doc('a', stamp(10)), doc('b', stamp(10))]}, marked, heldUpdated), [], 'a cache view vouches for nothing');
+		assert.deepStrictEqual(serverConfirmedIDs({metadata: {fromCache: false}, docs: [doc('a', stamp(10)), doc('b', stamp(10), true), doc('c', stamp(10)), doc('echo', stamp(10))]}, marked, heldUpdated), ['a', 'c'],
+			'the server view vouches for unchanged docs without a pending overlay; not a pending one; not a held echo whose client stamp differs from the server image');
+		assert.deepStrictEqual(serverConfirmedIDs({metadata: {fromCache: false}, docs: [doc('a', stamp(10))]}, new Set(), heldUpdated), [], 'nothing marked, nothing walked');
+		assert.deepStrictEqual(serverConfirmedIDs({metadata: {fromCache: false}, docs: [doc('zzz', stamp(10))]}, marked, heldUpdated), [], 'an unmarked doc is not touched');
+	});
+
+	it('both server listener paths clear the client-clock mark over the whole confirmed result set', () => {
+		const ingest = between('const ingestSnapshot', 'const listenerError');
+		assert.match(ingest, /for \(const id of serverConfirmedIDs\(snapshot, clientClockCardIDs, heldUpdatedStamp\)\) clientClockCardIDs\.delete\(id\)/,
+			'ingestSnapshot must clear over serverConfirmedIDs, not only admitted changes');
+		const delta = between('const attachDeltaListener', 'const unpublishedPartitionPageQuery');
+		assert.match(delta, /for \(const id of serverConfirmedIDs\(snapshot, clientClockCardIDs, heldUpdatedStamp\)\) clientClockCardIDs\.delete\(id\)/,
+			'the delta listener must clear over serverConfirmedIDs, not only docChanges');
 	});
 
 	it('server listener deliveries never un-contaminate a doc still overlaid by a pending write', () => {

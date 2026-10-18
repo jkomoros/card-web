@@ -78,7 +78,8 @@ import {
 } from './fast-dedupe.js';
 
 import {
-	listenerDocumentTrusted
+	listenerDocumentTrusted,
+	serverConfirmedIDs
 } from './listener-trust.js';
 
 import {
@@ -1048,6 +1049,14 @@ const stopSupersededWorker = async (message : string) => {
 	workerScope.close();
 };
 
+//The `updated` the corpus holds for a card, for serverConfirmedIDs's
+//equality check against the server image.
+const heldUpdatedStamp = (id : CardID) : {seconds : number, nanoseconds : number} | undefined => {
+	const card = corpus.get(id);
+	const updated = card ? card.updated as Timestamp | undefined : undefined;
+	return updated && typeof updated.seconds === 'number' ? {seconds: updated.seconds, nanoseconds: updated.nanoseconds} : undefined;
+};
+
 const parseSnapshot = (snapshot : QuerySnapshot) : {cards : Cards, removedIDs : CardID[], pendingWriteIDs : Set<CardID>} => {
 	const cards : Cards = {};
 	const removedIDs : CardID[] = [];
@@ -1442,6 +1451,10 @@ const ingestSnapshot = (snapshot : QuerySnapshot, fetchType : CardFetchType, fas
 			if (!parsed.pendingWriteIDs.has(id)) clientClockCardIDs.delete(id);
 		}
 		for (const id of removedIDs) clientClockCardIDs.delete(id);
+		//And every unchanged doc the server vouches for (see
+		//serverConfirmedIDs): a cache-first delivery marked them, and a
+		//confirming snapshot with no changes never reached the loop above.
+		for (const id of serverConfirmedIDs(snapshot, clientClockCardIDs, heldUpdatedStamp)) clientClockCardIDs.delete(id);
 	}
 	contaminatePendingWriteIDs(parsed.pendingWriteIDs);
 	const count = Object.keys(admitted).length;
@@ -2834,6 +2847,11 @@ const attachDeltaListener = (database : Firestore) => {
 				))
 				.map(change => change.doc.id));
 			const count = Object.keys(cards).length;
+			//Server-confirmed result set: clear the client-clock mark on
+			//every doc it vouches for, changed or not (see serverConfirmedIDs
+			//— the cache-first delivery marked the whole window, and this
+			//snapshot usually carries no changes for it).
+			for (const id of serverConfirmedIDs(snapshot, clientClockCardIDs, heldUpdatedStamp)) clientClockCardIDs.delete(id);
 			if (count) {
 				//Admission first: an older image the corpus refused must not
 				//touch the client-clock bookkeeping or the watermark below.
