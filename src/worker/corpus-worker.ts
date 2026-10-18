@@ -48,6 +48,8 @@ import {
 	advanceWatermark,
 	compareTimestamps,
 	watermarkQueryBound,
+	deltaWindowRoute,
+	DELTA_WINDOW_MAX_DOCS,
 	WireTimestamp
 } from './watermark.js';
 
@@ -604,6 +606,45 @@ const publishIDFMap = () => {
 //that a reader would pay at every boot for a fallback it may never reach.
 //Readers keep the lazy path (built on the first similar request).
 let fingerprintWarmupToken = 0;
+//Best effort, within bounds: a compact snapshot on disk before the first
+//fingerprint warm-up slice. The warm-ups are the heaviest moment of a fresh
+//signed-in boot (the similarity map alone is ~150 MB), and twice on the
+//owner's machines the tab died in them; the retry only worked because the
+//snapshot had already been saved, so the next boot primed locally. Snapshot
+//persistence is enabled only when the corpus reaches live (a corpus still
+//missing cards must never be written as the known-complete snapshot), and a
+//snapshot prime grants load-complete — and so the IDF epoch and this
+//warm-up — well before live. So: wait for persistence to come on (live),
+//then for the save it schedules to COMPLETE (a save abandons and reschedules
+//under churn), each wait bounded; if either bound runs out the warm-up
+//proceeds, and nothing here is a guarantee. Saves are blocked before live
+//anyway, so delaying the tag warm-up until then costs the author nothing.
+const WARMUP_PERSISTENCE_WAIT_MS = 5 * 60 * 1000;
+const WARMUP_SAVE_WAIT_MS = 30 * 1000;
+const awaitPendingSnapshotSave = async (shouldContinue : () => boolean) : Promise<void> => {
+	if (!corpusSnapshotStore) return;
+	const startedAt = performance.now();
+	while (!corpusSnapshotPersistenceEnabled && performance.now() - startedAt < WARMUP_PERSISTENCE_WAIT_MS) {
+		if (!shouldContinue()) return;
+		await new Promise<void>(resolve => setTimeout(resolve, 250));
+	}
+	if (!corpusSnapshotPersistenceEnabled) return;
+	const saveStartedAt = performance.now();
+	while ((corpusSnapshotSaveTimer || corpusSnapshotSaveInFlight) && performance.now() - saveStartedAt < WARMUP_SAVE_WAIT_MS) {
+		if (!shouldContinue()) return;
+		if (corpusSnapshotSaveTimer) {
+			clearTimeout(corpusSnapshotSaveTimer);
+			corpusSnapshotSaveTimer = null;
+			corpusSnapshotFirstDeferralAt = 0;
+			//Returns when the walk saved OR abandoned-and-rescheduled; the
+			//loop condition sees the rescheduled timer and goes again.
+			await saveCorpusSnapshot();
+			continue;
+		}
+		await new Promise<void>(resolve => setTimeout(resolve, 100));
+	}
+};
+
 const scheduleFingerprintWarmup = () => {
 	const myToken = ++fingerprintWarmupToken;
 	if (!currentUid) return;
@@ -616,6 +657,8 @@ const scheduleFingerprintWarmup = () => {
 	void (async () => {
 		try {
 			await yieldFn();
+			if (!shouldContinue()) return;
+			await awaitPendingSnapshotSave(shouldContinue);
 			if (!shouldContinue()) return;
 			const startedAt = performance.now();
 			//Order: tags, similarity, titles. The first editor open after boot
@@ -3050,6 +3093,11 @@ const coldSweep = async (database : Firestore, myConnectionGeneration : number) 
 			contaminatePendingWriteIDs(pendingWriteIDs);
 			if (page.size) {
 				forwardBatch(updateLocalState(cards, []), [], 'unpublished', true);
+				//A server page vouches for its docs the way a server listener
+				//delivery does (serverConfirmedIDs): a sweep run for an
+				//oversized delta window (#786) must also heal the marks that
+				//made the window oversized, or the next boot would sweep again.
+				for (const id of serverConfirmedIDs(page, clientClockCardIDs, heldUpdatedStamp)) clientClockCardIDs.delete(id);
 				sweep.cursors[index] = page.docs[page.docs.length - 1].id;
 			}
 			if (page.size < COLD_SWEEP_PAGE_SIZE) sweep.done[index] = true;
@@ -3071,11 +3119,92 @@ const coldSweep = async (database : Firestore, myConnectionGeneration : number) 
 	return true;
 };
 
+//The delta plane for this connection: count the window first, and serve an
+//oversized one with the budgeted sweep (deltaWindowRoute, #786) before the
+//listener attaches from the sweep's clamp. The count is one aggregation
+//query (a read per thousand docs counted); if it fails, or there is no sync
+//meta store to run a sweep against, the listener is attached as before. One
+//COMPLETED sweep per generation, latched after it finishes (a failed sweep
+//retries here rather than falling back to the oversized listener).
+let oversizedWindowSweptGeneration = -1;
+const attachDeltaOrSweep = async (database : Firestore, myConnectionGeneration : number) : Promise<void> => {
+	if (myConnectionGeneration !== connectionGeneration) return;
+	let count : number | null = null;
+	const bound = sessionWatermark ? watermarkQueryBound(sessionWatermark) : {seconds: 0, nanoseconds: 0};
+	try {
+		const snapshot = await getCountFromServer(query(collection(database, CARDS_COLLECTION),
+			where('published', '==', false),
+			where('updated', '>', new Timestamp(bound.seconds, bound.nanoseconds))));
+		count = snapshot.data().count;
+	} catch (e) {
+		status(`delta window count failed (${String(e)}); attaching the delta listener without it`);
+	}
+	if (myConnectionGeneration !== connectionGeneration) return;
+	const alreadySwept = oversizedWindowSweptGeneration === myConnectionGeneration;
+	//A sweep interrupted by a crash (cursors persisted per page) is resumed
+	//rather than restarted — but only when the window counted from the
+	//clamped watermark (the interrupted sweep's start bound, promoted on
+	//the warm path) is itself within the limit: resuming an OLD sweep
+	//reads only the partition tails and then clamps to its old start
+	//bound, which would hand the listener the oversized window this route
+	//exists to avoid. Only a persistent-cache prime can carry cursors
+	//here; a compact-snapshot prime rebuilds its sync state without them
+	//by design (see connectUnpublishedWatermark), so a snapshot client
+	//that keeps dying mid-sweep still restarts it (#787).
+	const resumable = Boolean(syncMetaStore && syncMetaState && syncMetaState.coldSweep && !alreadySwept);
+	const resuming = resumable && (count === null || count <= DELTA_WINDOW_MAX_DOCS);
+	const route = resuming ? 'sweep' : (syncMetaStore && syncMetaState) ? deltaWindowRoute(count, DELTA_WINDOW_MAX_DOCS, alreadySwept) : 'listen';
+	if (route === 'listen') {
+		if (count !== null && count > DELTA_WINDOW_MAX_DOCS) status(`delta window of ${count} docs is over ${DELTA_WINDOW_MAX_DOCS} but is served by the listener (${alreadySwept ? 'already swept this connection' : 'no sync meta store for a sweep'})`);
+		else if (count !== null) status(`delta window: ${count} docs; attaching the listener`);
+		attachDeltaListener(database);
+		return;
+	}
+	if (resuming) {
+		status(`resuming the interrupted sweep from its cursors (${syncMetaState!.coldSweep!.done.filter(Boolean).length} of ${syncMetaState!.coldSweep!.done.length} partitions done)`);
+	} else {
+		status(`delta window of ${count} docs exceeds ${DELTA_WINDOW_MAX_DOCS}; serving it with the budgeted sweep instead of one listener`);
+		//A sweep interrupted by a crash leaves some cards fresh and some
+		//stale, and a boot that then primes from the SDK cache would derive
+		//a recent watermark over the fresh ones and never re-read the stale
+		//ones. Clamp to the watermark we are sweeping FROM first; the
+		//completed sweep replaces it with its own start bound as it always
+		//has.
+		if (syncMetaState && sessionWatermark) {
+			const clamp = syncMetaState.watermarkClamp;
+			if (!clamp || compareTimestamps(sessionWatermark, clamp) < 0) syncMetaState.watermarkClamp = sessionWatermark;
+		}
+		//A fresh sweep, not a resume of an old one whose window outgrew the
+		//limit (see `resuming` above): the old cursors are dropped so the
+		//sweep starts from a recent start bound.
+		if (syncMetaState) {
+			syncMetaState.coldSweep = null;
+			if (syncMetaStore) await syncMetaStore.save(syncMetaState);
+		}
+	}
+	const done = await coldSweep(database, myConnectionGeneration);
+	if (myConnectionGeneration !== connectionGeneration) return;
+	if (!done) {
+		setTimeout(() => void attachDeltaOrSweep(database, myConnectionGeneration), GATE_RETRY_MS);
+		return;
+	}
+	oversizedWindowSweptGeneration = myConnectionGeneration;
+	//The tombstone listener that called us is live; re-verify and attach
+	//the delta plane without a second one.
+	void afterColdSweep(database, myConnectionGeneration, false);
+};
+
 //Tail shared by the sweep's completion paths: RE-VERIFY with the gate (the
 //sweep's cursor lives in a different IndexedDB than the swept docs — a
 //cache eviction mid-sweep could otherwise let a tail-only corpus complete
-//as trustworthy), then bring up the normal delta plane.
-const afterColdSweep = async (database : Firestore, myConnectionGeneration : number) : Promise<void> => {
+//as trustworthy; this gate judges ghosts, and the deficit side is judged
+//by verifyDeficitsAfterDeltaCatchUp once the delta has caught up), then
+//bring up the normal delta plane.
+//`attachTombstone` is false when a tombstone listener for this generation
+//is already live (the oversized-window sweep is started from its first
+//delivery): a second one would process every tombstone twice, launder
+//reads included.
+const afterColdSweep = async (database : Firestore, myConnectionGeneration : number, attachTombstone = true) : Promise<void> => {
 	if (myConnectionGeneration !== connectionGeneration) return;
 	const gate = await runTrustGate(database, myConnectionGeneration);
 	if (myConnectionGeneration !== connectionGeneration) return;
@@ -3083,18 +3212,22 @@ const afterColdSweep = async (database : Firestore, myConnectionGeneration : num
 		if (gate && gate.mismatched.length) {
 			const repaired = await repairPartitions(database, myConnectionGeneration, gate.mismatched);
 			if (myConnectionGeneration !== connectionGeneration || !repaired) {
-				setTimeout(() => void afterColdSweep(database, myConnectionGeneration), 60 * 1000);
+				setTimeout(() => void afterColdSweep(database, myConnectionGeneration, attachTombstone), 60 * 1000);
 				return;
 			}
 		} else {
-			setTimeout(() => void afterColdSweep(database, myConnectionGeneration), 60 * 1000);
+			setTimeout(() => void afterColdSweep(database, myConnectionGeneration, attachTombstone), 60 * 1000);
 			return;
 		}
 	}
 	sessionWatermark = deriveClampedWatermark();
 	markBootCheckpoint('trustGate');
+	if (!attachTombstone) {
+		void attachDeltaOrSweep(database, myConnectionGeneration);
+		return;
+	}
 	attachTombstoneListener(database, () => {
-		attachDeltaListener(database);
+		void attachDeltaOrSweep(database, myConnectionGeneration);
 	});
 };
 
@@ -3488,9 +3621,17 @@ const connectUnpublishedWatermark = async (deferPublishedUntilAfterPrime = false
 				return;
 			}
 		}
-		//A gate pass without the sweep means any persisted sweep cursor is
-		//stale — clearing it prevents a FUTURE cold event from resuming
-		//mid-corpus and "completing" with only the tail.
+		//An interrupted sweep's start bound is promoted to the clamp here,
+		//exactly as the completion path does; the sweep itself is KEPT so
+		//the delta plane below can resume it from its cursors
+		//(attachDeltaOrSweep, which drops it instead when the window from
+		//that bound has outgrown the limit). Only a persistent-cache prime
+		//reaches here with cursors; a compact-snapshot prime rebuilds its
+		//sync state without them. A resumed sweep reads partition tails
+		//only; the heads it trusts are judged by verifyDeficitsAfterDeltaCatchUp
+		//after the delta listener's first server delivery (the gate in
+		//afterColdSweep judges ghosts only), which re-reads a deficit
+		//partition in full.
 		if (syncMetaState && syncMetaState.coldSweep) {
 			//PROMOTE the start bound first, exactly as the completion path
 			//does. Discarding it lost the clamp: an interrupted sweep whose
@@ -3513,16 +3654,16 @@ const connectUnpublishedWatermark = async (deferPublishedUntilAfterPrime = false
 					(candidate.seconds === existingClamp.seconds && candidate.nanoseconds < existingClamp.nanoseconds);
 				if (candidateOlder) syncMetaState.watermarkClamp = candidate;
 			}
-			syncMetaState.coldSweep = null;
 			if (syncMetaStore) void syncMetaStore.save(syncMetaState);
 		}
 		//4. Watermark from the (verified) corpus in hand — clamped if a
 		//completed sweep's clamp is still pending (crash recovery).
 		sessionWatermark = deriveClampedWatermark();
 		//5. Tombstone listener (catch-up already ran); then the delta
-		//listener from the watermark; then complete.
+		//plane from the watermark (listener, or the sweep for an oversized
+		//window); then complete.
 		attachTombstoneListener(database, () => {
-			attachDeltaListener(database);
+			void attachDeltaOrSweep(database, myConnectionGeneration);
 		});
 	};
 	void gateAndProceed();
