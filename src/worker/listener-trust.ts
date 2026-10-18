@@ -41,3 +41,21 @@ export const serverConfirmedIDs = (
 	}
 	return ids;
 };
+
+//What a per-user state listener (stars, reads, reading list) does with a
+//delivery. The listeners are attached with includeMetadataChanges so the
+//SDK raises the server's confirmation of an EMPTY set even when nothing
+//changed — without that, a dropped empty cache delivery is the last event
+//the SDK ever raises for an account with no stars, and the page's loaded
+//flag never sets (the second review ran the SDK's own QueryListener logic
+//to show it; the slow-backend case hits online boots too).
+//  'drop':          an empty FIRST delivery from the cache — the absence of
+//                   news, not the set (offline boot on the memory cache);
+//  'authoritative': the first real delivery, sent as the whole set;
+//  'skip':          a later event with no document changes (metadata only);
+//  'delta':         a later event with changes.
+export type UserStateDelivery = 'drop' | 'authoritative' | 'skip' | 'delta';
+export const userStateDelivery = (firstDelivery : boolean, fromCache : boolean, empty : boolean, changeCount : number) : UserStateDelivery => {
+	if (firstDelivery) return fromCache && empty ? 'drop' : 'authoritative';
+	return changeCount ? 'delta' : 'skip';
+};

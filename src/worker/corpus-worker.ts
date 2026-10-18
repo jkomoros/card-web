@@ -16,11 +16,6 @@ import {
 import {
 	initializeFirestore,
 	memoryLocalCache,
-	persistentLocalCache,
-	persistentSingleTabManager,
-	CACHE_SIZE_UNLIMITED,
-	getPersistentCacheIndexManager,
-	enablePersistentCacheIndexAutoCreation,
 	connectFirestoreEmulator,
 	onSnapshot,
 	getDocsFromServer,
@@ -81,7 +76,8 @@ import {
 
 import {
 	listenerDocumentTrusted,
-	serverConfirmedIDs
+	serverConfirmedIDs,
+	userStateDelivery
 } from './listener-trust.js';
 
 import {
@@ -1619,9 +1615,12 @@ const attachResilientListener = (
 //namespace (the Firestore emulator namespaces data by projectId).
 const PERF_EMULATOR_PROJECT_ID = 'demo-perf';
 
-//S4, the half sign-out cannot do. Firestore's persistentLocalCache is a second,
-//larger copy of the privileged corpus and it survives sign-out. Clearing it in
-//place is impossible here for TWO reasons, not one:
+//S4, the half sign-out cannot do. Until #776 the worker held Firestore's
+//persistentLocalCache — a second, larger copy of the privileged corpus that
+//survives sign-out. The worker is on a memory cache now, so an SDK cache no
+//longer outlives the session; the sign-out purge still deletes the database
+//an earlier build left (and the per-uid sync metadata), and the deletion
+//machinery stays for the same two reasons it was written this way:
 //
 //  1. clearIndexedDbPersistence() is legal only on an uninitialized or
 //     terminated instance, and connectCards proceeds synchronously to
@@ -1668,8 +1667,41 @@ const deleteDatabaseWithTimeout = (name : string) : Promise<'purged' | 'blocked'
 	}
 });
 
+//Once per boot, after the compact snapshot has loaded and the planes are
+//healthy: Chromium serializes IndexedDB opens, and queueing a few-hundred-MB
+//database deletion ahead of the snapshot open would slow the prime (a
+//competing open once added ~16 s on the real corpus). The deletion is
+//idempotent and harmless when the database is already gone.
+let legacyPersistenceRemovalStarted = false;
+let currentPersist = false;
+const removeLegacyPersistenceDatabase = () => {
+	//Owner sessions only: during a rollout a reader tab on this build must
+	//not issue a delete against the database an old-build owner tab still
+	//holds open (the delete would block and the old tab's SDK would be told
+	//its database is going away).
+	if (legacyPersistenceRemovalStarted || !app || !currentPersist) return;
+	legacyPersistenceRemovalStarted = true;
+	const name = firestorePersistenceDatabaseName(app.options.projectId || '');
+	void (async () => {
+		try {
+			//deleteDatabase succeeds on a database that does not exist, so
+			//ask first where the browser can say, and report only a real
+			//removal.
+			const existed = typeof indexedDB.databases === 'function'
+				? (await indexedDB.databases()).some(info => info.name === name)
+				: true;
+			if (!existed) return;
+			const result = await deleteDatabaseWithTimeout(name);
+			status(`legacy persistent cache database: ${result}`);
+		} catch (err) {
+			status(`legacy persistent cache database removal skipped (${String(err)})`);
+		}
+	})();
+};
+
 const connectFirebase = async (devMode : boolean, persist : boolean, emulatorTarget? : string, purgePersistence = false) => {
 	if (app) return;
+	currentPersist = persist;
 	//PERF HARNESS ONLY: when the main thread forwards the `firebase-emulator`
 	//flag (host:firestorePort, e.g. `localhost:8089`) in the connect message,
 	//override projectId to the fixed demo project and point Firestore + Auth at
@@ -1725,58 +1757,34 @@ const connectFirebase = async (devMode : boolean, persist : boolean, emulatorTar
 			send({type: 'error', generation, message: `emulator connect failed (${String(e)})`});
 		}
 	};
-	//THE CACHE HANDOFF (the fix for ~40k billed reads per worker boot): when
-	//the worker owns ingestion, it also owns the PERSISTENT cache —
-	//single-tab with forceOwnership, the only persistence mode the SDK
-	//supports in a dedicated worker (the multi-tab manager needs LocalStorage
-	//and is `unimplemented` here; without forceOwnership the ownership lease
-	//needs visibility/unload events a worker doesn't have). Safe because
-	//src/firebase.ts steps the main thread down to a memory cache in worker
-	//modes — exactly one client touches the persistence DB. The DB is the
-	//same one the main thread's off-mode sessions populated (same default
-	//app name), so the first persistent boot may already be warm, and
-	//per-query resume tokens persisted across sessions make listener
-	//re-attach bill ~deltas instead of the full result set.
+	//MEMORY cache, deliberately (#776). The worker used to own the SDK's
+	//persistent single-tab cache (force-ownership, unlimited size, with
+	//query indexes), so a warm boot primed from IndexedDB for free and the
+	//listeners' persisted resume tokens billed only deltas. The OOM
+	//investigation at 47k cards measured what that costs: the SDK runs a
+	//FULL collection scan and decode of the persistent cache on every new
+	//listen target — every onSnapshot, getDocsFromServer and getDocsFromCache
+	//— at ~37 KB of heap per cached doc, a ~1.75 GB transient at 47k, paid
+	//per sweep page (94 scans of a growing cache, O(N²)) and on every
+	//listener attach and re-attach after live; the cold sweep took 560 s
+	//with it and 80 s without. Main thread and worker share one ~4 GB V8
+	//budget and sit at ~3.2 GB live at 47k, so that transient is the crash.
+	//The warm boot no longer needs the SDK cache: it primes from the app's
+	//own compact snapshot (corpus-snapshot.ts) and the watermark planes
+	//catch up from the persisted tombstone cursor and watermark. What the
+	//memory cache gives up is resume tokens: each boot's listeners re-read
+	//their result sets from the server — the published set (~1.2k), the
+	//tombstones since the cursor, the delta window since the watermark
+	//(small; an oversized one goes through the budgeted sweep) and the
+	//per-user state docs. The `persist` flag still names the owner session
+	//(the sign-out purge below is gated on it); it no longer selects a cache.
 	//
-	//Persistence failures fall back to the memory cache: the boot works but
-	//pays the full network load. A second tab never gets this far: the bridge's
-	//Web Lock gate keeps it workerless until ownership is transferred.
-	if (persist) {
-		try {
-			db = initializeFirestore(app, {
-				...longPolling,
-				//UNLIMITED: the default cache is 40MB with LRU garbage
-				//collection — a 40-60k-card corpus (~240-480MB) gets mostly
-				//evicted, silently turning every warm boot back into a cold
-				//one (observed live: caches holding 1-5k of 39k cards).
-				localCache: persistentLocalCache({
-					tabManager: persistentSingleTabManager({forceOwnership: true}),
-					cacheSizeBytes: CACHE_SIZE_UNLIMITED
-				})
-			});
-			// Emulator settings must be applied before any Firestore API starts
-			// this instance. Reading the index manager below counts as first use.
-			hookEmulator();
-			//Firestore does not build persistent local-query indexes unless an
-			//application opts in. Without them, both published==true and
-			//published==false warm primes scan and decode the entire 40k-card
-			//remote-document cache on every reload (observed on DEV: ~8s for the
-			//published listener plus ~21s for the unpublished prime, again on an
-			//immediate second reload). The worker is the sole persistent-cache
-			//owner, so it is also the correct place to enable the index manager.
-			//The first query can still pay to build its index; later warm boots
-			//reuse the persisted index instead of repeating the full scan.
-			const indexManager = getPersistentCacheIndexManager(db);
-			if (indexManager) {
-				enablePersistentCacheIndexAutoCreation(indexManager);
-				status('persistent cache query indexes enabled');
-			}
-			status('persistent single-tab cache (force-ownership) initialized');
-			return;
-		} catch (e) {
-			send({type: 'error', generation, message: `persistent cache init failed (${String(e)}); falling back to memory cache`});
-		}
-	}
+	//The persistence database an earlier build left behind is deleted by
+	//removeLegacyPersistenceDatabase once the boot is past its own
+	//IndexedDB work: nothing opens it any more (src/firebase.ts keeps the
+	//main thread on a memory cache in worker modes), and at 47k it is a few
+	//hundred MB of disk per account.
+	status(`memory cache initialized (${persist ? 'owner' : 'reader'} session)`);
 	db = initializeFirestore(app, {
 		...longPolling,
 		localCache: memoryLocalCache()
@@ -1820,6 +1828,7 @@ const claimPublishedSnapshotWriter = () => {
 			return;
 		}
 		corpusSnapshotPersistenceEnabled = true;
+		removeLegacyPersistenceDatabase();
 		scheduleCorpusSnapshotSave(0);
 	};
 	const locks = navigator.locks;
@@ -1920,11 +1929,11 @@ const connectPublishedFromSnapshot = async () => {
 	//these the moment the network answers.
 	restoreDisplayTitles(compactSnapshot);
 	if (compactSnapshot && compactSnapshot.schemaVersion === 2) {
-		if (compactSnapshot.sections && Object.keys(compactSnapshot.sections).length) {
+		if (!supplementalDelivered.sections && compactSnapshot.sections && Object.keys(compactSnapshot.sections).length) {
 			latestSections = compactSnapshot.sections;
 			send({type: 'sections', generation, sections: compactSnapshot.sections});
 		}
-		if (compactSnapshot.tags && Object.keys(compactSnapshot.tags).length) {
+		if (!supplementalDelivered.tags && compactSnapshot.tags && Object.keys(compactSnapshot.tags).length) {
 			latestTags = compactSnapshot.tags;
 			send({type: 'tags', generation, tags: compactSnapshot.tags});
 		}
@@ -1952,11 +1961,10 @@ const connectPublishedFromSnapshot = async () => {
 
 //PER-USER STATE (stars / reads / reading list).
 //
-//These used to run on the MAIN thread, which in worker modes holds only a
-//memoryLocalCache — so it has no resume tokens and every boot re-read the whole
-//result set. Measured on DEV for the owner's account: 608 `reads` documents,
-//re-fetched in full on every single boot. The worker is the one context holding
-//Firestore's persistent cache, so re-attaching here bills deltas instead.
+//These used to run on the MAIN thread as well, so the set was read twice.
+//Measured on DEV for the owner's account: 608 `reads` documents per boot per
+//thread. The worker runs a memory cache too since #776, so each boot still
+//re-reads the set once; what the move bought is one reader, not zero.
 //
 //Deliberately forwarded as the same add/remove DELTAS the main thread used to
 //derive from docChanges(), so the reducers on the other side are unchanged.
@@ -1993,8 +2001,8 @@ const disconnectUserState = () => {
 //on every boot and were simply ABSENT offline — while their `*Loaded` flags
 //still said true and corpusStatus still said `live`, so navigation sat behind a
 //stuck "Loading…" and anything gated on "sections loaded" ran against an empty
-//set. The worker holds the persistent cache, so here they survive offline and
-//re-attach on deltas.
+//set. The worker serves them from its compact snapshot offline (both prime
+//paths) and the listeners overwrite them when the network answers.
 const SECTIONS_COLLECTION = 'sections';
 const TAGS_COLLECTION = 'tags';
 
@@ -2003,8 +2011,19 @@ let supplementalUnsubscribes : (() => void)[] = [];
 //only persistence is that record, so without this they were absent offline.
 let latestSections : {[id : string] : unknown} | null = null;
 let latestTags : {[id : string] : unknown} | null = null;
+//Per connection: whether the live listener has delivered. The compact
+//snapshot's sections and tags are restored only while it has not — the
+//listeners attach synchronously at connect and answer in a round trip,
+//while the snapshot load takes seconds at 47k, so an unguarded restore
+//would overwrite the fresher set and then save it back (the second
+//review's find; the card restore below has had this guard all along).
+const supplementalDelivered = {sections: false, tags: false};
 
 const disconnectSupplementalData = () => {
+	//Tied to whether the listeners are attached: with none attached the
+	//snapshot restore is the only source again.
+	supplementalDelivered.sections = false;
+	supplementalDelivered.tags = false;
 	for (const unsubscribe of supplementalUnsubscribes) {
 		try { unsubscribe(); } catch { /* already torn down */ }
 	}
@@ -2016,6 +2035,8 @@ const connectSupplementalData = () => {
 	if (!db) return;
 	const database = db;
 	const myConnectionGeneration = connectionGeneration;
+	supplementalDelivered.sections = false;
+	supplementalDelivered.tags = false;
 	const attach = (collectionName : string, type : 'sections' | 'tags', build : () => Query) => {
 		supplementalUnsubscribes.push(onSnapshot(build(),
 			snapshot => {
@@ -2035,6 +2056,7 @@ const connectSupplementalData = () => {
 				}
 				const docs : {[id : string] : unknown} = {};
 				for (const docSnapshot of snapshot.docs) docs[docSnapshot.id] = {...docSnapshot.data(), id: docSnapshot.id};
+				supplementalDelivered[type] = true;
 				if (type === 'sections') {
 					latestSections = docs;
 					send({type, generation, sections: docs});
@@ -2074,8 +2096,20 @@ const connectUserState = (uid : string) => {
 		let firstDelivery = true;
 		userStateUnsubscribes.push(onSnapshot(
 			query(collection(database, collectionName), where('owner', '==', uid)),
+			//Metadata changes included: see userStateDelivery.
+			{includeMetadataChanges: true},
 			snapshot => {
 				if (myConnectionGeneration !== connectionGeneration) return;
+				//An EMPTY first delivery from the cache is not an answer: on
+				//the memory cache (#776) a boot whose SDK is offline (or
+				//still unknown after its 10 s timeout) gets the empty cache
+				//first, and sending it as authoritative wiped the page's
+				//stars and reads until the network answered. The server's
+				//confirmation follows — as a metadata-only event when the
+				//set really is empty, which is why metadata changes are
+				//included above — and is sent as the whole set then.
+				const decision = userStateDelivery(firstDelivery, snapshot.metadata.fromCache, snapshot.empty, snapshot.docChanges().length);
+				if (decision === 'drop' || decision === 'skip') return;
 				if (firstDelivery) {
 					firstDelivery = false;
 					const all : CardID[] = [];
@@ -2116,21 +2150,33 @@ const connectUserState = (uid : string) => {
 	//The reading list is ONE document holding an ordered array, so it is sent
 	//whole rather than as a delta -- order is meaningful and a delta cannot
 	//express a reorder.
-	const attachReadingList = () => userStateUnsubscribes.push(onSnapshot(
-		query(collection(database, READING_LISTS_COLLECTION), where('owner', '==', uid)),
-		snapshot => {
-			if (myConnectionGeneration !== connectionGeneration) return;
-			let list : CardID[] = [];
-			for (const change of snapshot.docChanges()) {
-				if (change.type === 'removed') continue;
-				list = (change.doc.data().cards || []) as CardID[];
-			}
-			send({type: 'userReadingList', generation, list});
-		},
-		error => {
-			status(`${READING_LISTS_COLLECTION} listener error: ${String(error)}; re-attaching`);
-			scheduleUserStateReattach(attachReadingList);
-		}));
+	const attachReadingList = () => {
+		//Per attach, as in cardIDDeltaListener: a re-attached listener's
+		//first delivery is the whole set again.
+		let firstDelivery = true;
+		userStateUnsubscribes.push(onSnapshot(
+			query(collection(database, READING_LISTS_COLLECTION), where('owner', '==', uid)),
+			{includeMetadataChanges: true},
+			snapshot => {
+				if (myConnectionGeneration !== connectionGeneration) return;
+				//See cardIDDeltaListener: an empty cache delivery is not an
+				//empty reading list, and the server's confirmation of an empty
+				//one arrives as a metadata-only event.
+				const decision = userStateDelivery(firstDelivery, snapshot.metadata.fromCache, snapshot.empty, snapshot.docChanges().length);
+				if (decision === 'drop' || decision === 'skip') return;
+				firstDelivery = false;
+				let list : CardID[] = [];
+				for (const change of snapshot.docChanges()) {
+					if (change.type === 'removed') continue;
+					list = (change.doc.data().cards || []) as CardID[];
+				}
+				send({type: 'userReadingList', generation, list});
+			},
+			error => {
+				status(`${READING_LISTS_COLLECTION} listener error: ${String(error)}; re-attaching`);
+				scheduleUserStateReattach(attachReadingList);
+			}));
+	};
 	attachReadingList();
 	status(`per-user state listeners attached for ${uid}`);
 };
@@ -2236,10 +2282,10 @@ const attachUnpublishedListeners = (database : Firestore, myConnectionGeneration
 	markInitialDelivered('unpublished');
 };
 
-//Below this many cached unpublished cards, the cache is treated as cold and
-//the full partitioned server prime runs (first-ever boot, cleared site
-//data). Above it, the cache serves the boot and the listeners' persisted
-//resume tokens deliver just the catch-up delta.
+//LEGACY sync mode only. Below this many cached unpublished cards the cache
+//was treated as cold and the full partitioned server prime ran; on the
+//memory cache (#776) the cache query always comes back empty, so this path
+//always takes the server prime.
 const WARM_CACHE_THRESHOLD = 1000;
 
 const connectUnpublishedPrivileged = async () => {
@@ -2247,11 +2293,11 @@ const connectUnpublishedPrivileged = async () => {
 	const database = db;
 	const myConnectionGeneration = connectionGeneration;
 
-	//Warm-boot fast path (persistent worker cache): serve the previous
-	//session's corpus straight from IndexedDB — zero billed reads — and let
-	//the phase-2 listeners reconcile via their persisted resume tokens.
-	//Replaces the ~40k-billed-read getDocsFromServer prime that made every
-	//worker boot cost most of a free-tier day.
+	//LEGACY (non-watermark sync mode only). This used to be the warm-boot
+	//fast path from the SDK's persistent cache; on the memory cache (#776)
+	//getDocsFromCache finds nothing and the server prime below runs. The
+	//watermark pipeline, the production mode, primes from the compact
+	//snapshot instead and never reaches here.
 	try {
 		const cachedSnapshot = await getDocsFromCache(query(collection(database, CARDS_COLLECTION), where('published', '==', false)));
 		if (myConnectionGeneration !== connectionGeneration) return;
@@ -2450,6 +2496,7 @@ const markWatermarkPlane = (plane : WatermarkPlane, healthy : boolean) => {
 		//compact snapshot. Save immediately once; later changes are debounced.
 		if (becameLive && corpusSnapshotStore) {
 			corpusSnapshotPersistenceEnabled = true;
+			removeLegacyPersistenceDatabase();
 			scheduleCorpusSnapshotSave(0);
 		}
 	} else if (currentSyncState === 'live') {
@@ -3306,14 +3353,16 @@ const connectUnpublishedWatermark = async (deferPublishedUntilAfterPrime = false
 		return;
 	}
 
-	//1. Prime from the compact materialized snapshot. On its first-ever run,
-	//fall back to Firestore's persistent cache and create the compact snapshot
-	//only after this corpus passes the trust gate. Either source is served in
-	//the 'unverified' state (trust slow, serve fast).
+	//1. Prime from the compact materialized snapshot. On its first-ever run
+	//there is nothing to prime from (the SDK cache is memory-only since
+	//#776, so its query below is empty) and the cold sweep fills the corpus;
+	//the compact snapshot is created only after this corpus passes the
+	//trust gate. Either source is served in the 'unverified' state (trust
+	//slow, serve fast).
 	const primeStartedAt = performance.now();
 	let cacheQueryFinishedAt = primeStartedAt;
 	const primedCards : Cards = {};
-	let primeSource = 'persistent cache';
+	let primeSource = 'sdk cache (empty on the memory cache)';
 	let compactTombstoneIDs : string[] = [];
 	//Reset per prime: a reconnection that primes from the server must not
 	//report the previous connection's snapshot age.
@@ -3365,6 +3414,21 @@ const connectUnpublishedWatermark = async (deferPublishedUntilAfterPrime = false
 			//Before the primed cards are forwarded, so their metas carry the
 			//titles and pushMetaDeltas does not drop entries as stale.
 			restoreDisplayTitles(compactSnapshot);
+			//Sections and tags from the record too (the reader path already
+			//does this): on the memory cache an offline privileged boot has
+			//no SDK cache to serve them, and without these navigation sat
+			//behind a stuck "Loading…". The listeners overwrite them the
+			//moment the network answers.
+			if (compactSnapshot.schemaVersion === 2) {
+				if (!supplementalDelivered.sections && compactSnapshot.sections && Object.keys(compactSnapshot.sections).length) {
+					latestSections = compactSnapshot.sections;
+					send({type: 'sections', generation, sections: compactSnapshot.sections});
+				}
+				if (!supplementalDelivered.tags && compactSnapshot.tags && Object.keys(compactSnapshot.tags).length) {
+					latestTags = compactSnapshot.tags;
+					send({type: 'tags', generation, tags: compactSnapshot.tags});
+				}
+			}
 			//A published cache listener may have won the race while IndexedDB
 			//loaded. Never overwrite fresher listener data with the saved base.
 			for (const [id, card] of Object.entries(restored)) {

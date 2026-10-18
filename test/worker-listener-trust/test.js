@@ -3,7 +3,7 @@
 import assert from 'assert';
 import fs from 'fs';
 
-import {listenerDocumentTrusted, serverConfirmedIDs} from '../../lib/src/worker/listener-trust.js';
+import {listenerDocumentTrusted, serverConfirmedIDs, userStateDelivery} from '../../lib/src/worker/listener-trust.js';
 
 describe('worker listener watermark trust', () => {
 	it('trusts only server-confirmed documents', () => {
@@ -101,5 +101,29 @@ describe('one-shot server-read watermark trust (review R2-2)', () => {
 		const ingest = between('const ingestSnapshot', 'const listenerError');
 		assert.match(ingest, /if \(!parsed\.pendingWriteIDs\.has\(id\)\) clientClockCardIDs\.delete\(id\)/,
 			'ingestSnapshot must exclude pending-write docs from un-contamination');
+	});
+
+	it('per-user state listeners drop an empty cache first delivery, take the server\'s empty confirmation as the set, and skip metadata-only events after that', () => {
+		//#776: on the memory cache the offline (or still-unknown) SDK raises
+		//the empty cache first; the server's confirmation of an empty set is
+		//a metadata-only event, which the listeners opt into.
+		assert.strictEqual(userStateDelivery(true, true, true, 0), 'drop', 'empty cache first delivery is not the set');
+		assert.strictEqual(userStateDelivery(true, false, true, 0), 'authoritative', 'the server saying "empty" IS the set, even with no changes');
+		assert.strictEqual(userStateDelivery(true, true, false, 2), 'authoritative', 'a cache first delivery with content is served');
+		assert.strictEqual(userStateDelivery(true, false, false, 2), 'authoritative');
+		assert.strictEqual(userStateDelivery(false, false, true, 0), 'skip', 'a later metadata-only event carries nothing');
+		assert.strictEqual(userStateDelivery(false, false, false, 1), 'delta');
+		const worker = fs.readFileSync(new URL('../../src/worker/corpus-worker.ts', import.meta.url), 'utf8').replace(/\/\/[^\n]*/g, '');
+		const stars = worker.slice(worker.indexOf('const cardIDDeltaListener'), worker.indexOf('const attachReadingList'));
+		assert.match(stars, /\{includeMetadataChanges: true\},/, 'stars and reads listen with metadata changes, or an empty set never confirms');
+		assert.match(stars, /userStateDelivery\(firstDelivery, snapshot\.metadata\.fromCache, snapshot\.empty, snapshot\.docChanges\(\)\.length\)/);
+		const reading = worker.slice(worker.indexOf('const attachReadingList'), worker.indexOf('const connectPublished ='));
+		assert.match(reading, /\{includeMetadataChanges: true\},/, 'the reading list too');
+		assert.match(reading, /let firstDelivery = true;[\s\S]{0,400}userStateDelivery\(firstDelivery,/, 'the reading list latch is per attach, so a re-attached listener sends its first delivery as the whole set');
+		//The compact snapshot's sections and tags are restored only while the
+		//live listener has not delivered, on BOTH prime paths.
+		assert.strictEqual((worker.match(/!supplementalDelivered\.sections && compactSnapshot\.sections/g) || []).length, 2, 'both restores guard sections on delivery');
+		assert.strictEqual((worker.match(/!supplementalDelivered\.tags && compactSnapshot\.tags/g) || []).length, 2, 'both restores guard tags on delivery');
+		assert.match(worker, /supplementalDelivered\[type\] = true;/, 'the live listener marks delivery');
 	});
 });

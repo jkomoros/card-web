@@ -262,4 +262,34 @@ describe('ownership gate focus safety', () => {
 		assert.ok(returnExpression.indexOf('.panel') < returnExpression.indexOf('button'),
 			'the panel must be preferred OVER any button, not used as a fallback after one');
 	});
+
+	it('the worker runs on a memory cache and the app connects it only once the permissions document has arrived (#776)', () => {
+		const strip = (text) => text.replace(/\/\/[^\n]*/g, '');
+		const worker = strip(fs.readFileSync(new URL('../../src/worker/corpus-worker.ts', import.meta.url), 'utf8'));
+		//The persistent cache's per-listen full-collection decode (~1.75 GB at
+		//47k) was the crash transient; the warm boot primes from the compact
+		//snapshot, so the SDK cache is memory-only now.
+		assert.ok(!/persistentLocalCache\(/.test(worker), 'the worker must not initialize a persistent Firestore cache');
+		assert.match(worker, /localCache: memoryLocalCache\(\)/, 'the worker initializes the memory cache');
+		assert.strictEqual((worker.match(/initializeFirestore\(/g) || []).length, 1, 'exactly one Firestore instance is initialized in the worker');
+		const removal = worker.slice(worker.indexOf('const removeLegacyPersistenceDatabase'), worker.indexOf('const connectFirebase'));
+		assert.match(removal, /const name = firestorePersistenceDatabaseName\(app\.options\.projectId \|\| ''\);[\s\S]{0,600}deleteDatabaseWithTimeout\(name\)/, 'an earlier build\'s persistence database is removed');
+		assert.match(removal, /!currentPersist\) return;/, 'only an owner session removes it — a reader tab must not delete a database an old-build owner still holds open');
+		assert.strictEqual((worker.match(/removeLegacyPersistenceDatabase\(\);/g) || []).length, 2, 'the removal runs after live on both prime paths, not ahead of the snapshot open');
+		//Without resume tokens a pre-permission connect would stream the
+		//owner's notes through the author listener for nothing. The gate is
+		//the permissions DOCUMENT's arrival, not the reducer's loaded flag,
+		//which disconnectLivePermissions sets synchronously (the review drove
+		//the real reducer to show a selector-based gate opening one tick
+		//after sign-in).
+		const database = strip(fs.readFileSync(new URL('../../src/actions/database.ts', import.meta.url), 'utf8'));
+		const connect = database.slice(database.indexOf('export const connectLiveUnpublishedCards'), database.indexOf('export const', database.indexOf('export const connectLiveUnpublishedCards') + 10));
+		const gateAt = connect.indexOf('if (workerConnectShouldWait(selectUid(state), permissionsDeliveredForUid))');
+		assert.ok(gateAt >= 0 && gateAt < connect.indexOf('corpusWorkerConnectCards('), 'connectLiveUnpublishedCards waits for the permissions document before any worker connect');
+		const permissions = database.slice(database.indexOf('export const connectLivePermissions'), database.indexOf('export const connectLiveAuthors'));
+		assert.strictEqual((permissions.match(/delivered\(\);/g) || []).length, 2, 'the permissions listener marks delivery on data AND on error, and re-enters the connect');
+		assert.match(permissions, /permissionsDeliveredForUid = uid;[\s\S]{0,200}void connectLiveUnpublishedCards\(\)/, 'delivery drives the connect');
+		assert.match(database.slice(database.indexOf('export const disconnectLivePermissions'), database.indexOf('export const connectLivePermissions')), /permissionsDeliveredForUid = '';/, 'disconnecting resets the delivered uid, so an account switch waits again');
+		assert.match(database, /export const workerConnectShouldWait = \(uid : Uid, deliveredForUid : Uid\) : boolean => Boolean\(uid\) && deliveredForUid !== uid;/, 'the gate is the pure predicate the unit test covers: wait only for a uid whose document has not arrived');
+	});
 });

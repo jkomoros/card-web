@@ -34,7 +34,7 @@ import {
 	selectSlugIndex,
 	selectLoadingCardFetchTypes,
 	selectUserMayViewUnpublished,
-	selectUid,
+	selectUid
 } from '../selectors.js';
 
 import {
@@ -237,10 +237,11 @@ export const disconnectLiveStars = () => {
 
 export const connectLiveStars = (uid : Uid) => {
 	if (backgroundDataInert) return;
-	//The CORPUS WORKER owns this listener in worker modes: it is the only context
-	//holding Firestore's persistent cache, so its re-attach bills deltas, while
-	//this thread runs a memoryLocalCache and re-read the entire result set every
-	//boot (measured: 608 `reads` documents for one real account, every boot).
+	//The CORPUS WORKER owns this listener in worker modes: one listener per
+	//document set, in the context that owns ingestion (the worker runs a
+	//memory cache too since #776, so each boot re-reads the set — measured
+	//at 608 `reads` documents for one real account — but once, not once per
+	//thread).
 	//
 	//EXCEPT for an anonymous session, where the worker is deliberately told not
 	//to attach — three empty queries still bill three reads. Nobody then flips
@@ -332,11 +333,25 @@ export const connectLiveReadingList = (uid : Uid) => {
 	});
 };
 
+//The uid whose permissions DOCUMENT has actually been delivered (or whose
+//read failed, which is also an answer). Not the reducer's `loaded` flag:
+//disconnectLivePermissions dispatches an empty permissions update
+//synchronously, which the reducer counts as loaded, so selectors built on
+//it say "final" one tick after sign-in, before the real document — the
+//adversarial review drove the real reducer to show it. The worker connect
+//for a signed-in session waits on THIS (see connectLiveUnpublishedCards):
+//on the worker's memory cache (#776) a connect made under the
+//pre-permission scope would stream the owner's notes through the author
+//listener for nothing. Readers (no uid) never wait.
+let permissionsDeliveredForUid : Uid = '';
+export const workerConnectShouldWait = (uid : Uid, deliveredForUid : Uid) : boolean => Boolean(uid) && deliveredForUid !== uid;
+
 export const disconnectLivePermissions = () => {
 	if (livePermissionsUnsubscribe) {
 		livePermissionsUnsubscribe();
 		livePermissionsUnsubscribe = null;
 	}
+	permissionsDeliveredForUid = '';
 	// Clear permissions from state when disconnecting
 	store.dispatch({
 		type: UPDATE_USER_PERMISSIONS,
@@ -347,15 +362,25 @@ export const disconnectLivePermissions = () => {
 export const connectLivePermissions = (uid : Uid) => {
 	if (backgroundDataInert) return;
 	disconnectLivePermissions();
+	const delivered = () => {
+		if (permissionsDeliveredForUid === uid) return;
+		permissionsDeliveredForUid = uid;
+		//The worker connect this delivery was holding back.
+		void connectLiveUnpublishedCards();
+	};
 	livePermissionsUnsubscribe = onSnapshot(doc(db, PERMISSIONS_COLLECTION, uid), snapshot => {
 		store.dispatch({
 			type: UPDATE_USER_PERMISSIONS,
 			//If the snapshot doesn't exist then data() will be undefined, so always return a {}.
 			permissions: snapshot.data() || {},
 		});
+		delivered();
 	}, (error) => {
 		//Log errors but don't stop trying - onSnapshot will automatically retry when connection is restored
 		console.warn('Error fetching permissions, onSnapshot will retry automatically:', error);
+		//A denial is an answer too: connect with whatever the permissions
+		//are, rather than never.
+		delivered();
 	});
 };
 
@@ -436,9 +461,9 @@ const cardSnapshotReceiver = (fetchType : CardFetchType, options? : {fastDedupe?
 
 //NOTE: the main-thread warm-boot prime that used to live here is gone. In
 //worker modes the main thread's Firestore uses a MEMORY cache (see
-//src/firebase.ts — the worker owns the persistent cache now), so there is
-//nothing local to prime from. Warm boots come from the worker's own
-//persistent cache instead: one copy, correct permission scoping via the
+//src/firebase.ts; since #776 the worker does too), so there is nothing
+//local to prime from. Warm boots come from the worker's own compact
+//snapshot instead: one copy, correct permission scoping via the
 //worker's own queries, and — unlike the prime — since-deleted cards are
 //removed properly because resume-token catch-up delivers real removals.
 
@@ -506,6 +531,19 @@ const disconnectLiveUnpublishedCards = () => {
 export const connectLiveUnpublishedCards = async () => {
 	if (backgroundDataInert) return;
 	const state = store.getState() as State;
+	//Not until the permissions document for this uid has been delivered. A
+	//signed-in boot used to connect the worker twice: once as soon as the
+	//uid existed (author/editor scope) and again, privileged, when the
+	//permissions doc arrived. With the SDK's persisted resume tokens the
+	//first connection's full-set listeners cost nothing; on the worker's
+	//memory cache (#776) the author listener alone would start streaming
+	//the owner's ~45k notes for that window. connectLivePermissions calls
+	//back in here when the document lands, so nothing is lost by waiting;
+	//a session without a uid never waits.
+	if (workerConnectShouldWait(selectUid(state), permissionsDeliveredForUid)) {
+		if (perfEnabled()) console.log('[PERF] connectLiveUnpublishedCards: deferred until the permissions document arrives');
+		return;
+	}
 	if (!selectUserMayViewApp(state)) {
 		//The Redux store outlives an auth/permission change. Tell the worker to
 		//drop its privileged scope before returning, so cards loaded for the
@@ -686,10 +724,11 @@ export const connectLiveUnpublishedCards = async () => {
 export const connectLiveSections = () => {
 	if (backgroundDataInert) return;
 	if (!selectUserMayViewApp(store.getState() as State)) return;
-	//Owned by the CORPUS WORKER in worker modes: it holds the persistent cache,
-	//so these survive offline and re-attach on deltas, where this thread's
-	//memoryLocalCache left them absent offline while their loaded flags still
-	//claimed otherwise. Gated at the definition so both call sites are covered.
+	//Owned by the CORPUS WORKER in worker modes: it serves these from its compact snapshot offline,
+	//so these come from one place: offline the worker serves them from its
+	//compact snapshot (both prime paths), where this thread's memoryLocalCache
+	//left them absent while their loaded flags still claimed otherwise. Gated
+	//at the definition so both call sites are covered.
 	if (corpusWorkerOwnsCardIngestion()) return;
 
 	rememberSupplementalListener(onSnapshot(query(collection(db, SECTIONS_COLLECTION), orderBy('order')), snapshot => {
@@ -712,7 +751,7 @@ export const connectLiveSections = () => {
 export const connectLiveTags = () => {
 	if (backgroundDataInert) return;
 	if (!selectUserMayViewApp(store.getState() as State)) return;
-	//Owned by the CORPUS WORKER in worker modes: it holds the persistent cache,
+	//Owned by the CORPUS WORKER in worker modes: it serves these from its compact snapshot offline,
 	//so these survive offline and re-attach on deltas, where this thread's
 	//memoryLocalCache left them absent offline while their loaded flags still
 	//claimed otherwise. Gated at the definition so both call sites are covered.

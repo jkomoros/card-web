@@ -542,4 +542,12 @@ describe('an account change during the guard deferral abandons the action', () =
 		assert.ok(whatUserWasTold(store).some(text => /placeholder content/i.test(text)),
 			`a tapped control refusing must still say why; surfaces were ${JSON.stringify(whatUserWasTold(store))}`);
 	});
+
+	it('the worker connect waits only for a signed-in uid whose permissions document has not arrived (#776)', async () => {
+		const {workerConnectShouldWait} = await import('../../lib/src/actions/database.js');
+		assert.strictEqual(workerConnectShouldWait('', ''), false, 'no uid: readers never wait');
+		assert.strictEqual(workerConnectShouldWait('u1', ''), true, 'signed in, document not yet delivered: wait');
+		assert.strictEqual(workerConnectShouldWait('u1', 'u1'), false, 'delivered for this uid: connect');
+		assert.strictEqual(workerConnectShouldWait('u2', 'u1'), true, 'an account switch waits for the new document');
+	});
 });
