@@ -347,17 +347,6 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 				flex:1;
 			}
 
-			/* An optional field left empty while editing (working-notes
-			title): the hint is a pseudo-element, never content, so it cannot
-			be saved. */
-			[data-placeholder]:empty::before {
-				content: attr(data-placeholder);
-				/* Subordinate text (HOUSE-STYLE §4.5): the subtle token is
-				near-invisible on the unpublished background. */
-				color: var(--app-dark-text-color-light);
-				font-weight: normal;
-			}
-
 			[data-field=body] blockquote {
 				margin: 0;
 				quotes: "“" "”";
@@ -454,10 +443,20 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 		const scrollableFields : CardFieldTypeEditable[] = [];
 		const scrollableFooterFields : CardFieldTypeEditable[] = [];
 		for (const [fieldName,fieldConfig] of TypedObject.entries(fieldsToRender)) {
-			//An optional field left empty is not rendered in view mode at all —
-			//not as an empty container, and not as the type icon that a title
-			//row brings with it (master drew neither for a working-notes card).
-			if (!this.editing && !this._card[fieldName] && (OPTIONAL_FIELDS_FOR_CARD_TYPE[cardType] || {})[fieldName]) continue;
+			//An optional field left empty is not rendered at all — not as an
+			//empty container, and not as the type icon that a title row brings
+			//with it (master drew neither for a working-notes card). While
+			//editing too: an "Optional title" hint on the card cost a note's
+			//top line, where the author came to write the body (owner, the
+			//day of the cutover); the editor panel's title input carries the
+			//hint, and the row appears here once a title exists. The one
+			//exception is the row the author is typing in: backspacing a
+			//title to empty must not pull the element out from under the
+			//caret (the review's scratch run showed it leaving the DOM).
+			if (!this._card[fieldName] && (OPTIONAL_FIELDS_FOR_CARD_TYPE[cardType] || {})[fieldName]) {
+				const held = this.editing && this._elements[fieldName];
+				if (!held || deepActiveElement() !== held) continue;
+			}
 			if (fieldName == 'title') {
 				titleFields.push(fieldName);
 			} else if (fieldConfig.nonScrollable) {
@@ -628,10 +627,11 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 		const htmlFormatter = HTML_FORMATTERS[field];
 		if (value && htmlFormatter) htmlToSet = htmlFormatter(value);
 		if (value && config.displayPrefix) htmlToSet = '<span>' + config.displayPrefix + '</span> ' + value;
-		//An optional field left empty is nothing to show in view mode and a
-		//placeholder (not content) while editing.
-		const optional = Boolean((OPTIONAL_FIELDS_FOR_CARD_TYPE[this._card.card_type] || {})[field]);
-		if (!value && optional) {
+		//An empty optional field is rendered only while the author is
+		//typing in it (see render()): nothing to show, and never the
+		//"Content goes here" loading placeholder the non-editing branch
+		//below would set.
+		if (!value && (OPTIONAL_FIELDS_FOR_CARD_TYPE[this._card.card_type] || {})[field]) {
 			htmlToSet = '';
 		} else if (!value && !this.editing) {
 			if (this._card.full_bleed) {
@@ -655,9 +655,6 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 			ele.field = field;
 			ele.dataset.field = field;
 		}
-		if (optional && this.editing) ele.dataset.placeholder = 'Optional title';
-		else delete ele.dataset.placeholder;
-
 		//Add or remove a font size boost if there is one for this card and fieldName.
 		let fontSizeBoost = '';
 		if (!this.editing && this._card.font_size_boost && this._card.font_size_boost[field]) {

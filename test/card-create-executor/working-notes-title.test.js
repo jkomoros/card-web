@@ -99,7 +99,7 @@ describe('working-notes titles are authored, never generated', function() {
 		assert.strictEqual(server.title, 'My own title');
 	});
 
-	it('renders no title row and no type icon for an untitled note in view mode, and a placeholder while editing', async function() {
+	it('renders no title row and no type icon for an untitled note, in view mode and while editing', async function() {
 		this.timeout(20000);
 		//Making the title LEGAL made editableFieldsForCardType return it, and
 		//the renderer's title row (with the card-type icon) is drawn whenever
@@ -126,10 +126,33 @@ describe('working-notes titles are authored, never generated', function() {
 			assert.ok(element.shadowRoot.querySelector('[data-field=body]'), 'the body still renders');
 			element.editing = true;
 			await element.updateComplete;
-			const title = element.shadowRoot.querySelector('[data-field=title]');
-			assert.ok(title, 'the title is editable while editing');
-			assert.strictEqual(title.dataset.placeholder, 'Optional title');
-			assert.strictEqual(title.childNodes.length, 0, 'the placeholder is a pseudo-element, never content');
+			//Editing an untitled note draws no title row either: an "Optional
+			//title" hint cost the note's top line (owner, cutover day); the
+			//editor panel's title input carries the hint instead.
+			assert.strictEqual(element.shadowRoot.querySelector('[data-field=title]'), null, 'no title row while editing an untitled note');
+			assert.strictEqual(element.shadowRoot.querySelector('.title-container svg'), null, 'no type icon while editing an untitled note');
+			//Once the editing card has a title (typed in the editor panel), the
+			//row appears, editable.
+			element.card = {...card, title: 'Typed in the panel'};
+			await element.updateComplete;
+			const row = element.shadowRoot.querySelector('[data-field=title]');
+			assert.ok(row, 'the title row appears once a title exists');
+			//Backspacing the title to empty ON THE CARD keeps the row the
+			//author is typing in (jsdom focuses only focusable areas, so the
+			//contenteditable gets a tabindex for the test; the renderer asks
+			//deepActiveElement either way).
+			row.setAttribute('tabindex', '-1');
+			row.focus();
+			assert.strictEqual(element.shadowRoot.activeElement, row, 'the title row is focused');
+			element.card = card;
+			await element.updateComplete;
+			assert.strictEqual(element.shadowRoot.querySelector('[data-field=title]'), row, 'the focused title row stays while its text is empty');
+			row.blur();
+			element.card = {...card, title: 'x'};
+			await element.updateComplete;
+			element.card = card;
+			await element.updateComplete;
+			assert.strictEqual(element.shadowRoot.querySelector('[data-field=title]'), null, 'an unfocused empty title row goes away');
 			//With an authored title, view mode shows it.
 			element.editing = false;
 			element.card = {...card, title: 'Authored'};
