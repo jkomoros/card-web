@@ -171,7 +171,8 @@ import {
 } from './forwarded-action-scope.js';
 
 import {
-	displayTitleKey
+	displayTitleKey,
+	restoredDisplayTitleKey
 } from '../working-notes-title-kernel.js';
 
 import {
@@ -1191,9 +1192,15 @@ let displayTitleWarmupToken = 0;
 //the only one that holds working notes — never restored them, so every
 //warm boot recomputed all ~38k titles (~26s of worker time) and reached
 //live ~19s later, which the first slice's own verification missed.
+//Each entry is re-keyed for the snapshot's own image of its card
+//(restoredDisplayTitleKey), so a title saved under the legacy key stays
+//current across the key change instead of being recomputed.
 const restoreDisplayTitles = (compactSnapshot : CorpusSnapshot | null) : void => {
 	if (!compactSnapshot || compactSnapshot.schemaVersion !== 2 || !compactSnapshot.displayTitles) return;
-	for (const [id, [key, title]] of Object.entries(compactSnapshot.displayTitles)) displayTitles.set(id, {key, title});
+	const cards = (compactSnapshot.cards || {}) as Record<CardID, Card>;
+	for (const [id, [key, title]] of Object.entries(compactSnapshot.displayTitles)) {
+		displayTitles.set(id, {key: restoredDisplayTitleKey(cards[id], key), title});
+	}
 };
 
 //The cached title for a card if it is current, else undefined (never computes).

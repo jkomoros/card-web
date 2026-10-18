@@ -41,15 +41,41 @@ export const displayTitleDate = (card : Card) : Date => {
 const DATE_FORMAT = new Intl.DateTimeFormat('en-US', {month: 'numeric', day: 'numeric', year: '2-digit'});
 export const displayTitleDateLabel = (card : Card) : string => DATE_FORMAT.format(displayTitleDate(card));
 
-//What a frozen title is keyed on: the card's substantive-update time. A
-//title changes only when the card's content was saved — never on an IDF
-//epoch or a concept edit, which is what the owner asked for ("very, very
-//rarely; quite stale is fine").
-export const displayTitleKey = (card : Card) : string => {
+//The key frozen titles carried before the revision key: the substantive-
+//update time, else the creation time. Still the key for a legacy card that
+//has never been written under the revision Rules, and what a persisted
+//title is migrated FROM at prime (restoredDisplayTitleKey).
+export const legacyDisplayTitleKey = (card : Card) : string => {
 	const millis = timestampToMillis(card.updated_substantive, NaN);
 	if (Number.isFinite(millis)) return 's' + millis;
 	const created = timestampToMillis(card.created, NaN);
 	return Number.isFinite(created) ? 'c' + created : '';
+};
+
+//What a frozen title is keyed on: the card's revision, which the Rules bump
+//on every content write (body, tags, section, sort order…) and which
+//counters and inbound-reference mirrors leave alone. A title changes only
+//when the card was saved — never on an IDF epoch or a concept edit, which
+//is what the owner asked for ("very, very rarely; quite stale is fine").
+//It was keyed on updated_substantive, and that field moves only when the
+//editor's "substantive" box is checked: an ordinary body edit on a note
+//left it at the creation time, so the title computed at creation — over an
+//EMPTY body, the bare date — was never recomputed (#784; the finisher this
+//replaced regenerated the title at every save, so master never showed it).
+export const displayTitleKey = (card : Card) : string => {
+	if (typeof card.revision === 'number' && Number.isFinite(card.revision)) return 'r' + card.revision;
+	return legacyDisplayTitleKey(card);
+};
+
+//The key a persisted title should carry for the card image it was saved
+//with: a title frozen under the legacy key for THAT image is exact for it,
+//so it is re-keyed rather than recomputed. Without this the first boot after
+//the key change would have dropped every saved title at prime and recomputed
+//all ~44.7k in the warm-up (~24 s), with bare dates on every surface the
+//first window does not cover — the flash the owner asked never to see.
+export const restoredDisplayTitleKey = (card : Card | undefined, key : string) : string => {
+	if (!card) return key;
+	return key === legacyDisplayTitleKey(card) ? displayTitleKey(card) : key;
 };
 
 //The projection itself, uncached. The card must be the processed card (its

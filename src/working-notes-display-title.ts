@@ -26,10 +26,12 @@ import {
 	displayTitleDate,
 	displayTitleDateLabel,
 	displayTitleKey,
-	generatedWorkingNotesTitle as kernelTitle
+	generatedWorkingNotesTitle as kernelTitle,
+	legacyDisplayTitleKey,
+	restoredDisplayTitleKey
 } from './working-notes-title-kernel.js';
 
-export {displayTitleDate, displayTitleDateLabel, displayTitleKey};
+export {displayTitleDate, displayTitleDateLabel, displayTitleKey, legacyDisplayTitleKey, restoredDisplayTitleKey};
 
 import {
 	selectConcepts,

@@ -27,7 +27,7 @@ const {backportFallbackTextMapForCard} = await import('../../lib/src/util.js');
 const {selectCards, selectConcepts, selectSynonymMap, getSemanticFingerprintForCard} = await import('../../lib/src/selectors.js');
 const {
 	displayTitle, displayTitleBudgeted, displayTitleWithMeta, beginDisplayTitleBudget, generatedWorkingNotesTitle, graphNodeName,
-	selectDisplayTitleInputs, subscribeDisplayTitles, pendingDisplayTitleCount, displayTitleDateLabel,
+	selectDisplayTitleInputs, subscribeDisplayTitles, pendingDisplayTitleCount, displayTitleDateLabel, displayTitleKey, legacyDisplayTitleKey, restoredDisplayTitleKey,
 } = await import('../../lib/src/working-notes-display-title.js');
 
 const NOTE_BODY = '<p>Hill climbing is totally a thing.</p><p>There is not one truth</p><p>(just as there is not one cause, or one solution)</p><p>Truth is a mindset, a process. Seeking disconfirming evidence, incorporating it into an ever-more nuanced model. Ground-truthing even when it\'s inconvenient.</p><p>Things can be more or less true, it\'s that there\'s a <em>spectrum</em>.</p><p>Truth is an asymptotic ideal, what matters is motion towards the goal, not ever landing at it.</p>';
@@ -414,5 +414,34 @@ describe('worker-side display titles', () => {
 		assert.strictEqual(validCorpusSnapshot({...base, displayTitles: {n: ['s1604500000000']}}), false, 'a malformed entry rejects the record');
 		assert.strictEqual(validCorpusSnapshot({...base, displayTitles: []}), false);
 		assert.strictEqual(validCorpusSnapshot(base), true, 'absent is fine (older records)');
+	});
+
+	it('keys a frozen title on the revision, so an ordinary body save recomputes it and nothing else does', () => {
+		//#784: a note is created with an empty body (title = the bare date)
+		//and its first body save is not "substantive", so updated_substantive
+		//stays at the creation time; keyed on that, the date-only title was
+		//frozen forever. The revision moves on every content write.
+		const created = baseCard('k', {card_type: 'working-notes', published: false, created: stamp(NOTE_SECONDS), updated_substantive: stamp(NOTE_SECONDS), revision: 1});
+		const saved = {...created, body: '<p>Penguins navigate glaciers</p>', revision: 2};
+		assert.notStrictEqual(displayTitleKey(saved), displayTitleKey(created), 'a body save at the same updated_substantive changes the key');
+		assert.strictEqual(displayTitleKey({...saved, updated_substantive: stamp(NOTE_SECONDS + 999)}), displayTitleKey(saved), 'a timestamp move without a content write does not');
+		//A legacy card never written under the revision Rules keeps the
+		//timestamp key, so the snapshot's titles for it stay valid.
+		const legacy = baseCard('l', {card_type: 'working-notes', published: false, created: stamp(NOTE_SECONDS), updated_substantive: stamp(NOTE_SECONDS + 5)});
+		delete legacy.revision;
+		assert.match(displayTitleKey(legacy), /^s\d+$/);
+	});
+
+	it('re-keys a persisted title for the snapshot image it was frozen for, so the key change recomputes nothing at prime', () => {
+		const card = baseCard('p', {card_type: 'working-notes', published: false, created: stamp(NOTE_SECONDS), updated_substantive: stamp(NOTE_SECONDS + 5), revision: 3});
+		const legacy = legacyDisplayTitleKey(card);
+		assert.match(legacy, /^s\d+$/);
+		assert.strictEqual(restoredDisplayTitleKey(card, legacy), 'r3', 'a title saved under the legacy key for this image is re-keyed, not dropped');
+		assert.strictEqual(restoredDisplayTitleKey(card, 'r3'), 'r3', 'a current key is kept');
+		assert.strictEqual(restoredDisplayTitleKey(card, 's1'), 's1', 'a legacy key for a DIFFERENT image stays stale, so the warm-up recomputes it');
+		assert.strictEqual(restoredDisplayTitleKey(undefined, legacy), legacy, 'no image in the snapshot, no re-keying');
+		const worker = readFileSync(new URL('../../src/worker/corpus-worker.ts', import.meta.url), 'utf8');
+		const restore = worker.slice(worker.indexOf('const restoreDisplayTitles'), worker.indexOf('const cachedDisplayTitle'));
+		assert.match(restore, /restoredDisplayTitleKey\(cards\[id\], key\)/, 'the worker restores through restoredDisplayTitleKey with the snapshot image');
 	});
 });
