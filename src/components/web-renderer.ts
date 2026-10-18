@@ -1,14 +1,33 @@
 import { html, LitElement, svg, css, PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
+import { connect } from 'pwa-helpers/connect-mixin.js';
 
 import * as d3 from 'd3';
 
+import { store } from '../store.js';
+
+import {
+	selectCards,
+	selectCardMetas
+} from '../selectors.js';
+
 import {
 	CardID,
+	CardMetas,
+	ProcessedCards,
+	State,
 	WebInfo,
 	WebInfoNodeWithLayout,
 	WebInfoWithLayout
 } from '../types.js';
+
+import {
+	beginDisplayTitleBudget,
+	DisplayTitleInputs,
+	graphNodeName,
+	selectDisplayTitleInputs,
+	subscribeDisplayTitles
+} from '../working-notes-display-title.js';
 
 import {
 	makeCardHoveredEvent,
@@ -16,7 +35,7 @@ import {
 } from '../events.js';
 
 @customElement('web-renderer')
-export class WebRenderer extends LitElement {
+export class WebRenderer extends connect(store)(LitElement) {
 
 	//as returned from e.g. collection.webInfo
 	@property({ type : Object })
@@ -27,6 +46,17 @@ export class WebRenderer extends LitElement {
 
 	@state()
 		_calculatedGraph: WebInfoWithLayout;
+
+	@state()
+		_cards : ProcessedCards = {};
+
+	@state()
+		_cardMetas : CardMetas | null = null;
+
+	@state()
+		_displayTitleInputs : DisplayTitleInputs | null = null;
+
+	_unsubscribeDisplayTitles : (() => void) | null = null;
 
 	static override styles = [
 		css`
@@ -62,12 +92,38 @@ export class WebRenderer extends LitElement {
 	override render() {
 		const width = this.offsetWidth;
 		const height = this.offsetHeight;
+		//Titles the worker has not frozen yet are computed within this
+		//render's budget and the rest filled in idle slices (the subscription
+		//below re-renders as they land), so a cold graph of hundreds of notes
+		//does not pay ~1.4ms a node on top of the layout.
+		beginDisplayTitleBudget();
 		return html`
 		<svg viewBox=${'0 0 ' + width + ' ' + height}>
 			${this._calculatedGraph.edges.map(edge => svg`<line x1=${edge.source.x} x2=${edge.target.x} y1=${edge.source.y} y2=${edge.target.y} stroke-width='1'></line>`)}	
-			${this._calculatedGraph.nodes.map(node => svg`<circle id=${node.id} title=${node.name} r='4' cx=${node.x} cy=${node.y} class=${node.id == this.highlightedCardId ? 'highlighted' : ''} @click=${this._handleThumbnailClick} @mousemove=${this._handleThumbnailMouseMove}></circle>`)}
+			${this._calculatedGraph.nodes.map(node => svg`<circle id=${node.id} r='4' cx=${node.x} cy=${node.y} class=${node.id == this.highlightedCardId ? 'highlighted' : ''} @click=${this._handleThumbnailClick} @mousemove=${this._handleThumbnailMouseMove}><title>${this._nodeName(node)}</title></circle>`)}
 		</svg>
 	`;
+	}
+
+	//The label is a child <title>, which is what SVG renders as a tooltip; a
+	//`title` attribute on a circle is not one. Working notes store no
+	//authored title, so the label is the same computed display title the
+	//list shows.
+	_nodeName(node : WebInfoNodeWithLayout) : string {
+		const card = this._cards[node.id];
+		if (!card || !this._displayTitleInputs) return node.name;
+		return graphNodeName(card, this._cardMetas, this._displayTitleInputs);
+	}
+
+	override connectedCallback() {
+		super.connectedCallback();
+		this._unsubscribeDisplayTitles = subscribeDisplayTitles(() => this.requestUpdate());
+	}
+
+	override disconnectedCallback() {
+		if (this._unsubscribeDisplayTitles) this._unsubscribeDisplayTitles();
+		this._unsubscribeDisplayTitles = null;
+		super.disconnectedCallback();
 	}
 
 	_handleThumbnailClick(e : MouseEvent) {
@@ -118,6 +174,12 @@ export class WebRenderer extends LitElement {
 	constructor() {
 		super();
 		this._calculatedGraph = {nodes:[], edges:[]};
+	}
+
+	override stateChanged(state : State) {
+		this._cards = selectCards(state);
+		this._cardMetas = selectCardMetas(state);
+		this._displayTitleInputs = selectDisplayTitleInputs(state);
 	}
 
 	override updated(changedProps : PropertyValues<this>) {

@@ -26,7 +26,7 @@ const {cardWithNormalizedTextProperties, FingerprintGenerator} = await import('.
 const {backportFallbackTextMapForCard} = await import('../../lib/src/util.js');
 const {selectCards, selectConcepts, selectSynonymMap, getSemanticFingerprintForCard} = await import('../../lib/src/selectors.js');
 const {
-	displayTitle, displayTitleBudgeted, displayTitleWithMeta, beginDisplayTitleBudget, generatedWorkingNotesTitle,
+	displayTitle, displayTitleBudgeted, displayTitleWithMeta, beginDisplayTitleBudget, generatedWorkingNotesTitle, graphNodeName,
 	selectDisplayTitleInputs, subscribeDisplayTitles, pendingDisplayTitleCount, displayTitleDateLabel,
 } = await import('../../lib/src/working-notes-display-title.js');
 
@@ -304,6 +304,11 @@ describe('working-notes display title consumers', () => {
 		assert.strictEqual(displayTitleBudgeted(card, inputsB, metas), '11/4/20 From The Worker');
 		assert.strictEqual(displayTitleWithMeta(card, metas, inputsB), '11/4/20 From The Worker');
 		assert.strictEqual(displayTitleWithMeta({...card, title: 'Authored'}, metas, inputsB), 'Authored', 'an authored title still wins');
+		//The web view labels its nodes the way the list does, and a card with
+		//neither title keeps the id label the Collection gave it.
+		assert.strictEqual(graphNodeName(card, metas, inputsB), '11/4/20 From The Worker');
+		assert.strictEqual(graphNodeName({...card, title: 'Authored'}, metas, inputsB), 'Authored');
+		assert.strictEqual(graphNodeName({...card, card_type: 'content', title: ''}, metas, inputsB), 's', 'no title at all falls back to the id');
 		//A card never computed and without a meta title shows the date.
 		cards.fresh = baseCard('fresh', {card_type: 'working-notes', body: '<p>never seen</p>', published: false});
 		const stateC = stateFor(cards);

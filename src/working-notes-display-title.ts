@@ -160,6 +160,15 @@ export const displayTitleBudgeted = (card : ProcessedCard, inputs : DisplayTitle
 
 //Subscribers are re-rendered after each drained slice. Returns the
 //unsubscribe.
+//The web view's node label: the same title the list shows (budgeted the
+//same way, with the date alone as the placeholder), falling back to the id
+//for a card with neither an authored nor a display title — the Collection's
+//own WebInfo rule, so a card missing from the store keeps the label the
+//collection computed.
+export const graphNodeName = (card : ProcessedCard, metas : CardMetas | null | undefined, inputs : DisplayTitleInputs) : string => {
+	return displayTitleBudgeted(card, inputs, metas) || card.id;
+};
+
 export const subscribeDisplayTitles = (listener : () => void) : (() => void) => {
 	listeners.add(listener);
 	return () => { listeners.delete(listener); };
