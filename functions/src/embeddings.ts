@@ -26,11 +26,30 @@ import {
 
 import {
 	DEV_MODE,
-	getCards,
 	QDRANT_API_KEY,
 	QDRANT_CLUSTER_URL,
-	throwIfUserMayNotUseAI
+	throwIfUserMayNotUseAI,
+	db
 } from './common.js';
+
+import {
+	CARDS_COLLECTION
+} from '../../shared/collection-constants.js';
+
+import {
+	DEFAULT_REINDEX_PAGE_SIZE,
+	UNCHANGED_PAYLOAD_BATCH,
+	ReindexPageResult,
+	chunked,
+	nextCursorFor,
+	pageOverBudget,
+	reindexDecision
+} from '../../shared/reindex-paging.js';
+
+
+import {
+	FieldPath
+} from 'firebase-admin/firestore';
 
 import {
 	QdrantClient
@@ -498,46 +517,91 @@ export const processCardEmbedding = async (event : FirestoreEvent<Change<Documen
 
 const TOO_MANY_ERRORS = 5;
 
-export const reindexCardEmbeddings = async () : Promise<void> => {
+//One page of the reindex (#783): the cards after `cursor` in document-id
+//order, the payloads (no vectors) of just their points at any version, a
+//decision per card (reindexDecision), batched last_updated touches for the
+//unchanged ones and an updateCard for the rest. The caller loops pages;
+//tools/cli.ts does, after a deploy, and reports each one.
+export const reindexCardEmbeddings = async (cursor : string | null = null, pageSize = DEFAULT_REINDEX_PAGE_SIZE) : Promise<ReindexPageResult> => {
+	const empty : ReindexPageResult = {nextCursor: null, processed: 0, touched: 0, reused: 0, embedded: 0, failed: 0, failures: []};
 	if (!EMBEDDING_STORE) {
 		console.warn('Qdrant not enabled, skipping');
-		return;
+		return empty;
+	}
+	let pageQuery = db.collection(CARDS_COLLECTION).orderBy(FieldPath.documentId()).limit(pageSize);
+	if (cursor) pageQuery = pageQuery.startAfter(cursor);
+	const page = await pageQuery.get();
+	const cards = page.docs.map(snapshot => ({...snapshot.data(), id: snapshot.id} as Card));
+	if (!cards.length) return empty;
+
+	//Payloads only, any version, for exactly these cards.
+	const cardIDs = cards.map(card => card.id);
+	const pointsByCard : Record<CardID, PointSummary> = {};
+	for (const ids of chunked(cardIDs, 100)) {
+		const found = await EMBEDDING_STORE._qdrant.scroll(QDRANT_COLLECTION_NAME, {
+			filter: {must: [{key: PAYLOAD_CARD_ID_KEY, match: {any: ids}}]},
+			limit: ids.length * 4,
+			with_payload: {include: [PAYLOAD_CONTENT_KEY, PAYLOAD_CARD_ID_KEY, PAYLOAD_VERSION_KEY]},
+			with_vector: false
+		});
+		for (const point of found.points) {
+			const cardID = point.payload?.card_id as CardID | undefined;
+			if (!cardID) continue;
+			pointsByCard[cardID] = {id: String(point.id), payload: {content: String(point.payload?.content || ''), extraction_version: ((point.payload?.extraction_version as EmbeddingVersion | undefined) || 0) as EmbeddingVersion}};
+		}
 	}
 
-	const cards = await getCards();
-
-	const indexedCardInfoResult = await EMBEDDING_STORE._qdrant.scroll(QDRANT_COLLECTION_NAME, {
-		limit: MAX_EMBEDDINGS,
-		with_payload: {
-			include: [
-				PAYLOAD_CONTENT_KEY,
-				PAYLOAD_CARD_ID_KEY,
-				PAYLOAD_VERSION_KEY
-			]
-		},
-		with_vector: true
-	});
-
-	const cardsInfo = Object.fromEntries(indexedCardInfoResult.points.map(point => [point.payload?.card_id, {id: point.id, payload: {content: point.payload?.content, extraction_version: point.payload?.extraction_version || 0}, vector: point.vector}])) as Record<CardID, PointSummary>;
-
-	let i = 1;
+	const result : ReindexPageResult = {...empty};
+	const toTouch : string[] = [];
+	const startedAt = Date.now();
+	let lastProcessedID : string | null = null;
 	let errCount = 0;
-	for (const card of cards) {
-		console.log(`Processing card ${i}/${cards.length}`);
-		//This could fail for example for too-long embeddings
-		try {
-			await EMBEDDING_STORE.updateCard(card, cardsInfo);
-			errCount = 0;
-		} catch(err) {
-			console.warn(`${card.id} failed: ${String(err)}`);
-			errCount++;
+	try {
+		for (const card of cards) {
+			if (pageOverBudget(startedAt, Date.now(), result.processed)) break;
+			const existing = pointsByCard[card.id];
+			//Everything per card inside the try, text extraction included: the
+			//first DEV walk reached page 94 of 94 and then aborted the whole
+			//page on one malformed document (`created` undefined), which the
+			//old code's per-card try had swallowed inside updateCard. A bad
+			//card is a failure in the page's report, not the end of the page.
+			try {
+				const text = textContentForEmbeddingForCard(card);
+				const decision = reindexDecision(text, existing ? existing.payload : null, CURRENT_EMBEDDING_VERSION);
+				if (decision === 'touch') {
+					toTouch.push(existing.id);
+					result.touched++;
+				} else {
+					if (decision === 'reuse-vector') {
+						//The vector, for this card only: the page lookup left vectors out.
+						const withVector = await EMBEDDING_STORE.getExistingPointAnyVersion(card.id, {includePayload: true, includeVector: true});
+						await EMBEDDING_STORE.updateCard(card, withVector ? {[card.id]: withVector} : undefined);
+						result.reused++;
+					} else {
+						await EMBEDDING_STORE.updateCard(card, existing ? {[card.id]: existing} : {});
+						result.embedded++;
+					}
+					errCount = 0;
+				}
+			} catch (err) {
+				console.warn(`${card.id} failed: ${String(err)}`);
+				result.failed++;
+				result.failures.push(`${card.id}: ${String(err)}`);
+				errCount++;
+				if (errCount > TOO_MANY_ERRORS) throw new Error(`Received ${errCount} failures in a row so quitting (last: ${String(err)})`);
+			}
+			result.processed++;
+			lastProcessedID = card.id;
 		}
-		if (errCount > TOO_MANY_ERRORS) {
-			throw new Error(`Received ${TOO_MANY_ERRORS} in a row so quitting`);
+	} finally {
+		//The touches collected so far land even when the page aborts.
+		for (const ids of chunked(toTouch, UNCHANGED_PAYLOAD_BATCH)) {
+			await EMBEDDING_STORE._qdrant.setPayload(QDRANT_COLLECTION_NAME, {points: ids, payload: {last_updated: Date.now()}});
 		}
-		i++;
 	}
-	console.log('Done indexing cards');
+	result.nextCursor = nextCursorFor(lastProcessedID, result.processed, cards.length, pageSize);
+	console.log(`Reindex page: ${result.processed} of ${cards.length} cards (touched ${result.touched}, reused ${result.reused}, embedded ${result.embedded}, failed ${result.failed}) in ${Math.round((Date.now() - startedAt) / 1000)}s; next cursor ${result.nextCursor || 'none'}`);
+	return result;
 };
 
 export const cleanupOldEmbeddings = async (versionsToDelete: EmbeddingVersion[]) : Promise<void> => {

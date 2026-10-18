@@ -160,7 +160,16 @@ const configureQdrantCommand = async (): Promise<void> => {
 	await configureQdrant(projectConfig, devProjectConfig, CONFIG_INCLUDES_DEV, OPENAI_ENABLED);
 };
 
-const reindexCardEmbeddings = async (): Promise<void> => {
+//Starts after `--cursor <id>` when given, to resume a walk that stopped.
+const reindexCursorArg = (): string | null => {
+	const index = process.argv.indexOf('--cursor');
+	return index > 0 && process.argv[index + 1] ? process.argv[index + 1] : null;
+};
+
+const reindexResumeHint = (projectId : string, cursor : string | null) : string =>
+	`resume with: npx tsx tools/cli.ts reindex${projectId === FIREBASE_DEV_PROJECT ? ':dev' : ''} --cursor ${cursor || '<start>'}`;
+
+const reindexCardEmbeddings = async (startCursor : string | null = null): Promise<void> => {
 	const qdrantInfo = projectConfig.qdrant;
 	const qdrantIsEnabled = OPENAI_ENABLED && qdrantInfo?.api_key && qdrantInfo?.cluster_url;
 	if (!qdrantIsEnabled) {
@@ -170,8 +179,56 @@ const reindexCardEmbeddings = async (): Promise<void> => {
 
 	const projectId = await selectedProjectID();
 	const url = 'https://' + REGION + '-' + projectId + '.cloudfunctions.net/reindexCardEmbeddings';
-	console.log('Running in the background: ' + url);
-	runBackground('curl', ['-X', 'POST', url]);
+	//Page by page, reported, and loud on failure (#783): the function used to
+	//be fired in the background with curl and never read, and had been dying
+	//out of memory on every deploy since Sept 20 without anyone seeing it.
+	console.log('Reindexing card embeddings page by page via ' + url);
+	let cursor : string | null = startCursor;
+	let page = 0;
+	const totals = {processed: 0, touched: 0, reused: 0, embedded: 0, failed: 0};
+	const startedAt = Date.now();
+	for (;;) {
+		page++;
+		//The resume hint comes FIRST and the body is collapsed to one line:
+		//the deploy's banner prints the first line of the error, and a 503
+		//HTML body would otherwise push the cursor out of it. A fetch that
+		//throws (the 300 s headers timeout, a reset) carries the hint too.
+		let response : Response;
+		try {
+			response = await fetch(url, {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify(cursor ? {cursor} : {})});
+		} catch (err) {
+			throw new Error(`reindexCardEmbeddings page ${page} failed (${reindexResumeHint(projectId, cursor)}): ${String(err).replace(/\s+/g, ' ')}`);
+		}
+		if (!response.ok) throw new Error(`reindexCardEmbeddings page ${page} failed (${reindexResumeHint(projectId, cursor)}): HTTP ${response.status} ${(await response.text()).replace(/\s+/g, ' ').slice(0, 500)}`);
+		const result = await response.json() as {nextCursor : string | null, processed : number, touched : number, reused : number, embedded : number, failed : number, failures : string[]};
+		for (const key of Object.keys(totals) as (keyof typeof totals)[]) totals[key] += result[key] || 0;
+		console.log(`  page ${page}: ${result.processed} cards (touched ${result.touched}, reused ${result.reused}, embedded ${result.embedded}, failed ${result.failed}) — ${totals.processed} so far, ${Math.round((Date.now() - startedAt) / 1000)}s`);
+		for (const failure of result.failures || []) console.warn('    ' + failure);
+		if (!result.nextCursor) break;
+		cursor = result.nextCursor;
+	}
+	console.log(`Reindex complete: ${totals.processed} cards, touched ${totals.touched}, reused ${totals.reused}, embedded ${totals.embedded}, failed ${totals.failed}, ${Math.round((Date.now() - startedAt) / 1000)}s`);
+	if (totals.failed) throw new Error(`reindexCardEmbeddings: ${totals.failed} card(s) failed; see the lines above`);
+};
+
+//The deploy's reindex: reported, never fatal to the deploy. Hosting, rules
+//and functions have already shipped by the time this runs, and a release
+//tags afterwards; a card that cannot be embedded (the function's own
+//comment expects some) must not turn a finished deploy into an exit 1 with
+//no tag. The standalone `reindex` command keeps the throw.
+const reindexAfterDeploy = async (): Promise<void> => {
+	try {
+		await reindexCardEmbeddings();
+	} catch (err) {
+		const projectId = await selectedProjectID();
+		console.log('');
+		console.log('  ******************************************************************');
+		console.log('  *  The deploy itself completed. The embedding REINDEX did not:');
+		console.log('  *  ' + String(err).replace(/\s+/g, ' ').slice(0, 700));
+		console.log(`  *  Rerun it on its own: npx tsx tools/cli.ts reindex${projectId === FIREBASE_DEV_PROJECT ? ':dev' : ''} [--cursor <id>]`);
+		console.log('  ******************************************************************');
+		console.log('');
+	}
 };
 
 const cleanupOldEmbeddings = async (): Promise<void> => {
@@ -351,7 +408,7 @@ const devDeploy = async (): Promise<void> => {
 	await configureQdrantCommand();
 	configureEnvironment();
 	firebaseDeploy();
-	await reindexCardEmbeddings();
+	await reindexAfterDeploy();
 };
 
 const deploy = async (): Promise<void> => {
@@ -364,8 +421,9 @@ const deploy = async (): Promise<void> => {
 	await configureQdrantCommand();
 	configureEnvironment();
 	firebaseDeploy();
+	await reindexAfterDeploy();
+	//After the reindex, so ~100 page lines do not scroll it away.
 	warnMaintenance();
-	await reindexCardEmbeddings();
 };
 
 const backup = async (cliMessage?: string): Promise<void> => {
@@ -405,6 +463,8 @@ const COMMANDS: { name: string; description: string }[] = [
 	{ name: 'dev-deploy', description: 'Build and deploy to dev' },
 	{ name: 'release', description: 'Backup, deploy to prod, and optionally tag' },
 	{ name: 'backup', description: 'Backup prod firestore (--message <msg>)' },
+	{ name: 'reindex', description: 'Reindex card embeddings on prod, page by page, reporting each page (--cursor <id> resumes)' },
+	{ name: 'reindex:dev', description: 'Same against dev' },
 	{ name: 'tag-release', description: 'Create and push a git deploy tag' },
 	{ name: 'reset-dev', description: 'Reset dev firestore from latest prod backup' },
 	{ name: 'set-up-deploy', description: 'Set up CORS and deploy firestore/storage rules' },
@@ -563,6 +623,14 @@ const main = async (): Promise<void> => {
 		break;
 	case 'release':
 		await release();
+		break;
+	case 'reindex':
+		firebaseEnsureProd();
+		await reindexCardEmbeddings(reindexCursorArg());
+		break;
+	case 'reindex:dev':
+		firebaseEnsureDev();
+		await reindexCardEmbeddings(reindexCursorArg());
 		break;
 	case 'reset-dev':
 		await resetDev();

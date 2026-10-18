@@ -81,14 +81,22 @@ export const emailAdminOnMessage = onDocumentCreated('messages/{messageId}', ema
 
 export const updateCardEmbedding = onDocumentWritten('cards/{cardID}', processCardEmbedding);
 
+//One PAGE per request (#783): body {cursor?: string, pageSize?: number},
+//response the page's ReindexPageResult with nextCursor. The caller
+//(tools/cli.ts after a deploy, or `npx tsx tools/cli.ts reindex`) loops.
+//The whole corpus in one request ran out of memory at 47k cards on every
+//deploy since Sept 20, unnoticed because nothing read the response.
 const reindexCardEmbeddingsApp = express();
+reindexCardEmbeddingsApp.use(express.json());
 reindexCardEmbeddingsApp.post('/', async(req, res) => {
-	try{
-		await reindexCardEmbeddingsImpl();
+	try {
+		const cursor = typeof req.body?.cursor === 'string' && req.body.cursor ? req.body.cursor : null;
+		const pageSize = Number.isInteger(req.body?.pageSize) && req.body.pageSize > 0 && req.body.pageSize <= 2000 ? req.body.pageSize : undefined;
+		const result = await reindexCardEmbeddingsImpl(cursor, pageSize);
+		res.status(200).json(result);
 	} catch(err) {
 		res.status(500).send(String(err));
 	}
-	res.status(200).send('Success');
 });
 
 export const reindexCardEmbeddings = onRequest({
