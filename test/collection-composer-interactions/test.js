@@ -354,7 +354,7 @@ describe('Collection Composer interactions', () => {
 		//(collection_description._makeFilteredCards), so gating the empty state
 		//on it suppressed the message in exactly its target case — verified
 		//against the live app. When fallback placeholder cards actually render,
-		//finalSortedCards is non-empty and the length check already declines.
+		//the collection is non-empty and the count check already declines.
 		assert.ok(!/_collectionIsFallback/.test(predicate),
 			'the empty state must not gate on isFallback — that flag IS the empty-collection signal');
 		//SUPERSEDED TERM (owner: "default it to on, remove the flag"). The
@@ -363,7 +363,9 @@ describe('Collection Composer interactions', () => {
 		//gets both now, which is what this asserts instead.
 		assert.ok(!/collectionComposerEnabled/.test(predicate),
 			'an empty collection says so to every user — no capability term left');
-		assert.match(predicate, /finalSortedCards\.length === 0/);
+		//The count, not finalSortedCards.length: on a worker-served collection
+		//the latter processes every card on the main thread (#777).
+		assert.match(predicate, /numFinalSortedCards === 0/);
 
 		const emptyStart = source.indexOf('class=\'collection-empty\'');
 		assert.ok(emptyStart >= 0, 'the card view area must render an empty state');
@@ -1354,11 +1356,14 @@ describe('Collection Composer interactions', () => {
 		//The harness's find collection is empty (no corpus worker), so the list
 		//the keyboard walks is stood in for directly. What is under test is the
 		//navigation and the pick, not the query that produced the results.
+		const pickerCards = [
+			{ id: 'card-1', title: 'Inductively Knowable' },
+			{ id: 'card-2', title: 'Mechanistically Knowable' },
+		];
 		findDialog._collection = {
-			finalSortedCards: [
-				{ id: 'card-1', title: 'Inductively Knowable' },
-				{ id: 'card-2', title: 'Mechanistically Knowable' },
-			],
+			finalSortedCards: pickerCards,
+			finalSortedCardIDs: pickerCards.map(card => card.id),
+			finalSortedCardsSlice: (start, end) => pickerCards.slice(start, end),
 		};
 		await findDialog.updateComplete;
 

@@ -57,7 +57,7 @@ import {
 	selectMultiEditCardsReferencesUnion,
 	selectTagInfosForCards,
 	selectMultiEditReferencesDiff,
-	selectMultiEditCards,
+	selectMultiEditCardIDs,
 	selectMultiEditCardsMissingCount,
 	selectCardModificationPending,
 	selectBulkTagOperationProgress,
@@ -98,8 +98,8 @@ import './card-link.js';
 import {
 	AutoTODOType,
 	BooleanDiffValue,
-	Card,
 	CardDiff,
+	CardID,
 	CardLike,
 	ReferencesEntriesDiff,
 	ReferenceType,
@@ -182,7 +182,7 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 		_diff : CardDiff;
 
 	@state()
-		_selectedCards: Card[];
+		_selectedCardIDs: CardID[];
 
 	@state()
 		_cardModificationPending: boolean;
@@ -388,9 +388,9 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 				${descriptionForCardDiff(this._diff, this._cardTagInfos).map(item => html`<li>${item}</li>`)}
 			</ul>
 			<details>
-				<summary><strong>${this._selectedCards.length + this._missingSelectedCount}</strong> cards selected</summary>
+				<summary><strong>${this._selectedCardIDs.length + this._missingSelectedCount}</strong> cards selected</summary>
 				<ul>
-					${this._selectedCards.map(card => html`<li><card-link auto='title' card='${card.id}' .noNavigate=${true}></card-link></li>`)}
+					${this._selectedCardIDs.map(id => html`<li><card-link auto='title' card='${id}' .noNavigate=${true}></card-link></li>`)}
 				</ul>
 			</details>
 			<!-- Only when saving is otherwise possible. If sync is down, THAT is
@@ -399,10 +399,10 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 			that is not coming. -->
 			${this._missingSelectedCount && this._saveEligible ? html`<p class='waiting' role='status' aria-live='polite'>
 				${this._missingSelectedCount === 1
-		? html`One of the ${this._selectedCards.length + 1} selected cards has not loaded yet.
+		? html`One of the ${this._selectedCardIDs.length + 1} selected cards has not loaded yet.
 						Saving now would quietly skip it, so Save is held until it arrives.`
 		: html`${this._missingSelectedCount} of the
-						${this._selectedCards.length + this._missingSelectedCount} selected cards have not loaded yet.
+						${this._selectedCardIDs.length + this._missingSelectedCount} selected cards have not loaded yet.
 						Saving now would quietly skip them, so Save is held until they arrive.`}
 			</p>` : ''}
 			<div class='buttons'>
@@ -584,7 +584,9 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 		this._todoEnablements = selectMultiEditAddTODOEnablements(state);
 		this._todoDisablements = selectMultiEditAddTODODisablements(state);
 		this._published = selectMultiEditPublished(state);
-		this._selectedCards = selectMultiEditCards(state);
+		//Ids, not cards: this runs on every state change whether or not the
+		//dialog is open, and the list only needs ids (#777).
+		this._selectedCardIDs = selectMultiEditCardIDs(state);
 		this._missingSelectedCount = selectMultiEditCardsMissingCount(state);
 		this._cardModificationPending = selectCardModificationPending(state);
 		this._bulkTagProgress = selectBulkTagOperationProgress(state);

@@ -712,7 +712,7 @@ class CardView extends connect(store)(PageViewElement) {
 		if (!this._collection || !this._dataIsFullyLoaded) return false;
 		if (this._collectionPending || this._collectionUpdating) return false;
 		if (this._collectionFailureMessage) return false;
-		return this._collection.finalSortedCards.length === 0;
+		return this._collection.numFinalSortedCards === 0;
 	}
 
 	override render() {
@@ -1015,7 +1015,7 @@ class CardView extends connect(store)(PageViewElement) {
 
 	_handleAddCollectionToSelectionClicked() {
 		if (!this._collection) return;
-		store.dispatch(doSelectCards(this._collection.finalSortedCards.map(c => c.id)));
+		store.dispatch(doSelectCards(this._collection.finalSortedCardIDs));
 	}
 
 	_handleForkClicked() {

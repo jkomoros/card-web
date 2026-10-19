@@ -4333,7 +4333,10 @@ export const removeCards = (cardIDs : CardID[], unpublished : boolean) : ThunkSo
 const actuallyRemoveCards = (cardIDs : CardID[], unpublished : boolean) : ThunkSomeAction => (dispatch, getState) => {
 
 	const published = !unpublished;
-	const cards = selectCards(getState());
+	//Raw cards: this reads one boolean per card, and the processed proxy
+	//would NLP-process every removed card (a reconciliation or scope change
+	//can remove thousands) just to read it — and pin the processed copies.
+	const cards = selectRawCards(getState());
 
 	const filteredCardIDs = cardIDs.filter(id => cards[id] ? cards[id].published == published : false);
 

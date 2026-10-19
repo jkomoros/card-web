@@ -1,6 +1,6 @@
 import {
 	selectActiveCollection,
-	selectActiveCollectionCards,
+	selectActiveCollectionCardIDs,
 	selectChats,
 	selectCurrentChatID,
 	selectCurrentComposedChat,
@@ -147,8 +147,7 @@ export const createChatWithCurentCollection = (initialMessage : string, model : 
 		return;
 	}
 
-	const cards = selectActiveCollectionCards(state);
-	const cardIDs: CardID[] = cards.map(card => card.id);
+	const cardIDs: CardID[] = selectActiveCollectionCardIDs(state);
 
 	try {
 		// Use authenticated fetch instead of callable

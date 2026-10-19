@@ -24,7 +24,7 @@ import {
 	selectEditingPendingReferenceType,
 	selectEditingCardSuggestedConceptReferences,
 	selectMultiEditDialogOpen,
-	selectSelectedCards,
+	selectMultiEditCardIDs,
 	selectEditingUnderlyingCardSnapshotDiffDescription,
 	selectEditingUnderlyingCard,
 	selectEditingUnderlyingCardSnapshot,
@@ -957,8 +957,11 @@ export const setCardToReference = (cardID : CardID) : ThunkSomeAction => (dispat
 		//selected card. A selected target would make one of those cards reference
 		//itself, which is invalid and could otherwise pause a later chunk after
 		//earlier chunks had already committed. Reject the intent before any durable
-		//operation begins instead of leaving a surprising partial result.
-		if (selectSelectedCards(state).some(card => card.id === cardID)) {
+		//operation begins instead of leaving a surprising partial result. The
+		//set is the dialog's captured targets, which the save applies to —
+		//not the live selection, which a delivery can narrow after the dialog
+		//opened (the second review's find).
+		if (selectMultiEditCardIDs(state).includes(cardID)) {
 			dispatch(showSnackbar('Choose a card outside the current selection \u2014 a card can\u2019t reference itself.', {kind: 'refused'}));
 			dispatch({type: EDITING_RESET_REFERENCE_CARD});
 			return;

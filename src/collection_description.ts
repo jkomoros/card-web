@@ -1191,7 +1191,15 @@ export class Collection {
 	_labels : string[] | null;
 	_startCards : ProcessedCard[] | null;
 	_finalSortedCards : ProcessedCard[] | null;
+	_finalSortedCardIDs : CardID[] | null;
 	_finalLabels : string[] | null;
+	//Set only by fromWorkerResult: the worker's final sorted ids (start cards
+	//first), already narrowed to ids this thread holds a card for. While it
+	//is set, every card list above is a PROJECTION of it, built on first use,
+	//so a consumer that asks only for ids or counts, or for a window, never
+	//processes the rest. See fromWorkerResult.
+	_workerIDs : CardID[] | null;
+	_workerNumStartCards : number;
 	//TODO: correct title casing
 	_preLimitlength : number;
 	_sortExtras : SortExtras;
@@ -1252,7 +1260,10 @@ export class Collection {
 		this._labels = null;
 		this._startCards = null;
 		this._finalSortedCards = null;
+		this._finalSortedCardIDs = null;
 		this._finalLabels = null;
+		this._workerIDs = null;
+		this._workerNumStartCards = 0;
 		this._webInfo = null;
 		//sortExtras is extra information that configurable filters can
 		//optionally return and then make use of in special sorts later.
@@ -1271,6 +1282,10 @@ export class Collection {
 		const prevArgs = previous._arguments;
 		//Nothing to hand off if the previous collection never did its work.
 		if (!previous._filteredCards) return null;
+		//A worker-served collection's lists are post-limit projections of the
+		//worker's ids, not this thread's filter work; there is nothing of the
+		//local pipeline's to carry over.
+		if (previous._workerIDs) return null;
 		if (!description.equivalent(previous._description)) return null;
 		//Filtering ran over cardsSnapshot (if present) — it must be identical.
 		//Without a snapshot, filtering ran over the live cards map, which is
@@ -1333,21 +1348,48 @@ export class Collection {
 	static fromWorkerResult(description : CollectionDescription, args : CollectionConstructorArguments, result : WorkerCollectionResult) : Collection {
 		const collection = new Collection(description, args);
 		const cards = args.cards;
-		const expand = (ids : CardID[]) => expandCardCollection(ids, cards);
-		const finalCards = expand(result.ids);
-		const startCards = finalCards.slice(0, result.numStartCards);
-		const sortedCards = finalCards.slice(result.numStartCards);
-		//Pre-seed so every _ensure* no-ops.
-		collection._startCards = startCards;
-		collection._sortedCards = sortedCards;
-		collection._finalSortedCards = finalCards;
-		collection._labels = result.labels.slice(result.numStartCards);
-		collection._finalLabels = result.labels;
+		//Hold the ids, not the cards. The main thread's cards map is the lazy
+		//processing Proxy (lazyProcessCards): reading cards[id] processes
+		//that card and pins the processed copy, so expanding the whole result
+		//here processed every card of the active collection on every
+		//delivery — all 45k notes for the owner's working-notes view, on each
+		//save echo — when the thumbnail list renders a window of them and
+		//everything else wants ids or a count. `in` goes through the Proxy's
+		//has trap, which only looks the id up in the raw map; the narrowing
+		//keeps every projection below exactly what expandCardCollection
+		//produced (ids with no card are dropped), so lengths and indexes agree
+		//with the cards a consumer that expands gets (#777). The labels and
+		//the start-card count are narrowed with the ids: the eager code kept
+		//the worker's labels unshifted, so a dropped id put every later
+		//card under its predecessor's label, and a dropped start card
+		//promoted the first match into the start segment.
+		const ids : CardID[] = [];
+		const labels : string[] = [];
+		let numStartCards = 0;
+		//A dropped card's label names the group the cards after it belong
+		//to (the worker blanked their duplicates), so it moves to the next
+		//kept card that has none.
+		let carried = '';
+		result.ids.forEach((id, i) => {
+			const label = result.labels[i] ?? '';
+			if (!(id in cards)) {
+				if (label) carried = label;
+				return;
+			}
+			ids.push(id);
+			labels.push(label || carried);
+			carried = '';
+			if (i < result.numStartCards) numStartCards++;
+		});
+		collection._workerIDs = ids;
+		collection._workerNumStartCards = numStartCards;
+		collection._finalSortedCardIDs = ids;
+		collection._labels = labels.slice(numStartCards);
+		collection._finalLabels = labels;
 		//filteredCards feeds numCards via _preLimitlength; reconstruct the
 		//pre-limit count from the numCards math (numCards = preLimit - offset,
 		//capped by limit — the cap can't be inverted, so prefer the raw list
 		//length when no limit applies).
-		collection._filteredCards = sortedCards;
 		collection._preLimitlength = result.numCards + description.offset;
 		collection._collectionIsFallback = result.isFallback;
 		collection._preview = result.preview;
@@ -1420,8 +1462,21 @@ export class Collection {
 		return result;
 	}
 
+	//The worker's ids after the start cards: what the local pipeline calls the
+	//sorted cards, already offset and limited by the worker.
+	get _workerSortedIDs() : CardID[] {
+		if (!this._workerIDs) throw new Error('not a worker-served collection');
+		return this._workerIDs.slice(this._workerNumStartCards);
+	}
+
 	_ensureFilteredCards() {
 		if (this._filteredCards) return;
+		//A worker-served collection never filters here: the state this step
+		//produces (the pre-limit count, fallback, preview, partial matches)
+		//was seeded by fromWorkerResult, and the list itself is the worker's
+		//sorted ids, expanded only when a consumer asks for the cards
+		//(_preLimitFilteredCards).
+		if (this._workerIDs) return;
 		this._filteredCards = this._makeFilteredCards();
 	}
 
@@ -1447,17 +1502,16 @@ export class Collection {
 
 	get _preLimitFilteredCards() {
 		this._ensureFilteredCards();
+		if (!this._filteredCards && this._workerIDs) this._filteredCards = expandCardCollection(this._workerSortedIDs, this._cardsForExpansion);
 		if (!this._filteredCards) throw new Error('ensurefilteredCards didn\'t work');
 		return this._filteredCards;
 	}
 
 	get filteredCards() {
-		this._ensureFilteredCards();
-		if (!this._filteredCards) throw new Error('ensurefilteredCards didn\'t work');
 		//a limit of 0 is 'all cards'. If there is a limit (or a non-zero
 		//offset), we have to sort the cards before taking the limit/offset.
 		//this.sortedCards will also include the limited subset.
-		return (this._description.limit || this._description.offset) ? this.sortedCards : this._filteredCards;
+		return (this._description.limit || this._description.offset) ? this.sortedCards : this._preLimitFilteredCards;
 	}
 
 	get isFallback() {
@@ -1490,7 +1544,7 @@ export class Collection {
 		if (this._description.limit || this._description.offset) return null;
 		this._ensureFilteredCards();
 		if (this._collectionIsFallback) return null;
-		return this._preLimitFilteredCards.some(card => card.id === cardID);
+		return this.sortedCardIDs.includes(cardID);
 	}
 
 	//True while this collection is the cutover-mode placeholder awaiting the
@@ -1579,6 +1633,12 @@ export class Collection {
 
 	_ensureSortedCards() {
 		if(this._sortedCards) return;
+		if (this._workerIDs) {
+			//One expansion serves both lists, as the worker's sorted ids are
+			//the filtered cards too.
+			this._sortedCards = this._preLimitFilteredCards;
+			return;
+		}
 		this._sortedCards = this._makeSortedCards();
 	}
 
@@ -1616,7 +1676,10 @@ export class Collection {
 
 	_ensureStartCards() {
 		if(this._startCards) return;
-		this._startCards = expandCardCollection(this._startCardsConfig[this._description.serialize()] || [], this._cardsForExpansion);
+		const ids = this._workerIDs
+			? this._workerIDs.slice(0, this._workerNumStartCards)
+			: this._startCardsConfig[this._description.serialize()] || [];
+		this._startCards = expandCardCollection(ids, this._cardsForExpansion);
 	}
 
 	//sortedCards is the sorted cards, WITHOUT any applicable startCards
@@ -1629,9 +1692,20 @@ export class Collection {
 		//a limit in place.
 		const rawSortedCards = this._sortedCards;
 		if (!rawSortedCards) throw new Error('no sorted cards as expected');
+		//The worker applied the offset and limit already; applying them again
+		//dropped another `offset` cards from filteredCards and the partial
+		//count for an offset collection.
+		if (this._workerIDs) return rawSortedCards;
 		let sortedCards = rawSortedCards.slice(this._description.offset);
 		if (this._description.limit) sortedCards = sortedCards.slice(0, this._description.limit);
 		return sortedCards;
+	}
+
+	//The ids of sortedCards, without expanding a card where the ids are
+	//already known (worker-served collections).
+	get sortedCardIDs() : CardID[] {
+		if (this._workerIDs) return this._workerSortedIDs;
+		return this.sortedCards.map(card => card.id);
 	}
 
 	get finalSortedCards() : ProcessedCard[] {
@@ -1643,7 +1717,30 @@ export class Collection {
 		return this._finalSortedCards;
 	}
 
+	//THE IDS OF finalSortedCards, in order. Prefer this, numFinalSortedCards
+	//and finalSortedCardsSlice over finalSortedCards wherever the cards
+	//themselves are not needed: on a worker-served collection they answer
+	//from the worker's ids without processing a card, and finalSortedCards
+	//processes the whole collection on the main thread (see fromWorkerResult).
+	get finalSortedCardIDs() : CardID[] {
+		if (this._finalSortedCardIDs) return this._finalSortedCardIDs;
+		this._finalSortedCardIDs = this.finalSortedCards.map(card => card.id);
+		return this._finalSortedCardIDs;
+	}
+
+	get numFinalSortedCards() : number {
+		return this.finalSortedCardIDs.length;
+	}
+
+	//finalSortedCards.slice(start, end), expanding only that window on a
+	//worker-served collection.
+	finalSortedCardsSlice(start : number, end? : number) : ProcessedCard[] {
+		if (this._workerIDs && !this._finalSortedCards) return expandCardCollection(this._workerIDs.slice(start, end), this._cardsForExpansion);
+		return this.finalSortedCards.slice(start, end);
+	}
+
 	get numStartCards() {
+		if (this._workerIDs) return this._workerNumStartCards;
 		this._ensureStartCards();
 		const startCards = this._startCards;
 		if (!startCards) throw new Error('No start cards as expected');
@@ -1683,10 +1780,7 @@ export class Collection {
 
 	get finalLabels() {
 		if (this._finalLabels) return this._finalLabels;
-		this._ensureStartCards();
-		const startCards = this._startCards;
-		if (!startCards) throw new Error('no start cards as expected');
-		this._finalLabels = [...startCards.map(() => ''), ...this.labels];
+		this._finalLabels = [...new Array(this.numStartCards).fill(''), ...this.labels];
 		return this._finalLabels;
 	}
 

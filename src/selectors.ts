@@ -2301,7 +2301,7 @@ export const selectActiveCollectionNotFullySelected = createSelector(
 		if (!collection) return false;
 		//If there's no selection, then bail.
 		if (Object.keys(selected).length == 0) return false;
-		return !collection.finalSortedCards.every(card => selected[card.id]);
+		return !collection.finalSortedCardIDs.every(id => selected[id]);
 	}
 );
 
@@ -2314,7 +2314,7 @@ export const selectActiveCollectionNotFilteredToSelected = createSelector(
 		if (!collection) return false;
 		//If there's no selection, then bail.
 		if (Object.keys(selected).length == 0) return false;
-		const every = collection.finalSortedCards.every(card => selected[card.id]);
+		const every = collection.finalSortedCardIDs.every(id => selected[id]);
 		//It's effectively filtered to selected if every card is selected.
 		if (every) return false;
 		if (collection.description.filters.includes(SELECTED_FILTER_NAME)) return false;
@@ -2336,33 +2336,51 @@ export const selectActiveCollectionNotFilteredToSelected = createSelector(
 //be wrong on its own: a multi-edit that silently covers 53 of 100 selected
 //cards is worse than one that refuses, which is why the dialog gates Save on
 //that count rather than just narrowing the target set.
-const selectSelectedCardsWithMissing = createSelector(
+//
+//The IDS are the cheap answer, and the one every per-state-change consumer
+//takes: the multi-edit and bulk-import dialogs are always mounted, so a
+//selector here runs on every store change with the dialogs closed, and with
+//nothing selected its answer is the whole active collection. Reading the
+//CARDS of that answer processes every one of them (selectCards is the lazy
+//processing Proxy), which undid the lazy worker collection on every delivery
+//(#777). So ids come from the collection's ids and `in` (the Proxy's has
+//trap), and selectSelectedCards derives the cards only for the callers that
+//want them.
+const selectSelectedCardIDsWithMissing = createSelector(
 	selectCards,
 	selectExplicitlySelectedCardIDs,
 	selectActiveCollection,
-	(cards, selected, collection) : {cards : ProcessedCard[], missing : number} => {
-		const selectedIDs = Object.keys(selected);
+	(cards, selected, collection) : {ids : CardID[], missing : number} => {
+		const selectedIDs = Object.keys(selected) as CardID[];
 		if (selectedIDs.length) {
-			const present = selectedIDs.map(id => cards[id]).filter((card) : card is ProcessedCard => Boolean(card));
-			return {cards: present, missing: selectedIDs.length - present.length};
+			const present = selectedIDs.filter(id => id in cards);
+			return {ids: present, missing: selectedIDs.length - present.length};
 		}
 		//The collection's cards are materialized from the same corpus, so they
 		//are present by construction.
-		return {cards: collection ? collection.filteredCards || [] : [], missing: 0};
+		return {ids: collection ? collection.sortedCardIDs : [], missing: 0};
 	}
+);
+
+//The ids of selectSelectedCards, in order, without processing a card.
+export const selectSelectedCardIDs = createSelector(
+	selectSelectedCardIDsWithMissing,
+	(result) => result.ids
 );
 
 //This is the effective selected cards, which is either the explicitly selected
 //cards, or just the active collection if there are no explicitly selected cards.
+//Processes every card it names; take selectSelectedCardIDs where ids will do.
 export const selectSelectedCards = createSelector(
-	selectSelectedCardsWithMissing,
-	(result) => result.cards
+	selectCards,
+	selectSelectedCardIDs,
+	(cards, ids) : ProcessedCard[] => ids.map(id => cards[id]).filter((card) : card is ProcessedCard => Boolean(card))
 );
 
 //How many explicitly-selected cards this tab does not (yet) hold. Non-zero
 //means selectSelectedCards is a SUBSET of what the user selected.
 export const selectSelectedCardsMissingCount = createSelector(
-	selectSelectedCardsWithMissing,
+	selectSelectedCardIDsWithMissing,
 	(result) => result.missing
 );
 
@@ -2370,18 +2388,25 @@ export const selectSelectedCardsMissingCount = createSelector(
 //collection changes must not silently narrow that intent or widen it to the
 //whole collection when the last explicitly selected card disappears.
 export const selectMultiEditTargetIDs = (state : State) => state.multiedit?.targetIDs ?? null;
-const selectMultiEditCardsWithMissing = createSelector(
+const selectMultiEditCardIDsWithMissing = createSelector(
 	selectCards,
 	selectMultiEditTargetIDs,
-	selectSelectedCardsWithMissing,
-	(cards, targetIDs, selected) => {
+	selectSelectedCardIDsWithMissing,
+	(cards, targetIDs, selected) : {ids : CardID[], missing : number} => {
 		if (targetIDs === null) return selected;
-		const present = targetIDs.map(id => cards[id]).filter((card) : card is ProcessedCard => Boolean(card));
-		return {cards: present, missing: targetIDs.length - present.length};
+		const present = targetIDs.filter(id => id in cards);
+		return {ids: present, missing: targetIDs.length - present.length};
 	}
 );
-export const selectMultiEditCards = createSelector(selectMultiEditCardsWithMissing, result => result.cards);
-export const selectMultiEditCardsMissingCount = createSelector(selectMultiEditCardsWithMissing, result => result.missing);
+//The ids the multi-edit dialog shows and counts: cheap on every state change
+//(the dialog is always mounted); selectMultiEditCards is for the save.
+export const selectMultiEditCardIDs = createSelector(selectMultiEditCardIDsWithMissing, result => result.ids);
+export const selectMultiEditCards = createSelector(
+	selectCards,
+	selectMultiEditCardIDs,
+	(cards, ids) : ProcessedCard[] => ids.map(id => cards[id]).filter((card) : card is ProcessedCard => Boolean(card))
+);
+export const selectMultiEditCardsMissingCount = createSelector(selectMultiEditCardIDsWithMissing, result => result.missing);
 export const selectMultiEditCardsReferencesUnion = createSelector(selectMultiEditCards, cards => unionReferences(cards));
 export const selectMultiEditCardsReferencesIntersection = createSelector(selectMultiEditCards, cards => intersectionReferences(cards));
 
@@ -2436,8 +2461,7 @@ const selectActiveCollectionWordCloud = createSelector(
 	selectFingerprintGenerator,
 	(collection, fingerprintGenerator) => {
 		if (!collection) return null;
-		if (!collection.filteredCards) return null;
-		const fingerprint = fingerprintGenerator.fingerprintForCardIDList(collection.filteredCards.map(card => card.id));
+		const fingerprint = fingerprintGenerator.fingerprintForCardIDList(collection.sortedCardIDs);
 		return fingerprint.wordCloud();
 	}
 );
@@ -2553,15 +2577,24 @@ export const selectCardsDrawerPanelShowing = createSelector(
 	}
 );
 
-//This is the final expanded, sorted collection, including start cards.
+//This is the final expanded, sorted collection, including start cards. It
+//processes every card of a worker-served collection on the main thread, so
+//it is for actions that need the cards (the AI prompts); navigation and
+//membership questions take selectActiveCollectionCardIDs.
 export const selectActiveCollectionCards = createSelector(
 	selectActiveCollection,
 	(collection) => collection ? collection.finalSortedCards : []
 );
 
+//The ids of selectActiveCollectionCards, in order, without expanding a card.
+export const selectActiveCollectionCardIDs = createSelector(
+	selectActiveCollection,
+	(collection) : CardID[] => collection ? collection.finalSortedCardIDs : []
+);
+
 const selectActiveCollectionCardIndex = createSelector(
-	selectActiveCollectionCards,
-	(collection) : Map<CardID, number> => new Map(collection.map((card, index) => [card.id, index]))
+	selectActiveCollectionCardIDs,
+	(ids) : Map<CardID, number> => new Map(ids.map((id, index) => [id, index]))
 );
 
 export const selectActiveCardIndex = createSelector(
@@ -2904,13 +2937,10 @@ export const selectMultiEditCardDiff = createSelector(
 	}
 );
 
-export const selectBulkImportDialogExportContent = createSelector(
-	selectBulkImportDialogOpen,
-	selectBulKimportDialogMode,
+const selectBulkImportDialogOpenExportContent = createSelector(
 	selectBulkImportDialogOverrideCardOrder,
 	selectSelectedCards,
-	(open, mode, cardOrder, cards) => {
-		if (!open || mode != 'export') return '';
+	(cardOrder, cards) => {
 		let finalCards = cards;
 		if (cardOrder) {
 			const allCards = Object.fromEntries(cards.map(card => [card.id, card]));
@@ -2919,6 +2949,15 @@ export const selectBulkImportDialogExportContent = createSelector(
 		return exportContentForCards(finalCards);
 	}
 );
+
+//The open/mode check sits OUTSIDE the memoized selector: reselect evaluates
+//every input before the result function, so a check inside it still read
+//selectSelectedCards — the whole active collection, processed — on every
+//state change of the always-mounted, closed dialog.
+export const selectBulkImportDialogExportContent = (state : State) : string => {
+	if (!selectBulkImportDialogOpen(state) || selectBulKimportDialogMode(state) != 'export') return '';
+	return selectBulkImportDialogOpenExportContent(state);
+};
 
 export const selectComposedChats = createSelector(
 	selectChats,

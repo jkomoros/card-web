@@ -178,9 +178,11 @@ describe('Collection.fromWorkerResult', () => {
 		assert.strictEqual(seeded.numStartCards, local.numStartCards);
 		assert.strictEqual(seeded.isFallback, local.isFallback);
 		assert.strictEqual(seeded.preview, local.preview);
-		//...and the expensive state was pre-seeded, not recomputed: the
-		//internal filtered cards were installed directly.
-		assert.ok(seeded._filteredCards !== null);
+		//...and no filtering ran here: the lists are projections of the
+		//worker's ids, built on first use (lazy-worker-result.test.js).
+		const fresh = Collection.fromWorkerResult(description, args, result);
+		assert.deepStrictEqual(fresh._workerIDs, result.ids);
+		assert.strictEqual(fresh._filteredCards, null);
 		//Expanded cards come from the live cards map.
 		assert.strictEqual(seeded.finalSortedCards[0], state.cards[result.ids[0]]);
 	});

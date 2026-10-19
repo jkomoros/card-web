@@ -15,7 +15,10 @@ const selectPendingNewCardType = (state : State) : CardType => state.data ? stat
 //even though it's not yet on the client.
 export const getCardExists = (state : State, cardID : CardID) : boolean => {
 	if (cardID == selectPendingNewCardID(state)) return true;
-	return Object.keys(selectRawCards(state)).some(key => key === cardID);
+	//A key lookup, not Object.keys(...).some: this runs per reference
+	//validation and per link render, and the key array of a 47k-card map is
+	//a 47k-string allocation each time.
+	return Object.prototype.hasOwnProperty.call(selectRawCards(state), cardID);
 };
 
 //Returns the cardType for the card with the given ID. It looks over the set of

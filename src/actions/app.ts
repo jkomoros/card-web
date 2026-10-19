@@ -36,7 +36,7 @@ export const APP_PAGE_NAMES : ReadonlySet<string> = new Set([
 ]);
 
 import {
-	selectActiveCollectionCards,
+	selectActiveCollectionCardIDs,
 	selectCommentsAreFullyLoaded,
 	getMessageById,
 	getThreadById,
@@ -214,22 +214,18 @@ export const navigateToNextCard = () : ThunkSomeAction => (dispatch, getState) =
 	const state = getState();
 	let index = selectActiveCardIndex(state);
 	index++;
-	const collection = selectActiveCollectionCards(state);
-	if (!collection) return;
-	const newCard = collection[index];
+	const newCard = selectActiveCollectionCardIDs(state)[index];
 	if (!newCard) return;
-	dispatch(navigateToCardInCurrentCollection(newCard.id));
+	dispatch(navigateToCardInCurrentCollection(newCard));
 };
 
 export const navigateToPreviousCard = () : ThunkSomeAction => (dispatch, getState) => {
 	const state = getState();
 	let index = selectActiveCardIndex(state);
 	index--;
-	const collection = selectActiveCollectionCards(state);
-	if (!collection) return;
-	const newCard = collection[index];
+	const newCard = selectActiveCollectionCardIDs(state)[index];
 	if (!newCard) return;
-	dispatch(navigateToCardInCurrentCollection(newCard.id));
+	dispatch(navigateToCardInCurrentCollection(newCard));
 };
 
 export const urlForCard = (cardOrId : Card | CardID) : string => {

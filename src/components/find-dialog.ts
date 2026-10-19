@@ -342,17 +342,18 @@ class FindDialog extends connect(store)(DialogElement) {
 	}
 
 	get _pickerCardIDs() : CardID[] {
-		return this._collection ? this._collection.finalSortedCards.map(card => card.id) : [];
+		return this._collection ? this._collection.finalSortedCardIDs : [];
 	}
 
 	get _highlightedCardAnnouncement() : string {
 		if (!this._highlightedCardID) return '';
-		const cards = this._collection?.finalSortedCards || [];
-		const index = cards.findIndex(card => card.id === this._highlightedCardID);
-		if (index < 0) return '';
-		const card = cards[index];
+		const cardIDs = this._collection?.finalSortedCardIDs || [];
+		const index = cardIDs.indexOf(this._highlightedCardID);
+		if (index < 0 || !this._collection) return '';
+		const card = this._collection.finalSortedCardsSlice(index, index + 1)[0];
+		if (!card) return '';
 		const shown = this._displayTitleInputs ? displayTitleWithMeta(card, selectCardMetas(store.getState() as State), this._displayTitleInputs) : card.title;
-		return `${shown || card.name || card.id}, ${index + 1} of ${cards.length}`;
+		return `${shown || card.name || card.id}, ${index + 1} of ${cardIDs.length}`;
 	}
 
 	//ArrowUp/ArrowDown move the highlight, Enter picks it. Deliberately only in

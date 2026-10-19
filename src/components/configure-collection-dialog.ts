@@ -3756,7 +3756,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		//which is the opposite of the bug being fixed here.
 		if (!selectCards(state)[cardID]) return true;
 		const collection = description.collection(selectCollectionConstructorArguments(state));
-		return collection.finalSortedCards.some(card => card.id === cardID);
+		return collection.finalSortedCardIDs.includes(cardID);
 	}
 
 	//SPEC §Navigation to selected card: when a draft transformation removes the

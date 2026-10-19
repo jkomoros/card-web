@@ -404,10 +404,10 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 			${this.renderOffset ? html`<div class='row'><button id='prev' class='small' title='Previous cards' @click=${this._handlePreviousClicked}>${ARROW_UPWARD_ICON}</button><label class='interactive' for='prev'>Previous ${this._offsetChunk} cards</label></div>` : ''}
 			<div class='${this._dragging ? 'dragging' : ''} ${this.grid ? 'grid' : ''} ${this._cardsSelected ? 'cards-selected' : ''}'>
 				${repeat(this._cards, (i) => i.id, (i, index) => html`
-				${index >= collection.numStartCards ? html`<div class='spacer' data-cardid=${i.id} @dragover='${this._handleDragOver}' @dragenter='${this._handleDragEnter}' @dragleave='${this._handleDragLeave}' @drop='${this._handleDrop}'></div>` : ''}
+				${this.renderOffset + index >= collection.numStartCards ? html`<div class='spacer' data-cardid=${i.id} @dragover='${this._handleDragOver}' @dragenter='${this._handleDragEnter}' @dragleave='${this._handleDragLeave}' @drop='${this._handleDrop}'></div>` : ''}
 				${this._labels && this._labels[index] !== undefined && this._labels[index] !== '' ? html`<div class='label'><span>${this.collection ? this.collection.sortLabelName : ''} <strong>${this._labels[index]}</strong></span></div>` : html``}
 				${this._thumbnail(i, index)}
-				${index == (collection.finalSortedCards.length - 1) ? html`<div class='spacer' data-cardid=${i.id} data-after=${true} @dragover='${this._handleDragOver}' @dragenter='${this._handleDragEnter}' @dragleave='${this._handleDragLeave}' @drop='${this._handleDrop}'></div>` : ''}
+				${this.renderOffset + index == (collection.numFinalSortedCards - 1) ? html`<div class='spacer' data-cardid=${i.id} data-after=${true} @dragover='${this._handleDragOver}' @dragenter='${this._handleDragEnter}' @dragleave='${this._handleDragLeave}' @drop='${this._handleDrop}'></div>` : ''}
 				`)}
 			</div>
 			${this._cardsClipped ? html`<div class='row'><button id='next' class='small' title='Next cards' @click=${this._handleNextClicked}>${ARROW_DOWNWARD_ICON}</button><label class='interactive' for='next'>Next ${this._offsetChunk} cards</label></div>` : ''}
@@ -437,7 +437,7 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 
 		if (!card) throw new Error('no card');
 
-		const cardIDs = this.collection ? this.collection.finalSortedCards.map(card => card.id) : [];
+		const cardIDs = this.collection ? this.collection.finalSortedCardIDs : [];
 		const cards = this._selectionAnchor.cardsForClick(cardIDs, card, e.shiftKey);
 
 		this.dispatchEvent(makeCardSelectedEvent(cards, selected));
@@ -445,7 +445,9 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 
 	get _cards() {
 		if (!this.collection) return [];
-		return this.collection.finalSortedCards.slice(this.renderOffset, this.renderOffset + this.renderLimit);
+		//Only the rendered window is expanded: on a worker-served collection
+		//finalSortedCards would process every card in it (#777).
+		return this.collection.finalSortedCardsSlice(this.renderOffset, this.renderOffset + this.renderLimit);
 	}
 
 	get _labels() {
@@ -458,7 +460,7 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 	get _cardsClipped() {
 		//Returns true if there are cards at the end that are clipped.
 		if (!this.collection) return false;
-		return this.collection.finalSortedCards.length > this.renderOffset + this.renderLimit;
+		return this.collection.numFinalSortedCards > this.renderOffset + this.renderLimit;
 	}
 
 	get _offsetChunk() {
@@ -577,7 +579,9 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 		target.classList.remove('drag-active');
 		const thumbnail = this._dragging;
 		if (!thumbnail) return;
-		const index = parseInt(thumbnail.dataset.index || '0');
+		//data-index is the index within the rendered window; the start cards
+		//are counted from the collection's front.
+		const index = this.renderOffset + parseInt(thumbnail.dataset.index || '0');
 		const collection = this.collection;
 		if (!collection) throw new Error('no collection');
 		if (index < collection.numStartCards) {
@@ -638,18 +642,12 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 				this._highlightedScrolled = true;
 			} else if (this.collection) {
 				//it might be that we're loaded but our renderOffset doesn't show it, update the renderOffset to show it.
-				let cardIndex = -1;
-				const cards = this.collection.finalSortedCards;
-				for (const [i, card] of cards.entries()) {
-					if (card.id == this.highlightedCardId) {
-						cardIndex = i;
-						break;
-					}
-				}
+				const cardIDs = this.collection.finalSortedCardIDs;
+				const cardIndex = cardIDs.indexOf(this.highlightedCardId);
 				if (cardIndex >= 0) {
 					//OK we might need to change the offset to allow it to be seen.
 					let offset = 0;
-					while (offset <= cards.length) {
+					while (offset <= cardIDs.length) {
 						if (cardIndex >= offset && cardIndex < offset + this.renderLimit) {
 							//Found it!
 							break;

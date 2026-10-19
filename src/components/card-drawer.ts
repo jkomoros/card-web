@@ -313,7 +313,7 @@ class CardDrawer extends LitElement {
 		if (!collection) return 0;
 		if (this._partialCountCollection === collection) return this._partialCountValue;
 		this._partialCountCollection = collection;
-		this._partialCountValue = collection.sortedCards.filter(card => collection.partialMatches[card.id]).length;
+		this._partialCountValue = collection.sortedCardIDs.filter(id => collection.partialMatches[id]).length;
 		return this._partialCountValue;
 	}
 

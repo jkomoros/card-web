@@ -1,7 +1,7 @@
 import {
 	selectIsEditing,
 	selectMultiEditCardDiff,
-	selectSelectedCards,
+	selectSelectedCardIDs,
 	selectExplicitlySelectedCardIDs,
 	selectMultiEditCards,
 	selectMultiEditCardsMissingCount,
@@ -52,7 +52,7 @@ export const openMultiEditDialog = (savedTargetIDs? : CardID[]) : ThunkSomeActio
 
 	dispatch({
 		type: MULTI_EDIT_DIALOG_OPEN,
-		targetIDs: savedTargetIDs ?? (explicitIDs.length ? explicitIDs : selectSelectedCards(state).map(card => card.id)),
+		targetIDs: savedTargetIDs ?? (explicitIDs.length ? explicitIDs : selectSelectedCardIDs(state)),
 		uid: selectUid(state) || null
 	});
 };

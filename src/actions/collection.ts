@@ -33,7 +33,7 @@ import {
 	getIdForCard,
 	getCard,
 	selectDataIsFullyLoaded,
-	selectActiveCollectionCards,
+	selectActiveCollectionCardIDs,
 	selectActiveCardID,
 	selectRequestedCard,
 	selectActiveCard,
@@ -315,7 +315,7 @@ export const refreshCardSelector = (forceCommit? : boolean) : ThunkSomeAction =>
 		alreadyCommittedWhenFullyLoaded: alreadyCommittedModificationsWhenFullyLoaded,
 		forceCommit: Boolean(forceCommit),
 		requestedCard: selectRequestedCard(state),
-		activeCollectionSize: selectActiveCollectionCards(state).length,
+		activeCollectionSize: selectActiveCollectionCardIDs(state).length,
 	})) {
 		//This action creator gets called when ANYTHING that could have changed
 		//the collection gets called. If we got called before everything is
@@ -372,7 +372,7 @@ export const redirectIfInvalidCardOrCollection = () : ThunkSomeAction => (dispat
 	const card = selectActiveCard(state);
 	const activeCollection = selectActiveCollection(state);
 	if (!activeCollection || activeCollection.isTransitional) return;
-	const collection = activeCollection.finalSortedCards;
+	const collection = activeCollection.finalSortedCardIDs;
 	if (!card) {
 		
 		//If we get here, we could navigate to a default card (we know that the
@@ -384,7 +384,7 @@ export const redirectIfInvalidCardOrCollection = () : ThunkSomeAction => (dispat
 	const resolution = resolveInvalidCollectionCard(
 		selectRequestedCard(state),
 		card.id,
-		collection.map(item => item.id)
+		collection
 	);
 	if (resolution.action === 'stay') return;
 	if (resolution.action === 'select-first') {
@@ -400,12 +400,12 @@ export const showCard = (requestedCard : CardID = PLACEHOLDER_CARD_ID_CHARACTER)
 
 	const state = getState();
 
-	const collection = cardIDIsPlaceholder(requestedCard) ? selectActiveCollectionCards(state) : [];
+	const collection = cardIDIsPlaceholder(requestedCard) ? selectActiveCollectionCardIDs(state) : [];
 	const resolution = resolveCardRequest(
 		requestedCard,
 		getIdForCard(state, requestedCard),
 		selectActiveCardID(state),
-		collection.map(card => card.id)
+		collection
 	);
 	if (!resolution.commit) {
 		dispatch(redirectIfInvalidCardOrCollection());
