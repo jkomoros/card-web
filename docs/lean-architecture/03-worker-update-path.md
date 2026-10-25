@@ -463,9 +463,10 @@ unchanged (no accumulation). The machine load is recorded.
    → Map). Land it in slice 3 (my recommendation, since lookups are on the
    subscription hot path), or only if the journey shows subscription
    regression?
-4. **Q4, relative-date collections** (`created/after/7-days-ago`) are `global`,
-   but they refresh at day rollover only on the next card delta. Today they
-   also refresh on reads and stars. Is that acceptable, or should a midnight
-   timer emit `{all}`?
+4. **Q4, relative-date collections** (`created/after/7-days-ago`) — answered:
+   the bridge already re-keys a date-relative subscription on the local day
+   (a midnight timer covers an idle tab), so the worker runs it afresh after
+   rollover without waiting for a card delta. Pinned in
+   test/relative-dates/rollover.test.js; #780 closed.
 5. **Q5, gate thresholds.** Prime ≤ 1.1× and `snapshotRead` ≤ 1.15×. Pick the
    numbers, since §1 refuses invented SLAs.

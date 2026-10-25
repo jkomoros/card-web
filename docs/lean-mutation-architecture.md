@@ -201,11 +201,13 @@ same fixture, plus "no regression" on anything the journey measures.
 > scopes with whole-piece name tests; the review's 39-description battery
 > found 0 stale results. It also found that `publishIDFMap` never marked
 > subscriptions dirty and had been refreshed by the auto-read's undirected
-> dirt — fixed. **Open, needs a decision:** relative-date filters
-> (`created/after/today`) have the same exposure at day rollover (the
-> day-key eviction happens only when a filter is constructed during a run);
-> options are a midnight timer in the worker that marks 'all', or a
-> day-keyed dependency. Not verified by execution.
+> dirt — fixed. Relative-date filters (`created/after/today`) were recorded
+> here as having the same exposure at day rollover; they do not. The bridge
+> keys a date-relative subscription on the local day and re-keys it on its
+> live-slot pass, with a midnight timer for a tab that dispatches nothing
+> (c24cd8db), so the worker runs the description afresh and its filter memo
+> evicts by day. Verified by execution in test/relative-dates/rollover.test.js
+> (the real bridge against a fake worker with a faked clock); #780 closed.
 
 > **Slice 5** landed in three steps: (A) the working-notes title is
 > authorable and optional, the finisher is gone (no write path yields a
