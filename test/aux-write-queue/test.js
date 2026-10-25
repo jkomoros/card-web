@@ -17,6 +17,11 @@ globalThis.localStorage = {
 	getItem: (key) => storage.has(key) ? storage.get(key) : null,
 	setItem: (key, value) => storage.set(key, String(value)),
 	removeItem: (key) => storage.delete(key),
+	//key/length make the module's orphan-body adoption scan real here; a
+	//shim without them silently turned that scan into a no-op, which hid a
+	//discard that dropped index entries but kept their bodies (#789 review).
+	key: (index) => [...storage.keys()][index] ?? null,
+	get length() { return storage.size; },
 };
 
 let queue;
@@ -884,5 +889,47 @@ describe('aux write queue', () => {
 			queue.onAuxWriteQueueDepthChanged(count => depths.push(count));
 			assert.deepStrictEqual(depths, [1]);
 		});
+	});
+});
+
+describe('discarding one uid\'s pending writes (#789)', () => {
+	let queue;
+	before(async () => {
+		queue = await import('../../lib/src/aux-write-queue.js');
+	});
+	beforeEach(() => {
+		queue.resetAuxWriteQueueForTesting();
+		for (const kind of ['star-add', 'read-add', 'card-create']) queue.registerAuxWriteExecutor(kind, async () => ({kind: 'committed'}));
+	});
+
+	it('drops only that uid\'s intents and leaves the others', () => {
+		const mine = queue.makeAuxWriteIntent('anon-1', 'star-add', 'card-a');
+		const mine2 = queue.makeAuxWriteIntent('anon-1', 'read-add', 'card-b');
+		const theirs = queue.makeAuxWriteIntent('real-1', 'star-add', 'card-c');
+		//Relative to whatever earlier tests left in the shared shim: the reset
+		//helper clears executors and listeners, not storage.
+		const before = queue.readPendingAuxHeaders().length;
+		for (const intent of [mine, mine2, theirs]) queue.persistDurableAuxWrite(intent);
+		assert.strictEqual(queue.readPendingAuxHeaders().length, before + 3);
+		assert.strictEqual(queue.discardPendingAuxWritesForUid('anon-1'), 2);
+		const remaining = queue.readPendingAuxHeaders();
+		assert.strictEqual(remaining.filter(entry => entry.uid === 'anon-1').length, 0, 'nothing of the abandoned uid remains');
+		assert.ok(remaining.some(entry => entry.uid === 'real-1'), 'the other uid\'s intent is untouched');
+		assert.strictEqual(queue.readPendingAuxWrites().length, before + 1, 'the bodies went with the index entries');
+		assert.strictEqual(queue.discardPendingAuxWritesForUid('anon-1'), 0, 'nothing left to drop');
+	});
+
+	it('drops the bodies too, so a later replay scan cannot adopt them back', async () => {
+		queue.persistDurableAuxWrite(queue.makeAuxWriteIntent('anon-2', 'star-add', 'card-a'));
+		assert.strictEqual(queue.discardPendingAuxWritesForUid('anon-2'), 1);
+		await queue.replayPendingAuxWrites('real-1');
+		assert.strictEqual(queue.readPendingAuxHeaders().filter(entry => entry.uid === 'anon-2').length, 0, 'the orphaned body did not come back');
+	});
+
+	it('keeps the kinds the queue never drops silently', () => {
+		queue.persistDurableAuxWrite(queue.makeAuxWriteIntent('anon-3', 'star-add', 'card-a'));
+		queue.persistDurableAuxWrite(queue.makeAuxWriteIntent('anon-3', 'card-create', 'card-new'));
+		assert.strictEqual(queue.discardPendingAuxWritesForUid('anon-3'), 1, 'only the star went');
+		assert.deepStrictEqual(queue.readPendingAuxHeaders().filter(entry => entry.uid === 'anon-3').map(entry => entry.kind), ['card-create']);
 	});
 });

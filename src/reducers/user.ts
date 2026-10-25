@@ -2,6 +2,7 @@ import {
 	SIGNIN_USER,
 	SIGNIN_SUCCESS,
 	SIGNIN_FAILURE,
+	SIGNIN_CANCELLED,
 	SIGNOUT_USER,
 	SIGNOUT_SUCCESS,
 	UPDATE_STARS,
@@ -48,13 +49,36 @@ const app = (state : UserState = INITIAL_STATE, action : SomeAction) : UserState
 			...state,
 			pending: true
 		};
-	case SIGNIN_SUCCESS:
+	case SIGNIN_SUCCESS: {
+		//A DIFFERENT uid is an account switch without a sign-out between
+		//(anonymous → existing account via signInWithCredential, #789): the
+		//previous account's stars, reads, reading list and loaded flags must
+		//not sit under the new one until its deliveries replace them, as
+		//SIGNOUT_SUCCESS already ensures for the signed-out session. The same
+		//uid (a link, or the resolution of an already-signed-in boot) keeps
+		//them all: its listeners do not re-deliver, and stars and reads used
+		//to be wiped here on a link too — invisible while an anonymous
+		//session's stars were always empty, a loss once #788 loaded them.
+		const switched = Boolean(state.user && state.user.uid !== action.user.uid);
 		return {
 			...state,
 			pending:false,
 			user: action.user,
-			stars: {},
-			reads: {}
+			...(switched ? {
+				stars: {},
+				reads: {},
+				readingList: [],
+				readingListSnapshot: [],
+				starsLoaded: false,
+				readsLoaded: false,
+				readingListLoaded: false,
+			} : {}),
+		};
+	}
+	case SIGNIN_CANCELLED:
+		return {
+			...state,
+			pending:false
 		};
 	case SIGNIN_FAILURE:
 		return {

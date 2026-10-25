@@ -241,7 +241,11 @@ const NO_HOVER_NAME_BUDGET = 0;
 //because a button that already has one is not in that hole whichever way its
 //body resolves. The two ZERO budgets above are what police whether an icon-only
 //button is named, and both are still zero.
-const UNCLASSIFIABLE_BUDGET = 4;
+//5 since #789: destructive-confirm-dialog's primary button renders the
+//request's VERB as text (HOUSE-STYLE §3.7 — the action button repeats the
+//verb, which an icon cannot), a bare interpolation the survey cannot read.
+//It is text, not an icon, so it needs no aria-label and the budget moves.
+const UNCLASSIFIABLE_BUDGET = 5;
 
 describe('accessible names on icon-only controls (HS-2.5)', () => {
 

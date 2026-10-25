@@ -632,6 +632,26 @@ export const readPendingAuxWrites = () : AuxWriteIntent[] => {
 	return result;
 };
 
+//Drop the pending stars, reads and reading-list changes of ONE uid. For an
+//account switch that abandons an anonymous session (#789): its intents would
+//never replay (replay skips other uids) but would sit in the queue for up to
+//MAX_INTENT_AGE_MS, counted by the status indicator as changes waiting to
+//reach the server. Only the low-value kinds: the ones readPendingAuxWrites
+//itself refuses to drop silently (a card, a comment) are kept, as they are
+//everywhere else — a deployment that grants an anonymous session more than
+//stars may have given it something worth keeping. Returns how many were
+//dropped.
+export const discardPendingAuxWritesForUid = (uid : Uid) : number => {
+	migrateLegacyQueue();
+	const entries = readIndex();
+	const dropped = entries.filter(entry => entry.uid === uid && !HIGH_VALUE_KINDS.has(entry.kind));
+	if (!dropped.length) return 0;
+	const droppedIDs = new Set(dropped.map(entry => entry.id));
+	for (const entry of dropped) deleteIntentKeys(entry.id);
+	writeIndex(entries.filter(entry => !droppedIDs.has(entry.id)));
+	return dropped.length;
+};
+
 //Append one intent without touching any other body — the operation the F8
 //window used to make destructive.
 const appendIntent = (intent : AuxWriteIntent) : boolean => {

@@ -321,7 +321,9 @@ Escape at `DIALOG_SHORTCUT_PRIORITY`, backdrop-click, and focus-on-open.
 - **Buttons go bottom-right, primary last (rightmost).** Cancel, where present,
   sits to its left. The `.buttons` flex block belongs in the base class, not
   copy-pasted — it is currently duplicated in six subclasses.
-- The primary action is a `button.round.primary` with `aria-label`.
+- The primary action is a `button.round.primary` with `aria-label` — except a
+  destructive confirm (§3.7), whose action button must READ as the verb, so
+  `destructive-confirm-dialog` uses a text `button.primary` instead.
 - A dialog MUST always be dismissable. `multi-edit-dialog` can currently refuse
   Escape, the X, and the backdrop simultaneously.
 
@@ -331,7 +333,7 @@ silently fail to suppress global shortcuts. Prefer fixing the enumeration.
 
 ### 3.4 Native browser modals — MUST NOT add new ones
 
-**`alert()`, `confirm()` and `prompt()` are forbidden in new code.** There are 41
+**`alert()`, `confirm()` and `prompt()` are forbidden in new code.** There are 40
 call sites today (`src/` + `shared/`). That number must not grow.
 
 The count is pinned and reviewers check it — see §6. Existing sites are migrated
@@ -743,7 +745,7 @@ replacement for any of them.
 
 **The native-modal ratchet.** The count of `alert(`/`confirm(`/`prompt(` call
 sites in `src/` and `shared/` is pinned. It may fall; it may not rise. The
-baseline is **41**.
+baseline is **40**.
 
 **`src/modal.ts` is the one exception, and it is the reason the rest can fall.**
 It is the async seam from #708, and its whole job is to be the single place that
@@ -760,17 +762,24 @@ grep -rnE "(^|[^a-zA-Z0-9_.])(window\.)?(alert|confirm|prompt)\(" src shared --i
   | grep -vE "^[^:]+:[0-9]+:[[:space:]]*(//|\*)" | wc -l
 ```
 
-The command prints **42**, not 41. Exactly one match is a false positive:
+The command prints **41**, not 40. Exactly one match is a false positive:
 `src/components/bulk-import-dialog.ts:173` is a continuation line inside a block
-comment that happens to begin with `alert()`. Live call sites: **41**.
+comment that happens to begin with `alert()`. Live call sites: **40**.
 
-**Where the remaining 41 are.** Forty of them are blocking
+**Where the remaining 40 are.** Thirty-nine of them are blocking
 `confirm()`/`prompt()` calls, which are paused: they need the in-app dialogs from
 #708 and they need to move a whole function at a time, because a save that
 answers on two different surfaces in one pass is worse than one that answers
-modally twice. The forty-first is `card_diff.ts:359`, a one-way `alert()` that
+modally twice. The fortieth is `card_diff.ts:359`, a one-way `alert()` that
 is only still here because it sits in the middle of `confirmationsForCardDiff`,
 five blocking confirms in a row.
+
+The pin fell from 41 with #789: the destructive-confirm dialog
+(`destructive-confirm-dialog.ts`) now exists, so `confirmDestructive` no
+longer falls back to the native call, and sign-in's "switch to the account
+you have signed in with before?" — the one blocking confirm that embedded
+browsers answered "no" to on the user's behalf — asks through it. The §3.4
+table's destructive-confirm row is open for the other thirty-nine.
 
 The pin fell from 51 with the Collection Composer branch, which replaced three
 `prompt('What is the ID of the card?')` card pickers — one in

@@ -295,6 +295,10 @@ export const SUGGESTIONS_SET_PENDING = 'SUGGESTIONS_SET_PENDING';
 export const SIGNIN_USER = 'SIGNIN_USER';
 export const SIGNIN_SUCCESS = 'SIGNIN_SUCCESS';
 export const SIGNIN_FAILURE = 'SIGNIN_FAILURE';
+//The user declined, or the session changed under the question: not a failure,
+//nothing to show, but `pending` must come down (#789: a stuck pending flag kept
+//the card stage on its loading state until reload).
+export const SIGNIN_CANCELLED = 'SIGNIN_CANCELLED';
 export const SIGNOUT_USER = 'SIGNOUT_USER';
 export const SIGNOUT_SUCCESS = 'SIGNOUT_SUCCESS';
 export const UPDATE_STARS = 'UPDATE_STARS';
@@ -1351,6 +1355,10 @@ type ActionSigninFailure = {
 	error: Error
 };
 
+type ActionSigninCancelled = {
+	type: typeof SIGNIN_CANCELLED
+};
+
 type ActionSignoutUser = {
 	type: typeof SIGNOUT_USER,
 };
@@ -1581,6 +1589,7 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionSigninUser
 	| ActionSigninSuccess
 	| ActionSigninFailure
+	| ActionSigninCancelled
 	| ActionSignoutUser
 	| ActionSignoutSuccess
 	| ActionUpdateStars

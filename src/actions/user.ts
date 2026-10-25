@@ -108,8 +108,21 @@ import {
 	User,
 	updateProfile,
 	updateEmail,
-	OAuthProvider
+	AuthCredential
 } from 'firebase/auth';
+
+import {
+	confirmDestructive
+} from '../modal.js';
+
+import {
+	mergeDecision,
+	switchAccountQuestion
+} from '../sign-in-merge.js';
+
+import {
+	discardPendingAuxWritesForUid
+} from '../aux-write-queue.js';
 
 import {
 	DISABLE_ANONYMOUS_LOGIN
@@ -208,6 +221,11 @@ import {
 	selectUserReadingList,
 	getCardIsRead,
 	selectUserIsAnonymous,
+	selectUserStars,
+	selectUserReads,
+	selectStarsLoaded,
+	selectReadsLoaded,
+	selectReadingListLoaded,
 	selectActiveCollection,
 	getCardInReadingList,
 	getCardHasStar,
@@ -255,6 +273,7 @@ import {
 import {
 	AUTO_MARK_READ_PENDING_CHANGED,
 	SIGNIN_FAILURE,
+	SIGNIN_CANCELLED,
 	SIGNIN_SUCCESS,
 	SIGNIN_USER,
 	SIGNOUT_SUCCESS,
@@ -270,7 +289,12 @@ import {
 	LOCAL_STORAGE_HAS_PREVIOUS_REAL_SIGN_IN_KEY
 } from '../constants.js';
 
-let prevAnonymousMergeUser : User | null = null;
+//The anonymous uid an account switch abandoned, recorded into the real
+//account's user doc as previousUids on its next save (ensureUserInfo) — a
+//trail nothing reads today, cheap to keep for a migration script that might.
+//A uid, not the User: across a redirect only the uid survives (sessionStorage).
+let prevAnonymousMergeUid : string | null = null;
+const ABANDONED_UID_KEY = 'sign-in-abandoned-uid';
 
 export const saveUserInfo = () : ThunkSomeAction => (_, getState) => {
 
@@ -284,7 +308,7 @@ export const saveUserInfo = () : ThunkSomeAction => (_, getState) => {
 	ensureUserInfo(batch, user);
 	//If we had a merge user, null it out on successful save, so we don't keep saving it.
 	batch.commit()
-		.then(() => prevAnonymousMergeUser = null)
+		.then(() => prevAnonymousMergeUid = null)
 		.catch(error => {
 			//Auth restoration also runs in a deliberately inactive superseded tab.
 			//That background bookkeeping is the one safe write to cancel quietly;
@@ -310,8 +334,8 @@ export const ensureUserInfo = (batch : MultiBatch, user : UserInfo) => {
 
 	//If this is set then we just signed in after a failed merge, so we want to
 	//keep record that we failed.
-	if (prevAnonymousMergeUser) {
-		data.previousUids = arrayUnion(prevAnonymousMergeUser.uid);
+	if (prevAnonymousMergeUid) {
+		data.previousUids = arrayUnion(prevAnonymousMergeUid);
 		//This will be nulled out in saveUserInfo on successful commit.
 	}
 
@@ -348,7 +372,7 @@ export const signIn = () : ThunkSomeAction => async (dispatch, getState) => {
 
 	dispatch({type:SIGNIN_USER});
 
-	const provider = new GoogleAuthProvider();
+	const provider = googleProvider();
 
 	try {
 		if (isAnonymous) {
@@ -356,6 +380,7 @@ export const signIn = () : ThunkSomeAction => async (dispatch, getState) => {
 			const user = auth.currentUser;
 			if (!user) {
 				console.warn('Unexpectedly didn\'t have user');
+				dispatch({type: SIGNIN_CANCELLED});
 				return;
 			}
 			const linked = await linkWithPopup(user, provider);
@@ -394,36 +419,7 @@ export const signIn = () : ThunkSomeAction => async (dispatch, getState) => {
 			}
 		}
 		if (err instanceof FirebaseError && err.code === 'auth/credential-already-in-use') {
-
-			//TODO: only show this confirmation if the old account has at least one star or a few dozen reads.
-
-			// Add a delay to ensure the popup is closed
-			await new Promise(resolve => setTimeout(resolve, 250));
-
-			// The popup is now closed, so it's safe to show the confirmation dialog
-			const doSignin = confirm('You have already signed in with that account on another device. If you proceed, you will be logged in and any cards you\'ve starred or marked read on this device will be lost. If you do not proceed, you will not be logged in.');
-
-			if (!doSignin) return;
-
-			prevAnonymousMergeUser = auth.currentUser;
-
-			const credential = OAuthProvider.credentialFromError(err);
-
-			if (!credential) {
-				dispatch(reportPersistentError({
-					what: 'Sign-in couldn\u2019t be completed.',
-					reassurance: 'Google didn\u2019t hand back a credential to sign in with.',
-					action: {label: 'Try again', actionID: SIGNIN_RETRY_ACTION},
-					dedupeKey: 'signin'
-				}));
-				return;
-			}
-
-			try {
-				await signInWithCredential(auth, credential);
-			} catch (signInErr) {
-				dispatch({type:SIGNIN_FAILURE, error: signInErr});
-			}
+			await dispatch(handleCredentialInUse(err));
 		} else {
 			dispatch({type:SIGNIN_FAILURE, error: err});
 			//SIGNIN_FAILURE is not rendered anywhere, so without this the user
@@ -433,7 +429,7 @@ export const signIn = () : ThunkSomeAction => async (dispatch, getState) => {
 			if (code !== 'auth/popup-closed-by-user' && code !== 'auth/cancelled-popup-request') {
 				console.warn('[auth] sign-in failed:', code || err);
 				dispatch(reportPersistentError({
-					what: 'Sign-in didn\u2019t complete.',
+					what: 'Sign in didn\u2019t complete.',
 					//The auth code goes to the console, not the banner: HS-2.4 names
 					//"a Firebase auth code" as a thing never to interpolate into copy.
 					reassurance: 'If it keeps failing, allow pop-ups for this site.',
@@ -452,31 +448,154 @@ export const completeRedirectSignIn = () : ThunkSomeAction => async (dispatch) =
 	ensureSignInRetryRegistered();
 	try {
 		const result = await getRedirectResult(auth);
-		if (result?.user) dispatch(signInSuccess(result.user));
+		if (result?.user) {
+			//A fresh sign-in (never a link) that the switch path started by
+			//redirect: the abandoned anonymous uid rode along in
+			//sessionStorage, the only thing that has to survive the trip —
+			//for the previousUids trail, and for the queue discard the
+			//navigation cut short.
+			const abandonedUid = takeAbandonedUid();
+			if (abandonedUid) {
+				prevAnonymousMergeUid = abandonedUid;
+				discardPendingAuxWritesForUid(abandonedUid);
+			}
+			dispatch(signInSuccess(result.user));
+		}
 	} catch (err) {
-		dispatch({type:SIGNIN_FAILURE, error: err});
 		//SIGNIN_FAILURE renders nowhere, and this is the RETURN leg of a
 		//redirect the user deliberately started: failing silently leaves them
 		//anonymous, staring at a sign-in button that appears to do nothing, in
 		//a loop. The popup path already surfaces its failures the same way.
 		const code = (err as {code? : string})?.code || '';
 		console.warn('[auth] redirect sign-in failed:', code || err);
-		if (code === 'auth/credential-already-in-use') {
-			//No retry action: pressing it again lands in the same place. The way
-			//out is a different sign-in, which lives in the account menu.
-			dispatch(reportPersistentError({
-				what: 'That account is already linked to different data.',
-				reassurance: 'Sign in from the account menu to switch to it.',
-				dedupeKey: 'signin'
-			}));
-		} else {
-			dispatch(reportPersistentError({
-				what: 'Sign-in didn\u2019t complete.',
-				reassurance: 'Nothing about your account has changed. You can try again.',
-				action: {label: 'Try again', actionID: SIGNIN_RETRY_ACTION},
-				dedupeKey: 'signin'
-			}));
+		if (err instanceof FirebaseError && code === 'auth/credential-already-in-use') {
+			//The same question the popup leg asks, through the same thunk.
+			//This leg used to show a banner with no way forward: the account
+			//menu ran the same link again, which failed the same way (#789).
+			dispatch({type:SIGNIN_USER});
+			await dispatch(handleCredentialInUse(err));
+			return;
 		}
+		dispatch({type:SIGNIN_FAILURE, error: err instanceof Error ? err : new Error(String(err))});
+		dispatch(reportPersistentError({
+			what: 'Sign in didn\u2019t complete.',
+			reassurance: 'Nothing about your account has changed. You can try again.',
+			action: {label: 'Try again', actionID: SIGNIN_RETRY_ACTION},
+			dedupeKey: 'signin'
+		}));
+	}
+};
+
+//Google's account picker, so a user signed in as A who wants B is offered
+//the choice instead of Google quietly reusing A (#789).
+const googleProvider = () : GoogleAuthProvider => {
+	const provider = new GoogleAuthProvider();
+	provider.setCustomParameters({prompt: 'select_account'});
+	return provider;
+};
+
+const rememberAbandonedUid = (uid : string) : void => {
+	try {
+		sessionStorage.setItem(ABANDONED_UID_KEY, uid);
+	} catch {
+		//Best effort: the trail is bookkeeping, not the sign-in.
+	}
+};
+
+const takeAbandonedUid = () : string | null => {
+	try {
+		const uid = sessionStorage.getItem(ABANDONED_UID_KEY);
+		if (uid) sessionStorage.removeItem(ABANDONED_UID_KEY);
+		return uid;
+	} catch {
+		return null;
+	}
+};
+
+//A sign-in that is NEVER a link: for switching to an existing account when
+//the credential from the failed link cannot be used (expired, or absent).
+//Popup first; redirect when the popup is blocked; the result of a redirect
+//comes back through completeRedirectSignIn.
+const freshSignIn = async (abandonedUid : string) : Promise<void> => {
+	const provider = googleProvider();
+	try {
+		await signInWithPopup(auth, provider);
+	} catch (err) {
+		if (!(err instanceof FirebaseError) || (err.code !== 'auth/popup-blocked' && err.code !== 'auth/operation-not-supported-in-this-environment')) throw err;
+		rememberAbandonedUid(abandonedUid);
+		await signInWithRedirect(auth, provider);
+	}
+};
+
+//THE EXISTING-ACCOUNT CASE, ONE WAY FOR BOTH LEGS (#789). Linking Google onto
+//the anonymous account failed because that Google account is already a user
+//of its own; the only way forward is to switch to it and leave this session's
+//stars, reads and reading list under the anonymous uid. Whether to ask first
+//is mergeDecision's (something to lose, or counts not yet known); the question
+//is the destructive-confirm dialog's, through the seam that replaces the
+//native confirm the popup leg used to call — which the embedded browsers that
+//block the popup also suppress, answering "no" for the user and leaving
+//`pending` stuck. The redirect leg used to have no path at all.
+//
+//The credential comes from the failed link on either leg, so the switch is a
+//signInWithCredential with no further round trip; if it is missing or has
+//expired, a fresh sign-in — never a link, which would fail the same way —
+//takes over, so this cannot loop.
+export const handleCredentialInUse = (err : FirebaseError) : ThunkSomeAction => async (dispatch, getState) => {
+	const state = getState();
+	const stars = Object.keys(selectUserStars(state)).length;
+	const reads = Object.keys(selectUserReads(state)).length;
+	const readingList = selectUserReadingList(state).length;
+	const loaded = selectStarsLoaded(state) && selectReadsLoaded(state) && selectReadingListLoaded(state);
+	const decision = mergeDecision({stars, readingList, reads, loaded});
+	const abandonedUid = selectUid(state);
+	if (decision.kind === 'ask') {
+		const go = await confirmDestructive(switchAccountQuestion(decision.lose));
+		if (!go) {
+			dispatch({type: SIGNIN_CANCELLED});
+			return;
+		}
+	}
+	//Re-check after the await (src/modal.ts): the world moved on while the
+	//question was open. Only the same anonymous session may be abandoned.
+	const current = auth.currentUser;
+	if (!current || !current.isAnonymous || current.uid !== abandonedUid) {
+		dispatch({type: SIGNIN_CANCELLED});
+		return;
+	}
+	const credential : AuthCredential | null = GoogleAuthProvider.credentialFromError(err);
+	prevAnonymousMergeUid = abandonedUid;
+	try {
+		if (credential) {
+			try {
+				await signInWithCredential(auth, credential);
+			} catch (credentialErr) {
+				console.warn('[auth] switching with the link\u2019s credential failed; signing in afresh:', credentialErr instanceof FirebaseError ? credentialErr.code : credentialErr);
+				await freshSignIn(abandonedUid);
+			}
+		} else {
+			await freshSignIn(abandonedUid);
+		}
+	} catch (signInErr) {
+		prevAnonymousMergeUid = null;
+		const code = signInErr instanceof FirebaseError ? signInErr.code : '';
+		dispatch({type:SIGNIN_FAILURE, error: signInErr instanceof Error ? signInErr : new Error(String(signInErr))});
+		if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') return;
+		console.warn('[auth] account switch failed:', code || signInErr);
+		dispatch(reportPersistentError({
+			what: 'Sign in didn\u2019t complete.',
+			reassurance: 'Nothing on this device has changed. You can try again.',
+			action: {label: 'Try again', actionID: SIGNIN_RETRY_ACTION},
+			dedupeKey: 'signin'
+		}));
+		return;
+	}
+	//The abandoned session's queued stars, reads and reading-list changes
+	//would never replay and would be counted as waiting for up to 30 days.
+	discardPendingAuxWritesForUid(abandonedUid);
+	if (decision.kind === 'switch') {
+		//Silent otherwise, and the user may notice their read marks changed.
+		dispatch(showSnackbar('You\u2019re signed in to your existing account.'));
 	}
 };
 

@@ -468,7 +468,7 @@ export const selectActivePreviewCardId = (state : State) => state.app ? state.ap
 export const selectPreviewCardX = (state : State) => state.app ? state.app.hoverX : 0;
 export const selectPreviewCardY = (state : State) => state.app ? state.app.hoverY : 0;
 export const selectUserReads = (state : State) => state.user ? state.user.reads : {};
-const selectUserStars = (state : State) => state.user ? state.user.stars : {};
+export const selectUserStars = (state : State) => state.user ? state.user.stars : {};
 export const selectUserReadingList = (state : State) => state.user ? state.user.readingList : [];
 const selectUserReadingListSnapshot = (state : State) => state.user ? state.user.readingListSnapshot : [];
 
