@@ -102,6 +102,14 @@ import {
 	URLDiagnostic
 } from '../../shared/url-diagnostics.js';
 
+import type {
+	CollectionExpression
+} from '../collection-expression.js';
+
+import type {
+	CollectionMembership
+} from '../collection-membership.js';
+
 import {
 	SomeAction,
 	UPDATE_STARS,
@@ -215,6 +223,10 @@ export type MainToWorkerMessage =
 	| {type: 'unsubscribeCollection', generation: WorkerGeneration, subscriptionID : number}
 	//One-shot collection run (e.g. the active card's reference blocks).
 	| {type: 'runCollection', generation: WorkerGeneration, id : number, description : string, keyCardID : CardID | '', uid : string, randomSalt : string, cardSimilarity : CardSimilarityMap}
+	//One-shot "why is this card in this collection" account (the info
+	//panel): the expression is the description's own, derived on the main
+	//thread; the verdicts come back from the engine's extras.
+	| {type: 'collectionMembership', generation: WorkerGeneration, id : number, description : string, expression : CollectionExpression, cardID : CardID, uid : string, randomSalt : string, cardSimilarity : CardSimilarityMap}
 	//The live editing card (normalized on the main thread) and its
 	//content-derived similarity, mirrored so collection runs reflect unsaved
 	//content — null card when editing ends.
@@ -341,6 +353,10 @@ export type WorkerToMainMessage =
 	//local-fallback path instead of waiting forever on a reply that (before
 	//this flag) never carried the request id.
 	| {type: 'runCollectionResult', generation: WorkerGeneration, id : number, ids : CardID[], labels : string[], numCards : number, numStartCards : number, isFallback : boolean, preview : boolean, partialMatches : CardBooleanMap, ms : number, failed? : boolean}
+	//Response to collectionMembership. A null membership is an answer ("no
+	//honest account"); failed:true means the run threw, and the bridge
+	//resolves null so the caller takes its fallback.
+	| {type: 'collectionMembershipResult', generation: WorkerGeneration, id : number, membership : CollectionMembership | null, ms : number, failed? : boolean}
 	//Announced exactly once per (re)connect, when every fetch type the
 	//connection parameters call for has had its initial delivery (or terminal
 	//error): the worker's corpus is as complete as this connection can make

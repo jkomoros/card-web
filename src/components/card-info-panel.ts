@@ -47,6 +47,7 @@ import {
 	selectEditingSimilarityPending,
 	selectWhyHereForActiveCard,
 	selectActiveCollectionDescription,
+	selectActiveCollection,
 	selectCollectionFilterLabels,
 	selectFilterDescriptions
 } from '../selectors.js';
@@ -58,6 +59,10 @@ import {
 import {
 	CollectionExpression
 } from '../collection-expression.js';
+
+import {
+	Collection
+} from '../collection_description.js';
 
 import {
 	CollectionMembership
@@ -100,6 +105,7 @@ import './limit-warning.js';
 
 import {
 	Author,
+	CardID,
 	ProcessedCard,
 	State,
 	TagInfos,
@@ -116,8 +122,13 @@ import {
 
 import {
 	corpusWorkerCanRunCollections,
+	corpusWorkerCollectionMembership,
 	corpusWorkerRunCollection
 } from '../corpus-bridge.js';
+
+import {
+	collectionExpressionForDescription
+} from '../collection-expression.js';
 
 import {
 	corpusWorkerServesCollections
@@ -460,6 +471,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 			this._whyHereExpression = EMPTY_EXPRESSION;
 			this._whyHereMembership = null;
 			this._whyHereForCardID = '';
+			this._whyHereRequestedFor = null;
 			this._editingSimilarityPending = false;
 			window.clearTimeout(this._expensivePropertiesTimeout);
 			return;
@@ -553,18 +565,17 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 				//dialog. There is no flag-off user and no legacy dialog now, so
 				//the account is simply computed.
 				//
-				//It remains the most expensive of the composer's surfaces. The
-				//verdicts materialize a full filter set per clause on the MAIN
-				//thread (see the comment just below about where this work
-				//belongs), a configurable clause like `updated/after/7-days-ago`
-				//scans the whole corpus to do it, and this timeout runs on the
-				//order of once a second while the panel is open. Moving it to the
-				//worker is the real answer and is still not this change — but it
-				//is now paid by everyone, which is the cost of shipping it.
-				const whyHere = selectWhyHereForActiveCard(freshState);
-				this._whyHereExpression = whyHere ? whyHere.expression : EMPTY_EXPRESSION;
-				this._whyHereMembership = whyHere ? whyHere.membership : null;
-				this._whyHereForCardID = freshCardID;
+				//It remains the most expensive of the composer's surfaces: the
+				//verdicts materialize a full filter set per clause, a
+				//configurable clause like `updated/after/7-days-ago` scans the
+				//whole corpus to do it, and this timeout runs on the order of
+				//once a second while the panel is open. So the verdicts come
+				//from the corpus worker, where the engine and the corpus live
+				//(#777), with the same stamping as the reference blocks below:
+				//a reply commits only for the card and the collection it was
+				//asked about. The main thread computes them itself only when
+				//the worker does not serve collections at all.
+				this._requestWhyHere(freshState, freshCardID);
 			}
 			//Prefer computing the blocks in the corpus worker (off the UI
 			//thread) when it holds the corpus.
@@ -628,6 +639,87 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 			this._referenceBlocksForCardID = freshCardID;
 		}, overdue ? 0 : EXPENSIVE_PROPERTIES_DEBOUNCE_MS);
 
+	}
+
+	//The inputs the request in flight, or last committed, was issued for.
+	//The old selector was memoized on (active collection, card id), so it
+	//recomputed only when one changed; the worker is asked on the same
+	//cadence, not on every fire of the debounce (the review measured 8-40
+	//ms per call at 20k cards in the worker, which blocks its pushes).
+	//Navigation does not change the collection's identity, so a request
+	//whose reply did not commit — the user had moved to another card by
+	//the time it landed, the worker failed — releases this, or a → then ←
+	//within the debounce would leave the panel without an account until
+	//the next push (the third review pass drove exactly that).
+	_whyHereRequestedFor : {cardID : CardID, collection : Collection | null} | null = null;
+
+	_requestWhyHere(freshState : State, freshCardID : CardID) {
+		const description = selectActiveCollectionDescription(freshState);
+		const collection = selectActiveCollection(freshState);
+		const requested = this._whyHereRequestedFor;
+		if (requested && requested.cardID === freshCardID && requested.collection === collection) return;
+		if (!corpusWorkerCanRunCollections() || !description) {
+			//Hold the dimmed previous value while a serving worker is not
+			//ready, exactly as the blocks do; compute locally only when the
+			//worker never serves.
+			if (corpusWorkerServesCollections()) return;
+			const whyHere = selectWhyHereForActiveCard(freshState);
+			this._commitWhyHere(freshCardID, whyHere ? whyHere.expression : EMPTY_EXPRESSION, whyHere ? whyHere.membership : null);
+			return;
+		}
+		//No conditions, no account — the same early answer the local
+		//selector gives, without a round trip.
+		if (!description.filters.length) {
+			this._commitWhyHere(freshCardID, EMPTY_EXPRESSION, null);
+			return;
+		}
+		const serialized = description.serialize();
+		const expression = collectionExpressionForDescription(description);
+		const request = corpusWorkerCollectionMembership(serialized, expression, freshCardID);
+		if (!request) return;
+		const token = {cardID: freshCardID, collection};
+		this._whyHereRequestedFor = token;
+		//Every exit below that does not commit releases the token (if a newer
+		//request has not replaced it), so the next fire asks again.
+		const release = () => {
+			if (this._whyHereRequestedFor === token) this._whyHereRequestedFor = null;
+		};
+		void request.then(resolution => {
+			if (!this._open) return release();
+			const currentState = store.getState() as State;
+			//A late reply for another card, or for the collection the user
+			//has since left, must never render.
+			if (!sectionResultCommits(freshCardID, selectActiveCard(currentState)?.id || '')) return release();
+			if (selectActiveCollectionDescription(currentState)?.serialize() !== serialized) return release();
+			if (resolution === null) {
+				if (corpusWorkerServesCollections()) return release();
+				const whyHere = selectWhyHereForActiveCard(currentState);
+				this._commitWhyHere(freshCardID, whyHere ? whyHere.expression : EMPTY_EXPRESSION, whyHere ? whyHere.membership : null);
+				return;
+			}
+			//Checked against the artifact ON SCREEN, as the local selector
+			//checked its account against the collection it was computed
+			//from: the worker judged a fresher corpus than the collection
+			//the user is looking at may hold (a push is a dispatch away),
+			//and an account that contradicts what is rendered is withdrawn,
+			//not published. The next push re-asks.
+			let membership = resolution.membership;
+			if (membership) {
+				const matched = selectActiveCollection(currentState)?.matchedCard(freshCardID) ?? null;
+				if (matched !== null && matched !== membership.passes) membership = null;
+			}
+			this._commitWhyHere(freshCardID, membership ? expression : EMPTY_EXPRESSION, membership);
+		});
+	}
+
+	//The expression and the verdicts about it commit together with the id
+	//they were computed for, so a render can never pair one card's verdicts
+	//with another card's clauses. A null membership is committed too — "we
+	//cannot honestly say" is a real answer for this card.
+	_commitWhyHere(cardID : CardID, expression : CollectionExpression, membership : CollectionMembership | null) {
+		this._whyHereExpression = expression;
+		this._whyHereMembership = membership;
+		this._whyHereForCardID = cardID;
 	}
 
 	override async updated(changedProps : Map<string, CardInfoPanel[keyof CardInfoPanel]>) {

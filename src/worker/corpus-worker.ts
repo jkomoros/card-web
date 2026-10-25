@@ -4022,6 +4022,24 @@ workerScope.addEventListener('message', event => {
 	case 'runCollection':
 		handleRunCollection(message);
 		break;
+	case 'collectionMembership': {
+		const start = performance.now();
+		try {
+			const membership = engine.collectionMembership(message.description, message.expression, message.cardID, {
+				uid: message.uid,
+				randomSalt: message.randomSalt,
+				cardSimilarity: message.cardSimilarity,
+			});
+			recordWorkerPerf('collectionMembership', performance.now() - start);
+			send({type: 'collectionMembershipResult', generation, id: message.id, membership, ms: Math.round((performance.now() - start) * 10) / 10});
+		} catch (e) {
+			send({type: 'error', generation, message: `collectionMembership(${message.description}, ${message.cardID}): ${String(e)}`});
+			//The failure reply carries the request id for the same reason
+			//runCollection's does: a pending promise must never wait forever.
+			send({type: 'collectionMembershipResult', generation, id: message.id, membership: null, ms: 0, failed: true});
+		}
+		break;
+	}
 	case 'requestCorpusIDs':
 		send({type: 'corpusIDs', generation, ids: [...corpus.keys()]});
 		break;

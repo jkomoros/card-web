@@ -40,7 +40,9 @@ import {
 	selectKeyboardNavigates,
 	selectUid,
 	selectBadgeMap,
-	selectExpandedPrimaryReferenceBlocksForPreviewCard
+	selectExpandedPrimaryReferenceBlocksForPreviewCard,
+	selectCollectionConstructorArguments,
+	selectCardIDsUserMayEdit
 } from '../selectors.js';
 
 import {
@@ -54,8 +56,18 @@ import {
 } from '../actions/database.js';
 
 import {
+	corpusWorkerCanRunCollections,
+	corpusWorkerRunCollection,
 	maybeStartCorpusWorker
 } from '../corpus-bridge.js';
+
+import {
+	corpusWorkerServesCollections
+} from '../corpus-mode.js';
+
+import {
+	sectionResultCommits
+} from '../section-coherence.js';
 
 import {
 	DEV_MODE
@@ -120,10 +132,14 @@ import {
 } from '../collection_description.js';
 
 import {
-	ExpandedReferenceBlocks
+	ExpandedReferenceBlocks,
+	expandReferenceBlocksViaRunner,
+	primaryReferenceBlocksForCard
 } from '../reference_blocks.js';
 
 import { PageViewElement } from './page-view-element.js';
+
+const NO_REFERENCE_BLOCKS : ExpandedReferenceBlocks = Object.freeze([]) as unknown as ExpandedReferenceBlocks;
 
 import {
 	CardHoveredEvent,
@@ -511,6 +527,67 @@ class MainView extends connect(store)(PageViewElement) {
 		store.dispatch(hoveredCardMouseMoved());
 	}
 
+	//The card whose preview blocks were last requested from the worker, so a
+	//reply commits only while that card is still the one previewed.
+	_previewBlocksRequestedCard : Card | null = null;
+
+	//One frozen empty value, assigned only when the blocks change: a fresh
+	//[] per stateChanged re-rendered this view on every store change while
+	//nothing was hovered (the review's measurement: 100 of 100).
+	_setPreviewCardReferenceBlocks(blocks : ExpandedReferenceBlocks) {
+		if (blocks.length === 0 && this._previewCardReferenceBlocks?.length === 0) return;
+		if (blocks === this._previewCardReferenceBlocks) return;
+		this._previewCardReferenceBlocks = blocks.length === 0 ? NO_REFERENCE_BLOCKS : blocks;
+	}
+
+	//The hover preview's reference blocks. They used to come from a
+	//synchronous selector, which for a concept card ran the missing-concept
+	//block — a configurable filter over the whole corpus — on the main
+	//thread for every hover (#777). The card view and the info panel already
+	//expand their blocks in the corpus worker; the preview does the same,
+	//showing none until the reply lands.
+	_updatePreviewCardReferenceBlocks(state : State) {
+		const card = this._activePreviewCard;
+		if (!card) {
+			this._setPreviewCardReferenceBlocks(NO_REFERENCE_BLOCKS);
+			this._previewBlocksRequestedCard = null;
+			return;
+		}
+		if (!corpusWorkerCanRunCollections()) {
+			this._previewBlocksRequestedCard = null;
+			//A serving worker that is not ready yet: hold the empty state
+			//rather than scanning the corpus here; compute locally only when
+			//the worker never serves.
+			this._setPreviewCardReferenceBlocks(corpusWorkerServesCollections() ? NO_REFERENCE_BLOCKS : selectExpandedPrimaryReferenceBlocksForPreviewCard(state));
+			return;
+		}
+		if (card === this._previewBlocksRequestedCard) return;
+		this._previewBlocksRequestedCard = card;
+		//A new card's request starts from no blocks: the previous card's
+		//must not sit under the new preview until the reply lands.
+		this._setPreviewCardReferenceBlocks(NO_REFERENCE_BLOCKS);
+		const promise = expandReferenceBlocksViaRunner(
+			card,
+			primaryReferenceBlocksForCard(card),
+			selectCollectionConstructorArguments(state),
+			selectCardIDsUserMayEdit(state),
+			corpusWorkerRunCollection
+		);
+		void promise.then(blocks => {
+			if (this._previewBlocksRequestedCard !== card) return;
+			if (!sectionResultCommits(card.id, this._activePreviewCard?.id || '')) return;
+			if (blocks === null) {
+				//Release the card so the next stateChanged asks again, instead
+				//of leaving this hover without blocks until the next hover.
+				this._previewBlocksRequestedCard = null;
+				if (corpusWorkerServesCollections()) return;
+				this._setPreviewCardReferenceBlocks(selectExpandedPrimaryReferenceBlocksForPreviewCard(store.getState() as State));
+				return;
+			}
+			this._setPreviewCardReferenceBlocks(blocks);
+		});
+	}
+
 	override stateChanged(state : State) {
 		this._card = selectActiveCard(state);
 		this._headerPanelOpen = state.app.headerPanelOpen;
@@ -525,7 +602,7 @@ class MainView extends connect(store)(PageViewElement) {
 		this._activePreviewCard = selectActivePreviewCard(state);
 		this._previewCardX = selectPreviewCardX(state);
 		this._previewCardY = selectPreviewCardY(state);
-		this._previewCardReferenceBlocks = selectExpandedPrimaryReferenceBlocksForPreviewCard(state);
+		this._updatePreviewCardReferenceBlocks(state);
 		this._mayViewUnpublished = selectUserMayViewUnpublished(state);
 		this._mayViewApp = selectUserMayViewApp(state);
 		this._userPermissionsFinal = selectUserPermissionsFinal(state);

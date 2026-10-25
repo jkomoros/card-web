@@ -641,3 +641,101 @@ describe('QueryEngine', () => {
 	});
 
 });
+
+//THE INFO PANEL'S "IN THIS COLLECTION" ACCOUNT, ANSWERED HERE (#777): the
+//per-clause verdicts come from the engine's own extras, so for every card
+//the conjunction of the verdicts must equal the membership the engine's
+//collection run computed — the same load-bearing assertion the main-thread
+//suite (collection-why-here) makes about selectWhyHereForActiveCard.
+describe('QueryEngine.collectionMembership', () => {
+	let collectionExpressionForDescription;
+	let CollectionDescription;
+	before(async () => {
+		({QueryEngine} = await import('../../lib/src/worker/query-engine.js'));
+		({collectionExpressionForDescription} = await import('../../lib/src/collection-expression.js'));
+		({CollectionDescription} = await import('../../lib/src/collection_description.js'));
+		({UPDATE_STARS, UPDATE_TAGS, UPDATE_SECTIONS} = await import('../../lib/src/actions.js'));
+	});
+
+	const makeEngine = () => {
+		const engine = new QueryEngine();
+		engine.updateCards({
+			//A title, not a body: Node has no DOM, so body HTML extracts empty.
+			a: card('a', {sort_order: 3.0, tags: ['tag-1'], title: 'A zebra crossing'}),
+			b: card('b', {sort_order: 2.0, tags: ['tag-1', 'tag-2'], published: false}),
+			c: card('c', {sort_order: 1.0, tags: ['tag-2']}),
+			d: card('d', {sort_order: 0.5}),
+		}, []);
+		engine.applyAction({type: UPDATE_STARS, starsToAdd: ['a', 'c'], starsToRemove: []});
+		engine.applyAction({type: UPDATE_TAGS, tags: {'tag-1': {id: 'tag-1', cards: ['a', 'b']}, 'tag-2': {id: 'tag-2', cards: ['b', 'c']}}, complete: true});
+		//The main set's filter equivalent (in-all-set) is built by the
+		//reducer from the forwarded sections, as in the product.
+		engine.applyAction({type: UPDATE_SECTIONS, sections: {main: {id: 'main', title: 'Main', cards: ['a', 'b', 'c', 'd'], start_cards: []}}});
+		return engine;
+	};
+
+	const membershipFor = (engine, serialized, cardID) => {
+		const description = CollectionDescription.deserialize(serialized);
+		return engine.collectionMembership(serialized, collectionExpressionForDescription(description), cardID);
+	};
+
+	it('agrees with the collection run for every card, clause by clause', () => {
+		const engine = makeEngine();
+		for (const serialized of ['everything/tag-1+tag-2/starred/', 'everything/unpublished/', 'main/tag-2/']) {
+			const ids = new Set(engine.runCollection(serialized).ids);
+			for (const cardID of ['a', 'b', 'c', 'd']) {
+				const membership = membershipFor(engine, serialized, cardID);
+				assert.ok(membership, `${serialized} ${cardID}: an account is given`);
+				assert.strictEqual(membership.passes, ids.has(cardID), `${serialized} ${cardID}`);
+				const expression = collectionExpressionForDescription(CollectionDescription.deserialize(serialized));
+				assert.strictEqual(membership.conditions.length, expression.length, 'one verdict per condition');
+				assert.strictEqual(membership.failingConditions, membership.conditions.filter(c => !c.passes).length);
+			}
+		}
+	});
+
+	it('reports the group members and the failing count', () => {
+		const engine = makeEngine();
+		//a: tag-1 yes, tag-2 no, starred yes → passes; c: tag-2 yes, starred yes.
+		const a = membershipFor(engine, 'everything/tag-1+tag-2/starred/', 'a');
+		assert.deepStrictEqual(a.conditions[0].members, [true, false]);
+		assert.strictEqual(a.passes, true);
+		//d: neither tag, not starred → both conditions fail.
+		const d = membershipFor(engine, 'everything/tag-1+tag-2/starred/', 'd');
+		assert.strictEqual(d.failingConditions, 2);
+		assert.strictEqual(d.passes, false);
+	});
+
+	it('has no account for a collection without conditions or a card it does not hold', () => {
+		const engine = makeEngine();
+		assert.strictEqual(membershipFor(engine, 'everything/', 'a'), null);
+		assert.strictEqual(membershipFor(engine, 'everything/starred/', 'missing'), null);
+	});
+
+	it('answers for a card outside a query\'s recall universe', async () => {
+		const {SearchIndex} = await import('../../lib/src/worker/search-index.js');
+		const {queryTokensForText} = await import('../../lib/src/worker/query-engine.js');
+		const engine = makeEngine();
+		//The narrowing index drops cards that cannot match the query; the
+		//account must still be about the card, with the query clause failing.
+		const index = new SearchIndex();
+		index.updateCard('a', queryTokensForText('A zebra crossing'));
+		engine.setSearchRecall(index, new Set());
+		const serialized = 'everything/query/zebra/';
+		assert.deepStrictEqual(engine.runCollection(serialized).ids, ['a']);
+		const membership = membershipFor(engine, serialized, 'c');
+		assert.ok(membership, 'an account is given for a card the query does not match');
+		assert.strictEqual(membership.passes, false);
+		assert.strictEqual(membershipFor(engine, serialized, 'a').passes, true);
+	});
+
+	it('uses the mirrored editing card for the editing-card filters', () => {
+		const engine = makeEngine();
+		const serialized = 'everything/children/a/';
+		assert.strictEqual(membershipFor(engine, serialized, 'b').passes, false);
+		//Unsaved: a now references b.
+		engine.setEditingCard(card('a', {sort_order: 3.0, tags: ['tag-1'], references: {b: {link: ''}}, references_info: {b: {link: ''}}}), null);
+		assert.strictEqual(engine.runCollection(serialized).ids.includes('b'), true, 'the run sees the unsaved reference');
+		assert.strictEqual(membershipFor(engine, serialized, 'b').passes, true, 'and so does the account');
+	});
+});

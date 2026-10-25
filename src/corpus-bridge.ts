@@ -20,6 +20,14 @@
 //.query('some text'), .setMode('off'). Mode changes require a reload to fully
 //re-wire listeners.
 
+import type {
+	CollectionExpression
+} from './collection-expression.js';
+
+import type {
+	CollectionMembership
+} from './collection-membership.js';
+
 import {
 	Timestamp
 } from 'firebase/firestore';
@@ -720,6 +728,48 @@ export const corpusWorkerRunCollection = (description : string, keyCardID : stri
 };
 
 //----------------------------------------------------------------------------
+// One-shot membership accounts (the info panel's "In this collection")
+//----------------------------------------------------------------------------
+
+let membershipCounter = 0;
+//A resolution of null means the worker could not answer (the run threw, the
+//request timed out, the connection was torn down): the caller takes its
+//local fallback. A resolution carrying a null MEMBERSHIP is an answer.
+export type CollectionMembershipResolution = {membership : CollectionMembership | null, ms : number};
+const pendingMemberships : Map<number, (result : CollectionMembershipResolution | null) => void> = new Map();
+
+export const corpusWorkerCollectionMembership = (description : string, expression : CollectionExpression, cardID : CardID) : Promise<CollectionMembershipResolution | null> | null => {
+	if (!corpusWorkerCanRunCollections()) return null;
+	const state = store.getState() as State;
+	const id = ++membershipCounter;
+	const promise = new Promise<CollectionMembershipResolution | null>(resolve => {
+		//Bounded, like corpusWorkerRunCollection, and for the same reason.
+		const timeout = setTimeout(() => {
+			if (!pendingMemberships.has(id)) return;
+			pendingMemberships.delete(id);
+			console.warn(`[corpus-worker] membership request ${id} timed out; the worker may have stopped`);
+			resolve(null);
+		}, RUN_COLLECTION_TIMEOUT_MS);
+		pendingMemberships.set(id, result => {
+			clearTimeout(timeout);
+			resolve(result);
+		});
+	});
+	post({
+		type: 'collectionMembership',
+		generation,
+		id,
+		description,
+		expression,
+		cardID,
+		uid: lastUid,
+		randomSalt: selectRandomSalt(state),
+		cardSimilarity: selectCardSimilarity(state)
+	});
+	return promise;
+};
+
+//----------------------------------------------------------------------------
 // Shadow comparator ('shadow' mode)
 //
 // Periodically asks the worker to run the active collection and compares its
@@ -740,9 +790,19 @@ let shadowCompareTimeout : ReturnType<typeof setTimeout> | null = null;
 
 //Live worker subscriptions: one per served collection slot. The active
 //collection is subscribed in shadow and on modes; the find dialog's query
-//collection only in 'on' mode (and only while the dialog is open and no card
-//is being edited — link-searching while editing depends on the editing card,
-//which the worker doesn't have).
+//collection only in 'on' mode and only while the dialog is open. Link-
+//searching while editing depends on the editing card, which the worker
+//has: maybeSendEditingCard mirrors it, and a subscription whose
+//description reads it re-runs on 'editing' dirt.
+//
+//THE ONE RULE for which query description the worker serves, read by both
+//the periodic subscription pass and the per-dispatch fast resubscribe.
+//Two copies of the rule disagreed once (the fast path still withheld the
+//slot while editing after the other stopped): every push was unsubscribed
+//and nulled in the dispatch that delivered it, a second later the slot was
+//subscribed again, and the find dialog never held a result while editing.
+const queryDescriptionToServe = (state : State) : CollectionDescription | null =>
+	selectFindDialogOpen(state) ? selectCollectionDescriptionForQuery(state) : null;
 let subscriptionCounter = 0;
 
 //Tracks identity changes of the cardSimilarity map so subscription keys
@@ -955,11 +1015,12 @@ const runShadowCompare = () => {
 	if (!corpusWorkerCanRunCollections()) return;
 	ensureSubscription('active', selectActiveCollectionDescription(state), state);
 	if (mode === 'on') {
-		//Serve the find dialog's query collection from the worker too, but
-		//only while the dialog is open and nothing is being edited (the
-		//editing-card-dependent variant must stay local).
-		const queryDescription = (selectFindDialogOpen(state) && !selectIsEditing(state)) ? selectCollectionDescriptionForQuery(state) : null;
-		ensureSubscription('query', queryDescription, state);
+		//Serve the find dialog's query collection from the worker too, while
+		//the dialog is open — editing included. The editing-card variant
+		//used to stay local, computed on the main thread over the whole
+		//corpus at every typing pause, from before the editing card was
+		//mirrored into the worker (#777).
+		ensureSubscription('query', queryDescriptionToServe(state), state);
 	}
 	//In cutover mode there's nothing to compare against — the pushed result
 	//IS the collection.
@@ -1025,9 +1086,7 @@ const fastResubscribeOnDescriptionChange = () => {
 	//serialize costs a string compare.
 	const state = store.getState() as State;
 	const activeDescription = selectActiveCollectionDescription(state);
-	const queryDescription = readMode() === 'on' && selectFindDialogOpen(state) && !selectIsEditing(state)
-		? selectCollectionDescriptionForQuery(state)
-		: null;
+	const queryDescription = readMode() === 'on' ? queryDescriptionToServe(state) : null;
 	const activeChanged = Boolean(activeDescription && activeDescription.serialize() !== bridgeSubscriptions.active.descriptionSerialized);
 	const queryChanged = (queryDescription?.serialize() || '') !== bridgeSubscriptions.query.descriptionSerialized;
 	if (!activeChanged && !queryChanged) return;
@@ -1382,6 +1441,14 @@ const handleMessageInner = (event : MessageEvent<WorkerToMainMessage>) => {
 				partialMatches: message.partialMatches,
 				ms: message.ms
 			});
+		}
+		break;
+	}
+	case 'collectionMembershipResult': {
+		const resolve = pendingMemberships.get(message.id);
+		if (resolve) {
+			pendingMemberships.delete(message.id);
+			resolve(message.failed ? null : {membership: message.membership, ms: message.ms});
 		}
 		break;
 	}

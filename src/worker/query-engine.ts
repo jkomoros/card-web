@@ -53,6 +53,15 @@ import {
 } from '../collection_description.js';
 
 import {
+	collectionMembershipForCard,
+	CollectionMembership
+} from '../collection-membership.js';
+
+import type {
+	CollectionExpression
+} from '../collection-expression.js';
+
+import {
 	lazyProcessCards
 } from '../card-processing.js';
 
@@ -893,11 +902,15 @@ export class QueryEngine {
 		return result;
 	}
 
-	runCollection(serializedDescription : string, options : RunCollectionOptions = {}) : RunCollectionResult {
-		const description = CollectionDescription.deserialize(serializedDescription);
-		const rawStarsResult = this._runRawStarsCollection(description);
-		if (rawStarsResult) return rawStarsResult;
-		const universe = this._narrowedUniverseForQuery(description);
+	//The constructor arguments a description runs with here: the engine's own
+	//stable processed-cards proxy and sets, the mirrored editing card, and
+	//the per-request viewer inputs. `narrow` lets a query description run
+	//over its recall universe (see _narrowedUniverseForQuery); a question
+	//about ONE card must not be narrowed, because the universe drops the
+	//cards that cannot match the query, and "this card does not match" is
+	//an answer, not an absence.
+	_collectionArguments(description : CollectionDescription, options : RunCollectionOptions, narrow : boolean) : CollectionConstructorArguments {
+		const universe = narrow ? this._narrowedUniverseForQuery(description) : null;
 		let processed : ProcessedCards;
 		let sets : {[name : string] : CardID[]};
 		if (universe) {
@@ -954,6 +967,14 @@ export class QueryEngine {
 			//whole-corpus map would cost more there, not less.
 			fingerprintsProvider: universe ? null : (options.deferWhenSimilarityCold ? this._fingerprintsProviderOrCold : this._fingerprintsProvider)
 		} as CollectionConstructorArguments;
+		return args;
+	}
+
+	runCollection(serializedDescription : string, options : RunCollectionOptions = {}) : RunCollectionResult {
+		const description = CollectionDescription.deserialize(serializedDescription);
+		const rawStarsResult = this._runRawStarsCollection(description);
+		if (rawStarsResult) return rawStarsResult;
+		const args = this._collectionArguments(description, options, true);
 		const collection = description.collection(args);
 		return {
 			ids: collection.finalSortedCards.map(card => card.id),
@@ -964,5 +985,34 @@ export class QueryEngine {
 			preview: collection.preview,
 			partialMatches: collection.partialMatches
 		};
+	}
+
+	//WHY A CARD IS (OR IS NOT) IN A COLLECTION, clause by clause: the account
+	//the info panel's "In this collection" section shows. This is exactly
+	//what selectWhyHereForActiveCard computed on the main thread — same
+	//membership function over the same kind of extras — moved here because
+	//a configurable clause materializes its filter by scanning the corpus,
+	//and the panel asks about once a second while open (#777). The
+	//expression comes from the caller: it is a pure function of the
+	//description, and the module that derives it belongs to the composer.
+	//
+	//Null where there is no honest account: no conditions to judge, a card
+	//this corpus does not hold, or a per-clause account that contradicts
+	//this run's own membership of the card (the two come from one function
+	//over one set of extras, so they cannot differ by construction — but
+	//the construction is checked, not asserted). What is ON SCREEN may be
+	//an older push than this run; the panel checks the reply against that
+	//artifact itself.
+	collectionMembership(serializedDescription : string, expression : CollectionExpression, cardID : CardID, options : RunCollectionOptions = {}) : CollectionMembership | null {
+		const description = CollectionDescription.deserialize(serializedDescription);
+		if (!description.filters.length) return null;
+		const args = this._collectionArguments(description, {...options, deferWhenSimilarityCold: false}, false);
+		const collection = description.collection(args);
+		const extras = collection.filterExtras;
+		if (!extras.cards[cardID]) return null;
+		const membership = collectionMembershipForCard(expression, description.set, cardID, extras);
+		const matched = collection.matchedCard(cardID);
+		if (matched !== null && matched !== membership.passes) return null;
+		return membership;
 	}
 }

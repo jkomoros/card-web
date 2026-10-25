@@ -2813,12 +2813,11 @@ export const selectFindSearchPreparing = createSelector(
 	selectFindDialogOpen,
 	selectActiveQueryText,
 	selectCollectionDescriptionForQuery,
-	selectCollectionConstructorArgumentsWithEditingCard,
 	selectWorkerQueryCollectionResult,
 	selectFindSearchRecall,
-	(open, queryText, description, args, workerResult, recall) : {built : number, total : number} | null => {
+	(open, queryText, description, workerResult, recall) : {built : number, total : number} | null => {
 		if (!open || !queryText) return null;
-		if (!corpusWorkerServesCollections() || args.editingCard) return null;
+		if (!corpusWorkerServesCollections()) return null;
 		//If the worker has already answered THIS query, we are not preparing.
 		if (workerResult && workerResult.description === description.serialize()) return null;
 		//Otherwise we are: either the recall index is still building, or the
@@ -2839,11 +2838,12 @@ export const selectCollectionForQuery = createSelector(
 	selectWorkerQueryCollectionResult,
 	(description, args, workerResult) : Collection => {
 		//Cutover mode: the find dialog's collection is served from worker
-		//pushes when available. The editing-card variant stays local (the
-		//worker doesn't have the editing card), which the bridge enforces by
-		//not subscribing while editing — the description match below then
-		//simply fails and we compute locally.
-		if (corpusWorkerServesCollections() && !args.editingCard) {
+		//pushes when available, while editing too — the bridge mirrors the
+		//editing card into the worker, so the engine's run reads the same
+		//unsaved content the local variant would. A result that has not
+		//arrived is the transitional placeholder; the local computation
+		//below is for the modes in which the worker does not serve.
+		if (corpusWorkerServesCollections()) {
 			const result = workerResult && workerResult.description === description.serialize()
 				? workerResult
 				: {description: description.serialize(), ids: [], labels: [], numCards: 0, numStartCards: 0, isFallback: false, preview: false, partialMatches: {}, transitional: true};

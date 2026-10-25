@@ -425,7 +425,7 @@ describe('why this card is here', () => {
 		it('computes the account with nothing to consult first', async () => {
 			const {readFile} = await import('fs/promises');
 			const source = await readFile(new URL('../../src/components/card-info-panel.ts', import.meta.url), 'utf8');
-			assert.match(source, /const whyHere = selectWhyHereForActiveCard\(freshState\);/,
+			assert.match(source, /this\._requestWhyHere\(freshState, freshCardID\);/,
 				'the why-here computation is unconditional');
 			assert.ok(!/collection-composer-mode/.test(source),
 				'and the module that owned the rollout flag is not imported — it does not exist');
