@@ -119,7 +119,7 @@ describe('one-shot server-read watermark trust (review R2-2)', () => {
 		assert.match(stars, /userStateDelivery\(firstDelivery, snapshot\.metadata\.fromCache, snapshot\.empty, snapshot\.docChanges\(\)\.length\)/);
 		const reading = worker.slice(worker.indexOf('const attachReadingList'), worker.indexOf('const connectPublished ='));
 		assert.match(reading, /\{includeMetadataChanges: true\},/, 'the reading list too');
-		assert.match(reading, /let firstDelivery = true;[\s\S]{0,400}userStateDelivery\(firstDelivery,/, 'the reading list latch is per attach, so a re-attached listener sends its first delivery as the whole set');
+		assert.match(reading, /let firstDelivery = true;[\s\S]{0,1200}userStateDelivery\(firstDelivery,/, 'the reading list latch is per attach, so a re-attached listener sends its first delivery as the whole set');
 		//The compact snapshot's sections and tags are restored only while the
 		//live listener has not delivered, on BOTH prime paths.
 		assert.strictEqual((worker.match(/!supplementalDelivered\.sections && compactSnapshot\.sections/g) || []).length, 2, 'both restores guard sections on delivery');

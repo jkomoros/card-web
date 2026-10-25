@@ -77,7 +77,8 @@ import {
 import {
 	listenerDocumentTrusted,
 	serverConfirmedIDs,
-	userStateDelivery
+	userStateDelivery,
+	USER_STATE_CACHE_FALLBACK_MS
 } from './listener-trust.js';
 
 import {
@@ -2094,12 +2095,22 @@ const connectUserState = (uid : string) => {
 		//queued, silently reversing the last thing they did. Send the full set
 		//and say so.
 		let firstDelivery = true;
+		//A dropped empty cache delivery starts the clock: with nothing from
+		//the server by USER_STATE_CACHE_FALLBACK_MS, the empty set IS the
+		//answer (see the constant). Cleared by any delivery and on detach.
+		let cacheFallback : ReturnType<typeof setTimeout> | null = null;
+		const clearCacheFallback = () => {
+			if (cacheFallback) clearTimeout(cacheFallback);
+			cacheFallback = null;
+		};
+		userStateUnsubscribes.push(clearCacheFallback);
 		userStateUnsubscribes.push(onSnapshot(
 			query(collection(database, collectionName), where('owner', '==', uid)),
 			//Metadata changes included: see userStateDelivery.
 			{includeMetadataChanges: true},
 			snapshot => {
 				if (myConnectionGeneration !== connectionGeneration) return;
+				clearCacheFallback();
 				//An EMPTY first delivery from the cache is not an answer: on
 				//the memory cache (#776) a boot whose SDK is offline (or
 				//still unknown after its 10 s timeout) gets the empty cache
@@ -2109,7 +2120,22 @@ const connectUserState = (uid : string) => {
 				//set really is empty, which is why metadata changes are
 				//included above — and is sent as the whole set then.
 				const decision = userStateDelivery(firstDelivery, snapshot.metadata.fromCache, snapshot.empty, snapshot.docChanges().length);
-				if (decision === 'drop' || decision === 'skip') return;
+				if (decision === 'drop') {
+					//The latch is left alone on purpose: the server's eventual
+					//answer must still go out as the WHOLE set, which the page
+					//applies with its pending-intent overlay — as a delta it
+					//would re-add a star whose removal is still queued (the
+					//second review modelled exactly that). A repeat empty
+					//cache delivery merely re-arms this.
+					cacheFallback = setTimeout(() => {
+						cacheFallback = null;
+						if (myConnectionGeneration !== connectionGeneration) return;
+						status(`${collectionName}: no server answer in ${USER_STATE_CACHE_FALLBACK_MS}ms; taking the empty cache as the set`);
+						send({type, generation, added: [], removed: [], authoritative: true});
+					}, USER_STATE_CACHE_FALLBACK_MS);
+					return;
+				}
+				if (decision === 'skip') return;
 				if (firstDelivery) {
 					firstDelivery = false;
 					const all : CardID[] = [];
@@ -2141,6 +2167,10 @@ const connectUserState = (uid : string) => {
 				//backend blip silently froze stars or reads for the rest of the
 				//session while syncState still reported `live`. Re-attach with
 				//backoff, as the card listeners already do.
+				//The re-attached listener loads the set afresh; this closure's
+				//pending fallback would otherwise fire over it ten seconds
+				//later and wipe it (the second review's blocking find).
+				clearCacheFallback();
 				status(`${collectionName} listener error: ${String(error)}; re-attaching`);
 				scheduleUserStateReattach(() => cardIDDeltaListener(collectionName, type));
 			}));
@@ -2154,16 +2184,33 @@ const connectUserState = (uid : string) => {
 		//Per attach, as in cardIDDeltaListener: a re-attached listener's
 		//first delivery is the whole set again.
 		let firstDelivery = true;
+		//Same fallback as cardIDDeltaListener.
+		let cacheFallback : ReturnType<typeof setTimeout> | null = null;
+		const clearCacheFallback = () => {
+			if (cacheFallback) clearTimeout(cacheFallback);
+			cacheFallback = null;
+		};
+		userStateUnsubscribes.push(clearCacheFallback);
 		userStateUnsubscribes.push(onSnapshot(
 			query(collection(database, READING_LISTS_COLLECTION), where('owner', '==', uid)),
 			{includeMetadataChanges: true},
 			snapshot => {
 				if (myConnectionGeneration !== connectionGeneration) return;
+				clearCacheFallback();
 				//See cardIDDeltaListener: an empty cache delivery is not an
 				//empty reading list, and the server's confirmation of an empty
 				//one arrives as a metadata-only event.
 				const decision = userStateDelivery(firstDelivery, snapshot.metadata.fromCache, snapshot.empty, snapshot.docChanges().length);
-				if (decision === 'drop' || decision === 'skip') return;
+				if (decision === 'drop') {
+					cacheFallback = setTimeout(() => {
+						cacheFallback = null;
+						if (myConnectionGeneration !== connectionGeneration) return;
+						status(`${READING_LISTS_COLLECTION}: no server answer in ${USER_STATE_CACHE_FALLBACK_MS}ms; taking the empty cache as the set`);
+						send({type: 'userReadingList', generation, list: []});
+					}, USER_STATE_CACHE_FALLBACK_MS);
+					return;
+				}
+				if (decision === 'skip') return;
 				firstDelivery = false;
 				let list : CardID[] = [];
 				for (const change of snapshot.docChanges()) {
@@ -2173,6 +2220,7 @@ const connectUserState = (uid : string) => {
 				send({type: 'userReadingList', generation, list});
 			},
 			error => {
+				clearCacheFallback();
 				status(`${READING_LISTS_COLLECTION} listener error: ${String(error)}; re-attaching`);
 				scheduleUserStateReattach(attachReadingList);
 			}));
@@ -3832,13 +3880,13 @@ const connectCards = (mayViewUnpublished : boolean, uid : string) => {
 	} else {
 		void connectPublishedFromSnapshot();
 	}
-	//Only when the PAGE says this worker owns per-user state. It is false for an
-	//ANONYMOUS session — an anonymous sign-in yields a real uid, so the earlier
-	//"costs nothing" reasoning was wrong: the three queries attach and deliver
-	//empty, and three empty queries still bill a read each, on exactly the cost
-	//axis the anonymous work was about. It is also false in spike mode, where
-	//the main thread keeps its own listeners and this worker would otherwise
-	//double-subscribe.
+	//Only when the PAGE says this worker owns per-user state (false in spike
+	//mode, where the main thread keeps its own listeners).
+	//Attached for an ANONYMOUS session too (#788): its stars, reads and
+	//reading list live under its uid, and this is the only place that reads
+	//them back. The three queries bill a read each when empty — the price of
+	//a visitor keeping what they starred across reloads. Still gated on the
+	//uid: the pre-auth first connect has none.
 	if (uid && currentOwnsUserState) connectUserState(uid);
 	//Not uid-gated: an anonymous reader needs navigation too.
 	if (currentOwnsSupplementalData) connectSupplementalData();

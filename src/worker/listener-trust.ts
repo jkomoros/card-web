@@ -55,6 +55,20 @@ export const serverConfirmedIDs = (
 //  'skip':          a later event with no document changes (metadata only);
 //  'delta':         a later event with changes.
 export type UserStateDelivery = 'drop' | 'authoritative' | 'skip' | 'delta';
+
+//How long a per-user listener waits, after dropping an empty cache
+//delivery, before taking the cache's answer as the set. A dropped delivery
+//is "no answer YET", not "no answer ever": offline, the server's
+//confirmation never comes, and a boot whose loaded flags never flip sits on
+//the loading card with selection and suggestions blocked — which is what
+//the main thread's local empty set used to prevent for anonymous sessions
+//(#788), and what every signed-in offline boot has done since the memory
+//cache (#776). The SDK's own online-state timeout is 10 s; a boot that has
+//heard nothing from the server by then is offline for every practical
+//purpose, and the empty set is the best answer there is. Documents the
+//server delivers later arrive as deltas, so an online boot behind a slow
+//backend fills in rather than flapping.
+export const USER_STATE_CACHE_FALLBACK_MS = 10000;
 export const userStateDelivery = (firstDelivery : boolean, fromCache : boolean, empty : boolean, changeCount : number) : UserStateDelivery => {
 	if (firstDelivery) return fromCache && empty ? 'drop' : 'authoritative';
 	return changeCount ? 'delta' : 'skip';

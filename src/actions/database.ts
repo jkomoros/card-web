@@ -30,7 +30,6 @@ import {
 
 import {
 	selectUserMayViewApp,
-	selectUserIsAnonymous,
 	selectSlugIndex,
 	selectLoadingCardFetchTypes,
 	selectUserMayViewUnpublished,
@@ -243,17 +242,15 @@ export const connectLiveStars = (uid : Uid) => {
 	//at 608 `reads` documents for one real account — but once, not once per
 	//thread).
 	//
-	//EXCEPT for an anonymous session, where the worker is deliberately told not
-	//to attach — three empty queries still bill three reads. Nobody then flips
-	//`starsLoaded`, and selectUserDataIsFullyLoaded requires it as soon as a user
-	//OBJECT exists, which anonymous sign-in creates. That wedged
-	//selectDataIsFullyLoaded forever: perpetual loading card, card selection and
-	//suggestions blocked. An anonymous account cannot own a star, so the empty
-	//set is knowable without asking the server.
-	if (corpusWorkerOwnsCardIngestion()) {
-		if (selectUserIsAnonymous(store.getState() as State)) store.dispatch(updateStars([], []));
-		return;
-	}
+	//An anonymous session included (#788): it may star, mark read and keep
+	//a reading list, and its documents live under its uid like anyone
+	//else's. The old special case delivered an EMPTY set here on the claim
+	//that an anonymous account cannot own a star, which was false — every
+	//anonymous visitor's stars and reads looked lost on each reload, and a
+	//re-star of a card starred on the server counted it twice. The worker's
+	//authoritative delivery (the empty set included, as a server-confirmed
+	//answer) is what flips `starsLoaded`, exactly as for a signed-in user.
+	if (corpusWorkerOwnsCardIngestion()) return;
 
 	disconnectLiveStars();
 	liveStarsUnsubscribe = onSnapshot(query(collection(db, STARS_COLLECTION), where('owner', '==', uid)), snapshot => {
@@ -280,12 +277,8 @@ export const disconnectLiveReads = () => {
 
 export const connectLiveReads = (uid : Uid) => {
 	if (backgroundDataInert) return;
-	//See connectLiveStars: worker-owned, except an anonymous session, whose empty
-	//set is delivered locally so `readsLoaded` still flips.
-	if (corpusWorkerOwnsCardIngestion()) {
-		if (selectUserIsAnonymous(store.getState() as State)) store.dispatch(updateReads([], []));
-		return;
-	}
+	//See connectLiveStars: worker-owned, anonymous sessions included.
+	if (corpusWorkerOwnsCardIngestion()) return;
 
 	disconnectLiveReads();
 	liveReadsUnsubscribe = onSnapshot(query(collection(db, READS_COLLECTION), where('owner', '==', uid)),  snapshot => {
@@ -312,12 +305,8 @@ export const disconnectLiveReadingList = () => {
 
 export const connectLiveReadingList = (uid : Uid) => {
 	if (backgroundDataInert) return;
-	//See connectLiveStars: worker-owned, except an anonymous session, whose empty
-	//list is delivered locally so `readingListLoaded` still flips.
-	if (corpusWorkerOwnsCardIngestion()) {
-		if (selectUserIsAnonymous(store.getState() as State)) store.dispatch(updateReadingList([]));
-		return;
-	}
+	//See connectLiveStars: worker-owned, anonymous sessions included.
+	if (corpusWorkerOwnsCardIngestion()) return;
 
 	disconnectLiveReadingList();
 	liveReadingListUnsubscribe = onSnapshot(query(collection(db, READING_LISTS_COLLECTION), where('owner', '==', uid)), snapshot => {

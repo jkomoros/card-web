@@ -182,9 +182,10 @@ export type MainToWorkerMessage =
 	//the worker has no localStorage, so the bridge reads it and passes it here.
 	//Absent (undefined) in every real dev/prod connection.
 	//`ownsUserState`: whether THIS worker should run the stars/reads/reading-list
-	//listeners. The page is the authority — it knows the corpus mode and whether
-	//the session is anonymous — so the worker does not have to infer either.
-	//Absent means false, which is the pre-v4 behaviour of not running them.
+	//listeners. The page is the authority — it knows the corpus mode — so the
+	//worker does not have to infer it. Anonymous sessions own theirs too
+	//(#788). Absent means false, which is the pre-v4 behaviour of not running
+	//them.
 	| {type: 'connect', generation: WorkerGeneration, protocolVersion : number, devMode : boolean, persist : boolean, syncMode : 'listen' | 'watermark', mayViewUnpublished : boolean, uid : string, ownerID : string, ownershipEpoch : number, emulatorTarget? : string, purgePersistence? : boolean, ownsUserState? : boolean, ownsSupplementalData? : boolean}
 	//Auth or permissions changed: tear down listeners, clear state, and
 	//reconnect under the new generation.

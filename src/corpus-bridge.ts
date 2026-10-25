@@ -1893,13 +1893,20 @@ const connectWorkerNow = (mayViewUnpublished : boolean, uid : string) => {
 		//Gate the purge on the same expression that decides who opens the
 		//database, so a reader-path boot (memory cache) never races the owner.
 		const persist = corpusWorkerOwnsCardIngestion() && ownershipState !== 'reader';
-		post({type: 'connect', generation, protocolVersion: CORPUS_WORKER_PROTOCOL_VERSION, devMode: DEV_MODE, persist, syncMode: readCorpusSyncMode(), mayViewUnpublished, uid, ownerID: tabID, ownershipEpoch, purgePersistence: persist && Boolean(pendingPersistencePurgeUid()), ownsUserState: corpusWorkerOwnsCardIngestion() && !selectUserIsAnonymous(store.getState() as State), ownsSupplementalData: corpusWorkerOwnsCardIngestion() && selectUserMayViewApp(store.getState() as State), ...(EMULATOR_TARGET ? {emulatorTarget: EMULATOR_TARGET} : {})});
+		//ownsUserState is NOT gated on anonymity (#788): an anonymous session
+		//may star, mark read and keep a reading list (its permissions say
+		//so), and those documents live under its uid like anyone else's. The
+		//old gate was justified by "an anonymous account cannot own a star",
+		//which was false, and cost every anonymous visitor their stars and
+		//reads on each reload. The worker attaches nothing until a uid
+		//exists, so the pre-auth first connect still costs no reads.
+		post({type: 'connect', generation, protocolVersion: CORPUS_WORKER_PROTOCOL_VERSION, devMode: DEV_MODE, persist, syncMode: readCorpusSyncMode(), mayViewUnpublished, uid, ownerID: tabID, ownershipEpoch, purgePersistence: persist && Boolean(pendingPersistencePurgeUid()), ownsUserState: corpusWorkerOwnsCardIngestion(), ownsSupplementalData: corpusWorkerOwnsCardIngestion() && selectUserMayViewApp(store.getState() as State), ...(EMULATOR_TARGET ? {emulatorTarget: EMULATOR_TARGET} : {})});
 		clearWorkerStartupTimeout();
 		workerStartupTimeout = setTimeout(() => recoverFromWorkerFailure('startup timed out'), 15000);
 	} else {
 		//Recomputed, never inherited: see the note on `reconnect` in the protocol.
 		post({type: 'reconnect', generation, mayViewUnpublished, uid,
-			ownsUserState: corpusWorkerOwnsCardIngestion() && !selectUserIsAnonymous(store.getState() as State),
+			ownsUserState: corpusWorkerOwnsCardIngestion(),
 			ownsSupplementalData: corpusWorkerOwnsCardIngestion() && selectUserMayViewApp(store.getState() as State)});
 	}
 	hydrateWorkerCollectionState();
