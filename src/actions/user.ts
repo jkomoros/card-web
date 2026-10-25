@@ -639,7 +639,16 @@ const flagHasPreviousSignIn = () => {
 };
 
 const hasPreviousSignIn = () => {
-	return localStorage.getItem(LOCAL_STORAGE_HAS_PREVIOUS_SIGN_IN_KEY) ? true : false;
+	//Guarded like the two setters: where storage is blocked (Safari private
+	//mode, some embedded browsers) a throw here landed inside signOutSuccess,
+	//so no anonymous user was ever minted and `pending` never came down.
+	//Unknown reads as "no previous sign-in", which mints the anonymous user
+	//a returning visitor would have had anyway.
+	try {
+		return localStorage.getItem(LOCAL_STORAGE_HAS_PREVIOUS_SIGN_IN_KEY) ? true : false;
+	} catch {
+		return false;
+	}
 };
 
 const ensureRichestDataForUser = (firebaseUser : User) : ThunkSomeAction => async (dispatch) => {

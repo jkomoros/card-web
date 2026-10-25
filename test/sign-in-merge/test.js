@@ -97,6 +97,11 @@ describe('both sign-in legs take the existing-account path through the dialog', 
 		assert.match(fresh, /rememberAbandonedUid\(abandonedUid\);\s*await signInWithRedirect\(auth, provider\);/);
 	});
 
+	it('the previous-sign-in marker is read behind a try, like it is written', () => {
+		const read = slice('const hasPreviousSignIn = ', 'const ensureRichestDataForUser');
+		assert.match(read, /try \{\s*return localStorage\.getItem\(LOCAL_STORAGE_HAS_PREVIOUS_SIGN_IN_KEY\) \? true : false;\s*\} catch \{\s*return false;/);
+	});
+
 	it('every early return clears pending, and Google is asked to show the account picker', () => {
 		const popup = slice('export const signIn = ', 'export const completeRedirectSignIn');
 		assert.match(popup, /if \(!user\) \{[\s\S]*?dispatch\(\{type: SIGNIN_CANCELLED\}\);\s*return;/);
