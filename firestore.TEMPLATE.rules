@@ -351,11 +351,20 @@ service cloud.firestore {
       //A new card starts at revision 1 (see cardContentUpdate).
       allow create: if userMayCreateCard() && createIsAuthor() && bumpsUpdated()
         && request.resource.data.get('revision', -1) == 1;
-      //Keep the common admin path first. The emulator and production rules
-      //engine have a finite expression budget per atomic write; evaluating
-      //every minor/inbound branch before an already-authorized admin made even
-      //a one-card denormalized edit exceed that budget.
-      allow update: if userIsAdmin() ? (cardContentUpdate() || cardEditMinor(card) || cardEditInboundReferences()) : (cardEditMinor(card) || cardEditInboundReferences() || (userMayEditCard(card) && cardContentUpdate()));
+      //Keep the common path first on BOTH sides. The emulator and production
+      //rules engine have a finite expression budget per atomic write (1,000
+      //expressions); evaluating every minor/inbound branch before an
+      //already-authorized admin made even a one-card denormalized edit exceed
+      //that budget, so the admin branch leads with the content update. The
+      //non-admin branch did not: for an editor, cardEditInboundReferences
+      //passed its first conjunct and then evaluated userMayViewUnpublished —
+      //a second getPermissions — before the content update was reached, and
+      //a plain content edit of an UNPUBLISHED card by an editor who is not an
+      //admin was denied for budget (#778 found it by replaying the client's
+      //own batches under these rules; prod has one editor and they are an
+      //admin, so no one had hit it). The content update now leads there too;
+      //the minor and inbound branches, which non-editors need, follow.
+      allow update: if userIsAdmin() ? (cardContentUpdate() || cardEditMinor(card) || cardEditInboundReferences()) : ((userMayEditCard(card) && cardContentUpdate()) || cardEditMinor(card) || cardEditInboundReferences());
       //This logic mirrors the logic in selectors/getReasonUserMayNotDeleteCard
       allow delete: if userMayEditCard(card)
         && resource.data.get('section', '') == ''

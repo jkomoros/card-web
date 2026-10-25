@@ -107,6 +107,25 @@ const EFFECTIVE_BATCH_LIMIT = SENTINEL_DEFINITION_VALID ? FIRESTORE_BATCH_LIMIT 
 //a partial failure if one batch fails and others don't.
 type CardFieldGuard = {ref: DocumentReference, base: {[field: string]: unknown}, desired: {[field: string]: unknown}, expected?: {[field: string]: unknown}, groupIDs?: Set<string>};
 
+//A TEST-ONLY WITNESS TO EVERY WRITE THIS CLASS SENDS (#778). The executor
+//suites drive the real client write path against an emulator under
+//permissive rules, on purpose: they test the write PLAN. Authorization is
+//tested separately, against hand-built documents. Nothing proved that the
+//documents the client actually writes are documents the real Rules admit —
+//until the security suite replays what this sink records. The sink sees each
+//planned operation with the batch it lands in, is awaited before that batch
+//commits (so it can read the pre-images the Rules will `get`), and is told
+//the outcome. Null in production; the one-line checks cost nothing.
+export type MultiBatchCaptureSink = {
+	onOperation : (batch : object, op : {type : 'set' | 'update' | 'delete', path : string, data? : object, options? : object}) => void,
+	beforeCommit : (batch : object, groupIDs? : readonly string[]) => Promise<void>,
+	afterCommit : (batch : object, ok : boolean, reason? : unknown) => void,
+};
+let captureSink : MultiBatchCaptureSink | null = null;
+export const installMultiBatchCaptureForTesting = (sink : MultiBatchCaptureSink | null) : void => {
+	captureSink = sink;
+};
+
 export class MultiBatch extends MultiBatchBase<WriteBatch, DocumentReference> {
 	private _protectedContent: Map<string, CardFieldGuard>;
 
@@ -130,46 +149,32 @@ export class MultiBatch extends MultiBatchBase<WriteBatch, DocumentReference> {
 				batch.set(ref, data, (options as SetOptions) || {});
 				replay.get(batch)!.push(transaction => transaction.set(ref, data, (options as SetOptions) || {}));
 				recordContent(ref, data);
+				if (captureSink) captureSink.onOperation(batch, {type: 'set', path: ref.path, data, options});
 			},
 			batchUpdate: (batch, ref, data) => {
 				batch.update(ref, data);
 				replay.get(batch)!.push(transaction => transaction.update(ref, data));
 				recordContent(ref, data);
+				if (captureSink) captureSink.onOperation(batch, {type: 'update', path: ref.path, data});
 			},
 			batchDelete: (batch, ref) => {
 				batch.delete(ref);
 				replay.get(batch)!.push(transaction => transaction.delete(ref));
+				if (captureSink) captureSink.onOperation(batch, {type: 'delete', path: ref.path});
 			},
 			commitBatch: async (batch, groupIDs) => {
-				const guards = [...protectedContent.values()].filter(guard =>
-					(Object.keys(guard.desired).length || Object.keys(guard.expected || {}).length) &&
-					(!guard.groupIDs || !groupIDs || groupIDs.some(id => guard.groupIDs!.has(id))));
-				if (!guards.length) return batch.commit();
-				//Keep the already-planned writes fixed across SDK retries. A
-				//transaction retry must re-check content, never silently rebase an
-				//older draft onto the newer server value. Read every source before
-				//any write, including in split fanout batches; an already-committed
-				//prefix is safe only while its source still equals our desired value.
-				await trackMutation(() => runTransaction(db, async transaction => {
-					const finishAttempt = beginMutation();
+				if (captureSink) {
+					await captureSink.beforeCommit(batch, groupIDs);
 					try {
-						const snapshots = await Promise.all(guards.map(guard => transaction.get(guard.ref)));
-						for (let index = 0; index < guards.length; index++) {
-							const guard = guards[index];
-							const snapshot = snapshots[index];
-							if (!snapshot.exists()) throw new Error('A card was deleted while this save was being prepared. Your edit was not saved.');
-							const server = snapshot.data();
-							const changedExpectedFields = Object.keys(guard.expected || {}).filter(field => !deepEqual(server[field], guard.expected![field]));
-							if (changedExpectedFields.length) throw new Error('This card changed while its links were being repaired. The repair will retry using the latest card.');
-							const base = Object.fromEntries(Object.keys(guard.desired).map(field => [field, guard.base[field]]));
-							const conflicts = overwrittenCardFields(guard.desired, {[guard.ref.id]: base}, {[guard.ref.id]: server}, [guard.ref.id], {images: DEFAULT_IMAGE as unknown as {[key: string]: unknown}});
-							if (conflicts.length) throw new Error(overwriteConflictMessage(conflicts));
-						}
-						for (const operation of replay.get(batch)!) operation(transaction);
-					} finally {
-						finishAttempt();
+						await commitPlannedBatch(batch, groupIDs);
+					} catch (err) {
+						captureSink.afterCommit(batch, false, err);
+						throw err;
 					}
-				}));
+					captureSink.afterCommit(batch, true);
+					return;
+				}
+				return commitPlannedBatch(batch, groupIDs);
 			},
 			preprocessData: installServerTimestamps,
 			writeCountForUpdate: (update: object) => {
@@ -186,6 +191,39 @@ export class MultiBatch extends MultiBatchBase<WriteBatch, DocumentReference> {
 			},
 		}, EFFECTIVE_BATCH_LIMIT, batchID);
 		this._protectedContent = protectedContent;
+		//Hoisted out of the config literal so the capture wrapper above can
+		//call it; the body is unchanged.
+		async function commitPlannedBatch(batch : WriteBatch, groupIDs? : readonly string[]) : Promise<void> {
+			const guards = [...protectedContent.values()].filter(guard =>
+				(Object.keys(guard.desired).length || Object.keys(guard.expected || {}).length) &&
+					(!guard.groupIDs || !groupIDs || groupIDs.some(id => guard.groupIDs!.has(id))));
+			if (!guards.length) return batch.commit();
+			//Keep the already-planned writes fixed across SDK retries. A
+			//transaction retry must re-check content, never silently rebase an
+			//older draft onto the newer server value. Read every source before
+			//any write, including in split fanout batches; an already-committed
+			//prefix is safe only while its source still equals our desired value.
+			await trackMutation(() => runTransaction(db, async transaction => {
+				const finishAttempt = beginMutation();
+				try {
+					const snapshots = await Promise.all(guards.map(guard => transaction.get(guard.ref)));
+					for (let index = 0; index < guards.length; index++) {
+						const guard = guards[index];
+						const snapshot = snapshots[index];
+						if (!snapshot.exists()) throw new Error('A card was deleted while this save was being prepared. Your edit was not saved.');
+						const server = snapshot.data();
+						const changedExpectedFields = Object.keys(guard.expected || {}).filter(field => !deepEqual(server[field], guard.expected![field]));
+						if (changedExpectedFields.length) throw new Error('This card changed while its links were being repaired. The repair will retry using the latest card.');
+						const base = Object.fromEntries(Object.keys(guard.desired).map(field => [field, guard.base[field]]));
+						const conflicts = overwrittenCardFields(guard.desired, {[guard.ref.id]: base}, {[guard.ref.id]: server}, [guard.ref.id], {images: DEFAULT_IMAGE as unknown as {[key: string]: unknown}});
+						if (conflicts.length) throw new Error(overwriteConflictMessage(conflicts));
+					}
+					for (const operation of replay.get(batch)!) operation(transaction);
+				} finally {
+					finishAttempt();
+				}
+			}));
+		}
 	}
 
 	//Opt in with the authoritative planning snapshot, before adding writes.

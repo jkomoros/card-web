@@ -738,6 +738,34 @@ describe('Compendium Rules', () => {
 			assert.strictEqual(await storedRevision(cardId), 1);
 		});
 
+		//AN EDITOR'S CONTENT EDIT OF AN UNPUBLISHED CARD (#778). The fixture
+		//card above is published; on an unpublished one the non-admin branch
+		//used to spend the rules engine's 1,000-expression budget in the
+		//inbound-reference check (whose unpublished path re-evaluates the
+		//caller's permissions) before reaching the content update, and the
+		//edit was denied — found by replaying the executors' own batches
+		//(below), where every card is unpublished. Prod has one editor, an
+		//admin, so no one had hit it. Both a small card and the app's full
+		//field set, so the cause is pinned as publication, not size.
+		it('admits a non-admin editor\'s content update of an unpublished card', async () => {
+			await testEnv.withSecurityRulesDisabled(context => context.firestore().collection(CARDS_COLLECTION).doc('rev-small').set({body: 'n', author: jerryUid, published: false, updated: stamp(), revision: 1}));
+			await assertSucceeds(authedApp(jerryAuth).collection(CARDS_COLLECTION).doc('rev-small').update({body: 'e', updated: stamp(), revision: inc()}));
+			const full = {
+				id: 'rev-full', name: 'rev-full', title: 'Full', body: '<p>full</p>', section: '', card_type: 'content',
+				author: jerryUid, collaborators: [], permissions: {editCard: []}, published: false, tags: [], slugs: [],
+				references: {}, references_info: {}, references_inbound: {}, references_info_inbound: {},
+				star_count: 0, star_count_manual: 0, thread_count: 0, thread_resolved_count: 0,
+				tweet_count: 0, tweet_favorite_count: 0, tweet_retweet_count: 0, last_tweeted: new firebase.firestore.Timestamp(0, 0),
+				auto_todo_overrides: {}, flags: {}, font_size_boost: {}, images: [], notes: '', todo: '', sort_order: 1,
+				nlp_tokens: {}, nlp_search_tokens: {}, nlp_source_fingerprint: '', nlp_version: 1,
+				created: stamp(), updated: stamp(), updated_substantive: stamp(), updated_message: stamp(), revision: 1,
+			};
+			await testEnv.withSecurityRulesDisabled(context => context.firestore().collection(CARDS_COLLECTION).doc('rev-full').set(full));
+			const card = authedApp(jerryAuth).collection(CARDS_COLLECTION).doc('rev-full');
+			await assertSucceeds(card.update({body: '<p>edited</p>', nlp_tokens: {}, nlp_search_tokens: {}, nlp_source_fingerprint: 'x', nlp_version: 1, updated: stamp(), updated_substantive: stamp(), revision: inc()}));
+			assert.strictEqual(await storedRevision('rev-full'), 2);
+		});
+
 		it('requires revision 1 on create, by literal or increment, and refuses 0 or absent', async () => {
 			const db = authedApp(jerryAuth);
 			await assertSucceeds(db.collection(CARDS_COLLECTION).doc('rev-create-1').set({body: 'n', author: jerryUid, updated: stamp(), revision: 1}));
@@ -1822,4 +1850,134 @@ describe('Compendium Rules', () => {
 		const chat = db.collection(CHATS_COLLECTION).doc(messageId);
 		await assertFails(chat.update({ published: true }));
 	});
+});
+
+//THE WRITES THE CLIENT ACTUALLY SENDS, UNDER THE REAL RULES (#778). Everything
+//above writes hand-built documents. The executor suites drive the real client
+//write path (card creation, comments, the durable multi-edit loop) against an
+//emulator under permissive rules — they test the write PLAN — and while they
+//run, MultiBatch's capture sink records every batch: its operations, the
+//acting uid, and the pre-image of every document it touches. Those records
+//land in test/.generated/executor-batches/ (generated per run, never checked
+//in, so they cannot drift from what the executors do), and are replayed here
+//as the user the app lets do these things — an editor who may comment — so
+//a document shape the Rules would refuse fails a test rather than a rehearsal.
+//
+//Batches the product committed inside a transaction (the content guard) are
+//replayed as plain batches: the Rules judge the writes the same way, and the
+//guard's reads are not what is under test here.
+describe('the executors\' own write shapes pass the real Rules (#778)', () => {
+	const captureDir = new URL('../.generated/executor-batches/', import.meta.url);
+	//The suites whose MultiBatch writes are replayed, by name: every suite
+	//that bootstraps the app installs the sink, so the directory is not the
+	//list. Comment threads and replies go through their own transactions,
+	//and the star, read and reading-list executors have no suite here; the
+	//replay witnesses MultiBatch writes from these three.
+	const CAPTURED_SUITES = ['card-create-executor', 'comment-executors', 'durable-multi-edit-loop'];
+	const captureFiles = CAPTURED_SUITES.map(name => name + '.jsonl');
+	const editorAuth = (uid) => ({...googleBaseAuth, uid, email: uid + '@gmail.com'});
+	//The one permission class replayed: an editor who may comment. A card
+	//author with only createCard reads differently in places (the Rules
+	//`get` the card for an updates-subdocument write), which this does not
+	//cover. No `admin`: the admin branch of the Rules is the cheap one, and
+	//a replay as admin would witness nothing (the review ran that mutant).
+	const EDITOR_PERMISSIONS = {edit: true, comment: true, viewUnpublished: true};
+
+	const decode = (value) => {
+		if (value === null || value === undefined) return value;
+		if (Array.isArray(value)) return value.map(decode);
+		if (typeof value !== 'object') return value;
+		if (value.__timestamp) return new firebase.firestore.Timestamp(value.__timestamp.seconds, value.__timestamp.nanoseconds);
+		if (value.__fieldValue) {
+			const FieldValue = firebase.firestore.FieldValue;
+			switch (value.__fieldValue) {
+			case 'serverTimestamp': return FieldValue.serverTimestamp();
+			case 'delete': return FieldValue.delete();
+			case 'increment': return FieldValue.increment(value.operand);
+			case 'arrayUnion': return FieldValue.arrayUnion(...value.elements.map(decode));
+			case 'arrayRemove': return FieldValue.arrayRemove(...value.elements.map(decode));
+			default: throw new Error(`unknown captured FieldValue ${value.__fieldValue}`);
+			}
+		}
+		return Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, decode(entry)]));
+	};
+
+	const seedRecord = (record) => testEnv.withSecurityRulesDisabled(async (context) => {
+		const db = context.firestore();
+		await db.collection(PERMISSIONS_COLLECTION).doc(record.uid).set(EDITOR_PERMISSIONS);
+		for (const [path, image] of Object.entries(record.preImages)) {
+			if (image === null) continue;
+			await db.doc(path).set(decode(image));
+		}
+	});
+
+	const replay = async (record, auth = editorAuth(record.uid)) => {
+		const db = authedApp(auth);
+		const batch = db.batch();
+		for (const op of record.operations) {
+			const ref = db.doc(op.path);
+			if (op.type === 'set') batch.set(ref, decode(op.data), op.options || {});
+			else if (op.type === 'update') batch.update(ref, decode(op.data));
+			else batch.delete(ref);
+		}
+		return batch.commit();
+	};
+
+	const summarize = (record) => record.operations.map(op => `${op.type} ${op.path}`).join(', ');
+
+	it('has the captures to replay (npm test runs the executor suites first)', () => {
+		assert.ok(!('admin' in EDITOR_PERMISSIONS), 'the replay must not run as admin');
+		const missing = captureFiles.filter(file => !fs.existsSync(new URL(file, captureDir)));
+		assert.deepStrictEqual(missing, [], `no capture for ${missing.join(', ')} — run npm run test:card-create-executor, test:comment-executors and test:durable-multi-edit-loop first (npm test does)`);
+	});
+
+	it('is not vacuous: with no permissions at all, the same batches are refused', async function () {
+		this.timeout(600000);
+		const lines = fs.readFileSync(new URL('card-create-executor.jsonl', captureDir), 'utf8').split('\n').filter(Boolean);
+		const records = lines.map(line => JSON.parse(line)).filter(record => record.committed).slice(0, 10);
+		let refused = 0;
+		for (const record of records) {
+			await testEnv.clearFirestore();
+			await testEnv.withSecurityRulesDisabled(async (context) => {
+				const db = context.firestore();
+				for (const [path, image] of Object.entries(record.preImages)) {
+					if (image !== null) await db.doc(path).set(decode(image));
+				}
+			});
+			try {
+				await replay(record, {...googleBaseAuth, uid: record.uid, email: 'nobody@gmail.com'});
+			} catch {
+				refused++;
+			}
+		}
+		assert.ok(refused > 0, 'a replay that admits every batch for a user with no permissions is not testing the Rules');
+	});
+
+	for (const file of captureFiles) {
+		it(`admits every batch the ${file.replace('.jsonl', '')} suite committed`, async function () {
+			this.timeout(600000);
+			const lines = fs.readFileSync(new URL(file, captureDir), 'utf8').split('\n').filter(Boolean);
+			const records = lines.map(line => JSON.parse(line)).filter(record => record.committed);
+			assert.ok(records.length > 0, `${file} captured no committed batches`);
+			assert.ok(records.some(record => record.operations.some(op => op.type === 'update')), `${file} replays no update at all`);
+			//The shape that found the first gap (an editor's content update,
+			//denied for exceeding the rules engine's expression budget) must be
+			//present, or a capture sink that dropped updates would pass here.
+			if (file.startsWith('card-create') || file.startsWith('durable-multi-edit')) {
+				assert.ok(records.some(record => record.operations.some(op => op.type === 'update' && /^cards\/[^/]+$/.test(op.path) && op.data && op.data.revision)),
+					`${file} captured no content update of a card`);
+			}
+			const refused = [];
+			for (const record of records) {
+				await testEnv.clearFirestore();
+				await seedRecord(record);
+				try {
+					await replay(record);
+				} catch (err) {
+					refused.push(`#${record.serial} (${summarize(record)}): ${err && err.message ? err.message.split('\n')[0] : err}`);
+				}
+			}
+			assert.deepStrictEqual(refused, [], `${refused.length} of ${records.length} batches the client committed under permissive rules were refused by the real Rules:\n${refused.join('\n')}`);
+		});
+	}
 });

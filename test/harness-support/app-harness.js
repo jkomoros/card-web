@@ -61,6 +61,7 @@ export const bootstrapApp = async ({uid = 'harness-user'} = {}) => {
 
 	const {db} = await import('../../lib/src/firebase.js');
 	const firestore = await import('firebase/firestore');
+	await installBatchCapture(db, firestore, uid);
 
 	store.dispatch({type: 'SIGNIN_SUCCESS', user: {
 		uid, isAnonymous: false, photoURL: '', displayName: 'Harness', email: 'harness@example.com'
@@ -68,6 +69,99 @@ export const bootstrapApp = async ({uid = 'harness-user'} = {}) => {
 
 	cached = {dom, store, db, uid, firestore};
 	return cached;
+};
+
+//THE WRITE-SHAPE WITNESS (#778). Every batch the executors under test send
+//through MultiBatch is recorded — its operations, the acting uid, and the
+//pre-images of the documents it touches — into a generated file the security
+//suite replays under the REAL Rules. Written per process (one executor suite
+//each), truncated at bootstrap, never checked in: generated at test time so
+//it cannot drift from what the executors do.
+export const CAPTURE_DIR = new URL('../.generated/executor-batches/', import.meta.url);
+
+const captureFileForProcess = () => {
+	const spec = process.argv.slice(2).find(arg => /test\//.test(arg)) || 'unknown';
+	const name = spec.replace(/^.*test\//, '').replace(/[^a-z0-9-]+/gi, '_');
+	return new URL(name + '.jsonl', CAPTURE_DIR);
+};
+
+//Sentinels and timestamps cannot cross JSON as themselves; they are tagged
+//here and rebuilt by the security suite with its own SDK. The private
+//`_methodName` is how the modular SDK marks a FieldValue — if a future SDK
+//renames it the capture throws rather than recording a bare object the Rules
+//would judge differently.
+const encodeValue = (value, firestore) => {
+	if (value === null || value === undefined) return value;
+	if (value instanceof firestore.Timestamp) return {__timestamp: {seconds: value.seconds, nanoseconds: value.nanoseconds}};
+	if (value instanceof firestore.FieldValue) {
+		const method = value._methodName;
+		if (method === 'serverTimestamp') return {__fieldValue: 'serverTimestamp'};
+		if (method === 'deleteField') return {__fieldValue: 'delete'};
+		if (method === 'increment') return {__fieldValue: 'increment', operand: value._operand};
+		if (method === 'arrayUnion') return {__fieldValue: 'arrayUnion', elements: value._elements.map(element => encodeValue(element, firestore))};
+		if (method === 'arrayRemove') return {__fieldValue: 'arrayRemove', elements: value._elements.map(element => encodeValue(element, firestore))};
+		throw new Error(`batch capture: unknown FieldValue ${String(method)}`);
+	}
+	if (Array.isArray(value)) return value.map(element => encodeValue(element, firestore));
+	if (typeof value === 'object') {
+		if (value.constructor && value.constructor !== Object) throw new Error(`batch capture: cannot encode a ${value.constructor.name}`);
+		return Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, encodeValue(entry, firestore)]));
+	}
+	return value;
+};
+
+const installBatchCapture = async (db, firestore, uid) => {
+	const {installMultiBatchCaptureForTesting} = await import('../../lib/src/multi_batch.js');
+	const fs = await import('fs');
+	fs.mkdirSync(CAPTURE_DIR, {recursive: true});
+	const file = captureFileForProcess();
+	//Removed at bootstrap and created by the first record: every suite that
+	//bootstraps the app installs this sink, and most of them commit nothing
+	//— an empty file per such suite is noise for the replay (the review's
+	//blocking find: thirteen of them).
+	if (fs.existsSync(file)) fs.unlinkSync(file);
+	const pending = new Map();
+	let serial = 0;
+	installMultiBatchCaptureForTesting({
+		onOperation: (batch, op) => {
+			let record = pending.get(batch);
+			if (!record) {
+				record = {serial: ++serial, uid, operations: [], preImages: {}};
+				pending.set(batch, record);
+			}
+			record.operations.push({type: op.type, path: op.path, data: op.data === undefined ? undefined : encodeValue(op.data, firestore), options: op.options});
+		},
+		beforeCommit: async (batch, groupIDs) => {
+			const record = pending.get(batch);
+			if (!record) return;
+			record.groupIDs = groupIDs ? [...groupIDs] : [];
+			//The pre-image of every touched document, as the Rules will `get`
+			//it, read under the harness's permissive rules before the commit —
+			//and of the parent document of a subcollection write (a card's
+			//updates), which the Rules read to judge the write.
+			const paths = new Set();
+			for (const op of record.operations) {
+				paths.add(op.path);
+				const segments = op.path.split('/');
+				if (segments.length >= 4) paths.add(segments.slice(0, 2).join('/'));
+			}
+			for (const path of paths) {
+				const snapshot = await firestore.getDoc(firestore.doc(db, path));
+				record.preImages[path] = snapshot.exists() ? encodeValue(snapshot.data(), firestore) : null;
+			}
+		},
+		afterCommit: (batch, ok, reason) => {
+			const record = pending.get(batch);
+			if (!record) return;
+			pending.delete(batch);
+			record.committed = ok;
+			//A refused commit is skipped by the replay (in the product the
+			//guard throws before the Rules see the batch); the reason is kept
+			//so a skipped record can be audited.
+			if (!ok) record.reason = reason && reason.message ? reason.message.split('\n')[0] : String(reason);
+			fs.appendFileSync(file, JSON.stringify(record) + '\n');
+		},
+	});
 };
 
 //Every aux-queue key, so one suite's leftovers cannot alter another's replay
